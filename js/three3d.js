@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=a7a9a27';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=a7a9a27';
-import { Hero3D } from './hero3d.js?v=a7a9a27';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=a7a9a27';
-import { ENEMY } from './enemies.js?v=a7a9a27';
-import * as art from './art.js?v=a7a9a27';
-import { drawRigHero, rigReady } from './rig.js?v=a7a9a27';
-import { recolor } from './pixels.js?v=a7a9a27';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=a7a9a27';
-import { EXITS } from './rooms.js?v=a7a9a27';
-import { sfx } from './audio.js?v=a7a9a27';
+import * as THREE from '../vendor/three.module.min.js?v=5c8dde1';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=5c8dde1';
+import { Hero3D } from './hero3d.js?v=5c8dde1';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=5c8dde1';
+import { ENEMY } from './enemies.js?v=5c8dde1';
+import * as art from './art.js?v=5c8dde1';
+import { drawRigHero, rigReady } from './rig.js?v=5c8dde1';
+import { recolor } from './pixels.js?v=5c8dde1';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=5c8dde1';
+import { EXITS } from './rooms.js?v=5c8dde1';
+import { sfx } from './audio.js?v=5c8dde1';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -814,12 +814,12 @@ export class World3D {
       if (!dying) {
         h.root.visible = !(g.p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running');
         h.root.position.set(lerp(-0.75, hx, intro), g.base + g.y, 0);
-        h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
+        h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), h.cut ? 0 : (g.lane - g.hx) * 0.25);
         const rs = lerp(1, RUN_SCALE, intro);
         h.root.scale.set(rs * (this.look?.sx || 1), rs * (this.look?.sy || 1), rs * (this.look?.sx || 1));
         if (g.status === 'won') { h.root.position.z = -ease(g.enter) * 3; h.root.visible = g.enter < 0.85; }
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
-        this.poseH(h, { mode, t, run: g.p.run, vy: g.vy, kick: g.p.kickT });
+        this.poseH(h, { mode, t, run: g.p.run, vy: g.vy, kick: g.p.kickT, land: (g.p.landT || 0) / 0.2, steer: g.lane - g.hx });
         // камера выше и дальше: враги видны поверх головы Флита
         camPos = [hx * 0.8, 2.35 + g.base * 0.95, 4.4]; camLook = [hx * 0.7, 1.0 + g.base, -12];   // камера низко за спиной: видно, что над полом, а что под потолком   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
@@ -1072,6 +1072,10 @@ export class World3D {
       case 'warmup': pose = 'idle'; ex.blend = { pose: 'kick', k: 0.5 - 0.5 * Math.cos(s.t * 2.4) }; ex.tau = 0.15; break;
       case 'lean': case 'frozen': pose = 'idle'; ex.tau = 0.2; break;
     }
+    // приземление — присед; смена дорожки — корпус наклоняется и поворачивается в сторону шага
+    if (s.land) ex.land = s.land;
+    if (s.steer) { ex.roll = -s.steer * 0.35; ex.turn = -s.steer * 0.45; }
+    if (pose === 'jump') ex.lean = (s.vy || 0) > 0 ? 0.08 : -0.12;
     h.cut.pose(pose, tt, ex);
     // дыхание в стойке
     h.cut.root.position.y = pose === 'idle' ? Math.sin(s.t * 2.2) * 0.008 : 0;

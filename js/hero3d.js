@@ -6,8 +6,8 @@
 // Движение — по тем же 10 рисункам бега, что и во 2D: из rig.js берутся углы и длины костей
 // (rigPose), и каждая кость 3D-модели поворачивается так же, как на рисунке.
 
-import * as THREE from '../vendor/three.module.min.js?v=a7a9a27';
-import { rigPose, RIG } from './rig.js?v=a7a9a27';
+import * as THREE from '../vendor/three.module.min.js?v=5c8dde1';
+import { rigPose, RIG, RUN_CYCLE } from './rig.js?v=5c8dde1';
 
 const M = RIG.S * 0.0115;                  // пиксель рисунка 1280×1280 → метры (рост ≈ 1.9 м)
 const INK = 0x0d0a09;
@@ -111,6 +111,7 @@ const upRot = (a) => -Math.PI / 2 - a;
 // точка рисунка → координаты модели (бок, вверх, вперёд = −z)
 const P3 = (x, y, lat = 0) => new THREE.Vector3(lat, (RIG.GROUND - y) * M, -(x - RIG.CX) * M);
 const end = (x, y, a, l) => [x + Math.cos(a) * l, y + Math.sin(a) * l];
+const lerpN = (a, b, k) => a + (b - a) * k;
 
 export class Hero3D {
   constructor(look = {}, weapon = 'pistol') {
@@ -148,7 +149,7 @@ export class Hero3D {
     const face = mesh(roundedBox(0.2, 0.34, 0.235, 0.06), skin); face.position.set(0, 0.24, -0.015); head.add(face);
     const jaw = mesh(roundedBox(0.19, 0.1, 0.2, 0.04), skin); jaw.position.set(0, 0.11, -0.04); head.add(jaw);
     const hairTop = mesh(roundedBox(0.215, 0.07, 0.245, 0.035), hairM); hairTop.position.set(0, 0.395, 0.0); head.add(hairTop);
-    const quiff = mesh(roundedBox(0.19, 0.08, 0.17, 0.04), hairM); quiff.position.set(0, 0.425, -0.11); quiff.rotation.x = 0.35; head.add(quiff);
+    const quiff = mesh(roundedBox(0.19, 0.08, 0.17, 0.04), hairM); this.quiff = quiff; quiff.position.set(0, 0.425, -0.11); quiff.rotation.x = 0.35; head.add(quiff);
     const tip = mesh(new THREE.ConeGeometry(0.06, 0.16, 10), hairM); tip.position.set(0, 0.45, -0.2); tip.rotation.x = -1.4; tip.scale.set(1.5, 1, 0.6); head.add(tip);
     const back = mesh(roundedBox(0.212, 0.1, 0.045, 0.02), hairM); back.position.set(0, 0.37, 0.105); head.add(back);
     for (const s of [-1, 1]) {
@@ -239,6 +240,36 @@ export class Hero3D {
     }
     // присед при приземлении / вытягивание в прыжке
     this.body.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5);
+    this.alive(pose, t, extra, P3(W[0], W[1]));
+  }
+
+  // Движения, которых нет на рисунках в профиль, но которые видно со спины:
+  // плечи и бёдра поворачиваются навстречу друг другу на каждом шаге, тело покачивается
+  // и подпрыгивает, руки и колени чуть разведены, голова гасит тряску, кок пружинит.
+  alive(pose, t, extra, waist) {
+    const k = this.dynK = lerpN(this.dynK ?? 0, pose === 'run' ? 1 : pose === 'jump' ? 0.35 : 0, 0.2);
+    const ph = (t / RUN_CYCLE) * Math.PI * 2;          // полный цикл — два шага
+    const twist = Math.sin(ph) * 0.32 * k;             // плечи вперёд вместе с рукой
+    const upper = [this.torso, this.head, ...this.arms.flatMap(a => [a.up, a.fo, a.hand]), this.gun];
+    const lower = [this.pelvis, ...this.legs.flatMap(l => [l.thigh, l.shin, l.foot])];
+    const turn = (list, a) => {
+      if (!a) return;
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a);
+      for (const g of list) { g.position.sub(waist).applyQuaternion(q).add(waist); g.quaternion.premultiply(q); }
+    };
+    turn(upper, twist);
+    turn(lower, -twist * 0.55);
+    // руки и колени немного наружу, чтобы со спины было видно их работу
+    for (const a of this.arms) for (const g of [a.up, a.fo, a.hand]) g.rotateZ((a.lat > 0 ? -1 : 1) * 0.16 * Math.max(k, 0.4));
+    for (const l of this.legs) l.thigh.rotateZ((l.lat > 0 ? -1 : 1) * 0.05 * k);
+    // покачивание и подпрыгивание: два раза за цикл, в момент толчка
+    const step = Math.abs(Math.sin(ph));
+    this.body.position.set(Math.sin(ph) * 0.035 * k, step * 0.05 * k, 0);
+    this.body.rotation.set(-0.12 * k + (extra.lean || 0),   // корпус чуть вперёд
+      (extra.turn || 0), Math.sin(ph) * 0.07 * k + (extra.roll || 0));
+    // голова держит горизонт, кок пружинит
+    this.head.rotateZ(-Math.sin(ph) * 0.06 * k);
+    if (this.quiff) this.quiff.rotation.x = 0.35 + Math.sin(ph * 2) * 0.12 * k;
   }
 
   bone(g, at, a, l, lat) {

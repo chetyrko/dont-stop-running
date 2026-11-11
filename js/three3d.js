@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=d80a38b';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=d80a38b';
-import { Hero3D } from './hero3d.js?v=d80a38b';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=d80a38b';
-import { ENEMY } from './enemies.js?v=d80a38b';
-import * as art from './art.js?v=d80a38b';
-import { drawRigHero, rigReady } from './rig.js?v=d80a38b';
-import { recolor } from './pixels.js?v=d80a38b';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=d80a38b';
-import { EXITS } from './rooms.js?v=d80a38b';
-import { sfx } from './audio.js?v=d80a38b';
+import * as THREE from '../vendor/three.module.min.js?v=67cd7cc';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=67cd7cc';
+import { Hero3D } from './hero3d.js?v=67cd7cc';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=67cd7cc';
+import { ENEMY } from './enemies.js?v=67cd7cc';
+import * as art from './art.js?v=67cd7cc';
+import { drawRigHero, rigReady } from './rig.js?v=67cd7cc';
+import { recolor } from './pixels.js?v=67cd7cc';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=67cd7cc';
+import { EXITS } from './rooms.js?v=67cd7cc';
+import { sfx } from './audio.js?v=67cd7cc';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -1169,8 +1169,8 @@ export class Run3D extends Game3D {
     ctx.save();
     ctx.lineJoin = 'round';
     // затемнение сверху, чтобы панель читалась
-    const tg = ctx.createLinearGradient(0, 0, 0, 220); tg.addColorStop(0, 'rgba(8,6,5,0.75)'); tg.addColorStop(1, 'rgba(8,6,5,0)');
-    ctx.fillStyle = tg; ctx.fillRect(0, 0, W, 220);
+    const tg = ctx.createLinearGradient(0, 0, 0, 300); tg.addColorStop(0, 'rgba(8,6,5,0.8)'); tg.addColorStop(0.7, 'rgba(8,6,5,0.35)'); tg.addColorStop(1, 'rgba(8,6,5,0)');
+    ctx.fillStyle = tg; ctx.fillRect(0, 0, W, 300);
     // сердца
     if (this.lives < this.lastLives) this.pulse = 1;
     this.lastLives = this.lives; this.pulse = Math.max(0, this.pulse - dt * 3);
@@ -1221,37 +1221,41 @@ export class Run3D extends Game3D {
     } else {
       ctx.textAlign = 'center'; outlined(`${this.meters} м · счёт ${this.score}`, W / 2, 150, '#b9b5ae', 5);
     }
-    // подсказка над новым врагом
-    if (this.status === 'running' && rect && this.base < 0.3) {
-      const o = this.objs.filter(o => !o.dead && !o.hit && o.z > Z_HERO + 3 && o.z < 26 && (this.level.hintAll || this.opts.showHint?.(o.type))).sort((a, b) => a.z - b.z)[0];
-      if (o) {
-        const q = this.world.toStage(o.lane * LANE, 2.6, -(o.z - Z_HERO), L, rect);
-        if (q.front) {
-          ctx.font = font(46); ctx.textAlign = 'center';
-          const act = ENEMY[o.type]?.act, text = act === 'kick' && o.kind === 'block' ? '👢 пинок или другая дорожка' : act === 'dash' ? '💨 рывок или другая дорожка' : HINT[o.kind], w = ctx.measureText(text).width + 34, x = clamp(q.x, w / 2 + 10, W - w / 2 - 10), y = clamp(q.y, 230, L.SH * 0.6);
-          ctx.fillStyle = 'rgba(232,220,196,0.92)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.roundRect(x - w / 2, y - 32, w, 64, 12); ctx.fill(); ctx.stroke();
-          ctx.fillStyle = '#7a2f35'; ctx.fillText(text, x, y + 2);
-        }
-      }
-    }
+    // все надписи — полосой под Оком, чтобы не закрывать дорожки
+    let yb = 232;
+    const strip = (text, size, fill, bg, border) => {
+      ctx.font = font(size); ctx.textAlign = 'center';
+      while (size > 26 && ctx.measureText(text).width > W - 60) { size -= 2; ctx.font = font(size); }
+      const w = Math.min(W - 20, ctx.measureText(text).width + 34);
+      ctx.fillStyle = bg; ctx.strokeStyle = border; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(W / 2 - w / 2, yb - 25, w, 50, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = fill; ctx.fillText(text, W / 2, yb + 2);
+      yb += 58;
+    };
     // название комнаты
     const Lv = this.level;
     if (Lv.name && T < 2.6) {
       ctx.globalAlpha = Math.min(1, T * 3, (2.6 - T) * 2);
       ctx.textAlign = 'center';
-      ctx.font = font(84); outlined(Lv.name, W / 2, L.SH * 0.3, '#e8dcc4', 9);
-      ctx.font = font(50); outlined(Lv.place, W / 2, L.SH * 0.3 + 68, '#d9a0a0', 7);
-      if (Lv.fresh?.length) { ctx.font = font(44); outlined('Новый враг: ' + Lv.fresh.join(', '), W / 2, L.SH * 0.3 + 124, '#f2d27a', 7); }
+      ctx.font = font(56); outlined(`${Lv.name} · ${Lv.place}`, W / 2, yb, '#e8dcc4', 8);
+      yb += 50;
+      if (Lv.fresh?.length) { ctx.font = font(36); outlined('Новый враг: ' + Lv.fresh.join(', '), W / 2, yb, '#f2d27a', 6); yb += 46; }
       ctx.globalAlpha = 1;
+      yb += 8;
     }
-    this.toasts.forEach((tt, i) => {
+    // подсказка о ближайшем новом враге (что делать — показывает и знак на ковре)
+    if (this.status === 'running' && this.base < 0.3) {
+      const o = this.objs.filter(o => !o.dead && !o.hit && o.z > Z_HERO + 3 && o.z < 26 && (this.level.hintAll || this.opts.showHint?.(o.type))).sort((a, b) => a.z - b.z)[0];
+      if (o) {
+        const act = ENEMY[o.type]?.act;
+        const lane = ['слева', 'по центру', 'справа'][o.lane + 1];
+        const what = act === 'kick' && o.kind === 'block' ? '👢 пинок или другая дорожка' : act === 'dash' ? '💨 рывок или другая дорожка' : HINT[o.kind];
+        strip(`${ENEMY[o.type]?.name || ''} ${lane}: ${what}`, 38, '#7a2f35', 'rgba(232,220,196,0.92)', '#16120f');
+      }
+    }
+    this.toasts.forEach((tt) => {
       ctx.globalAlpha = Math.min(1, tt.life * 3, (tt.max - tt.life) * 6);
-      ctx.font = font(48); ctx.textAlign = 'center';
-      const w = ctx.measureText(tt.text).width + 40, y = L.SH * 0.42 + i * 72;
-      ctx.fillStyle = 'rgba(22,18,15,0.85)'; ctx.strokeStyle = '#c9a24a'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.roundRect(W / 2 - w / 2, y - 34, w, 68, 12); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#f0d27c'; ctx.fillText(tt.text, W / 2, y + 2);
+      strip(tt.text, 40, '#f0d27c', 'rgba(22,18,15,0.85)', '#c9a24a');
       ctx.globalAlpha = 1;
     });
     if (this.flashRed > 0) { ctx.fillStyle = `rgba(150,20,20,${this.flashRed * 0.28})`; ctx.fillRect(0, 0, W, L.SH); }

@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=d80a38b';
-import * as art from './art.js?v=d80a38b';
-import { sfx } from './audio.js?v=d80a38b';
-import { computeMods } from './artifacts.js?v=d80a38b';
-import { applyCharacter, applyUpgrades } from './characters.js?v=d80a38b';
-import { ENEMY } from './enemies.js?v=d80a38b';
-import { demonReady, drawDemon } from './demon.js?v=d80a38b';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=67cd7cc';
+import * as art from './art.js?v=67cd7cc';
+import { sfx } from './audio.js?v=67cd7cc';
+import { computeMods } from './artifacts.js?v=67cd7cc';
+import { applyCharacter, applyUpgrades } from './characters.js?v=67cd7cc';
+import { ENEMY } from './enemies.js?v=67cd7cc';
+import { demonReady, drawDemon } from './demon.js?v=67cd7cc';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -33,7 +33,7 @@ export const KIND = {
 };
 export const FLAT = new Set(['pit', 'trapdoor', 'ink']);       // рисуются прямо на полу
 export const HINT = {
-  low: '↑ прыжок', high: '↓ подкат', block: '← → другая дорожка', foe: '☝ тап — выстрел (или уйди с дорожки)',
+  low: '↑ прыжок', high: '↓ подкат', block: '← → другая дорожка', foe: '☝ тап — выстрел или другая дорожка',
 };
 
 const rand = (a, b) => a + Math.random() * (b - a);

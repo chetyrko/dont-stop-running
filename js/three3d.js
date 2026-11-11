@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=8dedea1';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=8dedea1';
-import { Hero3D } from './hero3d.js?v=8dedea1';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=8dedea1';
-import { ENEMY } from './enemies.js?v=8dedea1';
-import * as art from './art.js?v=8dedea1';
-import { drawRigHero, rigReady } from './rig.js?v=8dedea1';
-import { recolor } from './pixels.js?v=8dedea1';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=8dedea1';
-import { EXITS } from './rooms.js?v=8dedea1';
-import { sfx } from './audio.js?v=8dedea1';
+import * as THREE from '../vendor/three.module.min.js?v=91ab564';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=91ab564';
+import { Hero3D } from './hero3d.js?v=91ab564';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=91ab564';
+import { ENEMY } from './enemies.js?v=91ab564';
+import * as art from './art.js?v=91ab564';
+import { drawRigHero, rigReady } from './rig.js?v=91ab564';
+import { recolor } from './pixels.js?v=91ab564';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=91ab564';
+import { EXITS } from './rooms.js?v=91ab564';
+import { sfx } from './audio.js?v=91ab564';
 
 const WALL = 2.6, CEIL = 7.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -1018,12 +1018,12 @@ export class World3D {
   poseH(h, s) {
     if (!h.cut) return poseHero(h, s);
     // переходы между действиями сглаживаются (tau), разминка — плавное смешивание стойки и маха ногой
-    const ex = { state: h.st, tau: 0.09 };
+    const ex = { state: h.st, tau: 0.05 };   // позы меняются почти сразу за жестом
     let pose = 'run', tt = s.t;
     switch (s.mode) {
       case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; if (s.kick > 0) { pose = 'kick'; ex.kickT = 1 - s.kick / 0.4; ex.tau = 0.04; } break;
-      case 'jump': pose = 'jump'; ex.vy = -(s.vy || 0) * 140; break;
-      case 'slide': pose = 'slide'; ex.tau = 0.06; break;
+      case 'jump': pose = 'jump'; ex.vy = -(s.vy || 0) * 140; ex.tau = 0.03; break;
+      case 'slide': pose = 'slide'; ex.tau = 0.03; break;
       case 'warmup': pose = 'idle'; ex.blend = { pose: 'kick', k: 0.5 - 0.5 * Math.cos(s.t * 2.4) }; ex.tau = 0.15; break;
       case 'lean': case 'frozen': pose = 'idle'; ex.tau = 0.2; break;
     }

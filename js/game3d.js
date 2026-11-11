@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=8dedea1';
-import * as art from './art.js?v=8dedea1';
-import { sfx } from './audio.js?v=8dedea1';
-import { computeMods } from './artifacts.js?v=8dedea1';
-import { applyCharacter } from './characters.js?v=8dedea1';
-import { ENEMY } from './enemies.js?v=8dedea1';
-import { demonReady, drawDemon } from './demon.js?v=8dedea1';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=91ab564';
+import * as art from './art.js?v=91ab564';
+import { sfx } from './audio.js?v=91ab564';
+import { computeMods } from './artifacts.js?v=91ab564';
+import { applyCharacter } from './characters.js?v=91ab564';
+import { ENEMY } from './enemies.js?v=91ab564';
+import { demonReady, drawDemon } from './demon.js?v=91ab564';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -127,6 +127,7 @@ export class Game3D {
     if (a === 'kick') this.lane = Math.max(-1, this.lane - 1);
     else if (a === 'right') this.lane = Math.min(1, this.lane + 1);
     else if (a === 'jump') {
+      if (this.y > 0.001 && !(M.doubleJump && !p.dj)) { p.jumpBuf = 0.18; return; }
       if (this.y <= 0.001) { this.vy = 7.3 * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
       else if (M.doubleJump && !p.dj) { p.dj = true; this.vy = 6.8 * Math.sqrt(M.jumpMul); sfx.jump(); }
     }
@@ -330,7 +331,7 @@ export class Game3D {
     this.chase = Math.max(0, this.chase - dt);
     this.coinChainT = Math.max(0, this.coinChainT - dt); if (!this.coinChainT) this.coinChain = 0;
     // таймеры
-    for (const k of ['slideT', 'shootCd', 'invuln', 'hurtT', 'flash', 'dashT', 'dashCd', 'kickT']) p[k] = Math.max(0, (p[k] || 0) - dt);
+    for (const k of ['slideT', 'shootCd', 'invuln', 'hurtT', 'flash', 'dashT', 'dashCd', 'kickT', 'jumpBuf']) p[k] = Math.max(0, (p[k] || 0) - dt);
     this.shake = Math.max(0, this.shake - dt * 30);
     this.flashRed = Math.max(0, this.flashRed - dt * 2);
 
@@ -338,8 +339,8 @@ export class Game3D {
     if (M.autoJump && this.y <= 0.001 && this.status === 'running' &&
       this.objs.some(o => FLAT.has(o.type) && !o.dead && Math.abs(o.lane - this.hx) < 0.55 && o.z - Z_HERO < this.speed * 0.2 && o.z > Z_HERO)) this.action('jump');
     // герой: дорожка и прыжок
-    this.hx += (this.lane - this.hx) * Math.min(1, dt * 18);
-    if (this.y > 0 || this.vy > 0) { this.vy -= 22 * dt; this.y = Math.max(0, this.y + this.vy * dt); if (this.y === 0) { this.vy = 0; this.shake = Math.max(this.shake, 4); } }
+    this.hx += (this.lane - this.hx) * Math.min(1, dt * 26);   // смена дорожки — за ~0,1 с
+    if (this.y > 0 || this.vy > 0) { this.vy -= 22 * dt; this.y = Math.max(0, this.y + this.vy * dt); if (this.y === 0) { this.vy = 0; this.shake = Math.max(this.shake, 4); if (p.jumpBuf > 0) { p.jumpBuf = 0; this.action('jump'); } } }
 
     // всё едет на героя
     const es = (L.enemy || 1) * M.enemyMul;

@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=c401377';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=c401377';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=c401377';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=c401377';
-import { ENEMY } from './enemies.js?v=c401377';
-import * as art from './art.js?v=c401377';
-import { drawRigHero, rigReady } from './rig.js?v=c401377';
-import { recolor } from './pixels.js?v=c401377';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=c401377';
-import { EXITS } from './rooms.js?v=c401377';
-import { sfx } from './audio.js?v=c401377';
+import * as THREE from '../vendor/three.module.min.js?v=2461af0';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=2461af0';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=2461af0';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=2461af0';
+import { ENEMY } from './enemies.js?v=2461af0';
+import * as art from './art.js?v=2461af0';
+import { drawRigHero, rigReady } from './rig.js?v=2461af0';
+import { recolor } from './pixels.js?v=2461af0';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=2461af0';
+import { EXITS } from './rooms.js?v=2461af0';
+import { sfx } from './audio.js?v=2461af0';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -626,8 +626,9 @@ export class World3D {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0b0807);
-    this.scene.fog = new THREE.Fog(0x0b0807, 16, 52);
+    // туман — пыльный, серо-бурый, а не чёрная дыра в конце коридора
+    this.scene.background = new THREE.Color(0x4a4038);
+    this.scene.fog = new THREE.Fog(0x4a4038, 12, 58);
     this.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 140);
     this.scene.add(new THREE.HemisphereLight(0xfff0d8, 0x30241a, 1.6));
     const sun = new THREE.DirectionalLight(0xffe2b8, 1.1); sun.position.set(1, 6, 4); this.scene.add(sun);
@@ -718,6 +719,22 @@ export class World3D {
       cg.position.set(0, CEIL - 0.5, -4); ch.add(cg);
       sc.add(a);
       this.arches.push(a);
+    }
+    // клубы тумана вдали: медленно плывут и дышат
+    const mistTex = canvasTex(makeCanvas(256, 128, (x) => {
+      for (let i = 0; i < 14; i++) {
+        const cx = 30 + Math.random() * 196, cy = 40 + Math.random() * 48, r = 26 + Math.random() * 40;
+        const gr = x.createRadialGradient(cx, cy, 2, cx, cy, r);
+        gr.addColorStop(0, 'rgba(150,138,124,0.35)'); gr.addColorStop(1, 'rgba(150,138,124,0)');
+        x.fillStyle = gr; x.fillRect(0, 0, 256, 128);
+      }
+    }));
+    this.mist = [];
+    for (let i = 0; i < 9; i++) {
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: 0.55, fog: false }));
+      m.userData = { z0: -18 - i * 5, x0: (Math.random() - 0.5) * WALL * 1.4, y0: 0.8 + Math.random() * 2.6, ph: Math.random() * 6 };
+      m.scale.set(7 + Math.random() * 4, 3 + Math.random() * 1.5, 1);
+      sc.add(m); this.mist.push(m);
     }
     // стена с выходом в конце комнаты
     this.exitCanvas = makeCanvas(672, 490, () => {});
@@ -953,6 +970,11 @@ export class World3D {
     this.ceilTex.offset.y = -d / (WALL * 2);
     for (const w of this.walls) w.t.offset.x = (w.side < 0 ? 1 : -1) * d / this.wallTile;
     const base = d % 8;
+    for (const m of this.mist || []) {
+      const u = m.userData, z = u.z0 + ((d * 0.15 + this.t * 0.6) % 5);
+      m.position.set(u.x0 + Math.sin(this.t * 0.25 + u.ph) * 0.6, u.y0 + Math.sin(this.t * 0.4 + u.ph) * 0.2, z);
+      m.material.opacity = 0.4 + Math.sin(this.t * 0.5 + u.ph) * 0.15;
+    }
     // в забеге камера выше потолка: верхние балки арок закрывали бы вид, их прячем
     this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.camPos.y < CEIL - 0.5; if (a.userData.ch) a.userData.ch.visible = a.position.z - 4 < this.camPos.z - 4; });
     for (const p of this.portraits || []) {

@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=bc1be35';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=bc1be35';
-import { Hero3D } from './hero3d.js?v=bc1be35';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=bc1be35';
-import { ENEMY } from './enemies.js?v=bc1be35';
-import * as art from './art.js?v=bc1be35';
-import { drawRigHero, rigReady } from './rig.js?v=bc1be35';
-import { recolor } from './pixels.js?v=bc1be35';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=bc1be35';
-import { EXITS } from './rooms.js?v=bc1be35';
-import { sfx } from './audio.js?v=bc1be35';
+import * as THREE from '../vendor/three.module.min.js?v=6a9cae3';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=6a9cae3';
+import { Hero3D } from './hero3d.js?v=6a9cae3';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=6a9cae3';
+import { ENEMY } from './enemies.js?v=6a9cae3';
+import * as art from './art.js?v=6a9cae3';
+import { drawRigHero, rigReady } from './rig.js?v=6a9cae3';
+import { recolor } from './pixels.js?v=6a9cae3';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=6a9cae3';
+import { EXITS } from './rooms.js?v=6a9cae3';
+import { sfx } from './audio.js?v=6a9cae3';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка

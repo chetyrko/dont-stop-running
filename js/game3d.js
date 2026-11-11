@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=bc1be35';
-import * as art from './art.js?v=bc1be35';
-import { sfx } from './audio.js?v=bc1be35';
-import { computeMods } from './artifacts.js?v=bc1be35';
-import { applyCharacter, applyUpgrades } from './characters.js?v=bc1be35';
-import { ENEMY } from './enemies.js?v=bc1be35';
-import { demonReady, drawDemon } from './demon.js?v=bc1be35';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=6a9cae3';
+import * as art from './art.js?v=6a9cae3';
+import { sfx } from './audio.js?v=6a9cae3';
+import { computeMods } from './artifacts.js?v=6a9cae3';
+import { applyCharacter, applyUpgrades } from './characters.js?v=6a9cae3';
+import { ENEMY } from './enemies.js?v=6a9cae3';
+import { demonReady, drawDemon } from './demon.js?v=6a9cae3';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -89,7 +89,7 @@ export class Game3D {
     this.met = new Set(); this.killsBy = {};
     this.nextId = 1;
     this.finish = Number.isFinite(L.length) ? L.length : Infinity;
-    this.nextSpawn = this.dist + 16;   // первое препятствие — почти сразу
+    this.nextSpawn = this.dist + 55;   // первые ~3,5–5 секунд коридор пуст: игрок успевает освоиться
     this.lastHealM = this.dist; this.lastFindM = this.dist;
     this.relicAt = (!this.opts.demo && L.kind === 'room' && !L.boss && Math.random() < L.findChance * M.luck)
       ? this.dist + 60 + Math.random() * Math.max(20, (this.finish - this.dist) * 0.6) : -1;
@@ -113,7 +113,9 @@ export class Game3D {
     const base = Math.min(1150, (this.level.speed + this.level.speedGrowth * this.meters / 10) * this.mods.speedMul) / 40 * 0.8;
     if (this.opts.demo) return base;
     // динамика как в раннерах: старт уже быстрый, и каждые 20 секунд ещё быстрее (до +35%)
-    return base * DYN * (1 + Math.min(0.35, (this.runT || 0) / 120));
+    const t = this.runT || 0;
+    // разгон с места: первые 1,5 с скорость плавно растёт от 55% до полной
+    return base * DYN * (1 + Math.min(0.35, t / 120)) * Math.min(1, 0.55 + 0.45 * t / 1.5);
   }
   threatX() {
     const o = this.objs.filter(o => !o.dead && o.z > Z_HERO).sort((a, b) => a.z - b.z)[0];

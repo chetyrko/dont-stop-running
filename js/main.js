@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=fc312f6';
-import { Game } from './game.js?v=fc312f6';
-import { Game3D } from './game3d.js?v=fc312f6';
-import { World3D, Run3D } from './three3d.js?v=fc312f6';
-import { setupInput } from './input.js?v=fc312f6';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=fc312f6';
-import { getSave, save, resetSave } from './storage.js?v=fc312f6';
-import { drawHero, makeRng, drawPit } from './art.js?v=fc312f6';
-import { drawTrapdoor } from './enemies.js?v=fc312f6';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=fc312f6';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=fc312f6';
-import { loadDemon } from './demon.js?v=fc312f6';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=fc312f6';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=fc312f6';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=fc312f6';
-import { ComicPlayer } from './comic.js?v=fc312f6';
-import { MINIGAMES } from './minigames.js?v=fc312f6';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=fc312f6';
-import { recolor } from './pixels.js?v=fc312f6';
-import { ENEMY } from './enemies.js?v=fc312f6';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=fc312f6';
-import { GROUND_Y } from './config.js?v=fc312f6';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=d1c3394';
+import { Game } from './game.js?v=d1c3394';
+import { Game3D } from './game3d.js?v=d1c3394';
+import { World3D, Run3D } from './three3d.js?v=d1c3394';
+import { setupInput } from './input.js?v=d1c3394';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=d1c3394';
+import { getSave, save, resetSave } from './storage.js?v=d1c3394';
+import { drawHero, makeRng, drawPit } from './art.js?v=d1c3394';
+import { drawTrapdoor } from './enemies.js?v=d1c3394';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=d1c3394';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=d1c3394';
+import { loadDemon } from './demon.js?v=d1c3394';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=d1c3394';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=d1c3394';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=d1c3394';
+import { ComicPlayer } from './comic.js?v=d1c3394';
+import { MINIGAMES } from './minigames.js?v=d1c3394';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=d1c3394';
+import { recolor } from './pixels.js?v=d1c3394';
+import { ENEMY } from './enemies.js?v=d1c3394';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=d1c3394';
+import { GROUND_Y } from './config.js?v=d1c3394';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -52,6 +52,8 @@ const glCanvas = $('#gl');
 const is3d = () => S.settings.view === '3d';
 // 3D — основной режим: один раз включаем его всем
 if (!S.settings.view3dDefault) { S.settings.view = '3d'; S.settings.view3dDefault = true; save(); }
+// главный режим — бесконечный забег (один раз переключаем и старые сохранения)
+if (!S.settings.endlessDefault) { S.settings.endless = true; S.settings.endlessDefault = true; save(); }
 function applyView() {
   document.body.classList.toggle('v3d', is3d());
   if (is3d() && !world && images.wall !== undefined) { try { world = new World3D(glCanvas, images); } catch (e) { console.warn('WebGL недоступен', e); S.settings.view = 'classic'; } }
@@ -194,14 +196,16 @@ function enterLobby() {
   world.setHero(currentSkin(), currentChar().weapon);
   world.setMode('lobby');
   const next = Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1), lv = roomLevel(next, diff());
-  $('#lobby-info').innerHTML = `Комната ${next} · ${lv.place}<small>${ACTS[Math.floor((next - 1) / 100)].title} · ${currentChar().name}</small>`;
+  $('#lobby-info').innerHTML = S.settings.endless
+    ? `Коридор Вечного Сквозняка<small>рекорд: ${S.records.endlessMeters || 0} м · ${currentChar().name}</small>`
+    : `Комната ${next} · ${lv.place}<small>${ACTS[Math.floor((next - 1) / 100)].title} · ${currentChar().name}</small>`;
   show('lobby');
   setTimeout(() => fade(false), 60);
 }
 $('#lobby').addEventListener('click', (e) => {
   if (e.target.closest('button')) return;
   unlockAudio();
-  startRoom(Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1));
+  if (S.settings.endless) startEndless(); else startRoom(Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1));
 });
 $('#lobby-back').onclick = (e) => { e.stopPropagation(); sfx.click(); startDemo(); show('menu'); };
 $('#lobby-rooms').onclick = (e) => { e.stopPropagation(); sfx.click(); show('levels'); };
@@ -785,7 +789,7 @@ function renderSettings() {
 // бесконечный режим можно спрятать: тогда игра — только сюжет
 function applyEndless() {
   const on = !!S.settings.endless;
-  $('#lobby-endless')?.classList.toggle('hidden', !on);
+  $('#lobby-endless')?.classList.toggle('hidden', on);   // в бесконечном режиме «Сквозняк» и так по «СТАРТ»
   $('#btn-endless')?.classList.toggle('hidden', !on);
 }
 function toggleSetting(key) {

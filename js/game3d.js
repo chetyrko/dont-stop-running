@@ -2,13 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=fc312f6';
-import * as art from './art.js?v=fc312f6';
-import { sfx } from './audio.js?v=fc312f6';
-import { computeMods } from './artifacts.js?v=fc312f6';
-import { applyCharacter, applyUpgrades } from './characters.js?v=fc312f6';
-import { ENEMY } from './enemies.js?v=fc312f6';
-import { demonReady, drawDemon } from './demon.js?v=fc312f6';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=d1c3394';
+import * as art from './art.js?v=d1c3394';
+import { sfx } from './audio.js?v=d1c3394';
+import { computeMods } from './artifacts.js?v=d1c3394';
+import { applyCharacter, applyUpgrades } from './characters.js?v=d1c3394';
+import { enemyWeights } from './rooms.js?v=d1c3394';
+import { ENEMY } from './enemies.js?v=d1c3394';
+import { demonReady, drawDemon } from './demon.js?v=d1c3394';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -99,7 +100,7 @@ export class Game3D {
     this.p = { slideT: 0, shootCd: 0, invuln: 0, hurtT: 0, flash: 0, run: 0 };
     this.enter = 0; this.deathT = undefined;
     this.wingsT = 0; this.doubleT = 0; this.cloakT = 0; this.charms = this.opts.charms || 0;
-    this.base = 0; this.magnetT = 0; this.magnets = []; this.stairs = null; this.nextMagnet = this.dist + 140 + Math.random() * 80;
+    this.base = 0; this.magnetT = 0; this.magnets = []; this.stairs = null; this.nextMagnet = this.dist + 380 + Math.random() * 220;
     this.runT = 0; this.streak = 0; this.mult = 1; this.chase = 0; this.tier = 0; this.coinChain = 0; this.coinChainT = 0;
   }
 
@@ -111,12 +112,14 @@ export class Game3D {
     return Number.isFinite(this.finish) ? clamp(this.dist / this.finish, 0, 1) : null;
   }
   get speed() {
-    const base = Math.min(1150, (this.level.speed + this.level.speedGrowth * this.meters / 10) * this.mods.speedMul) / 40 * 0.8;
+    const growth = this.level.ramp ? 0 : this.level.speedGrowth;   // в бесконечном рост скорости — только плавный, ниже
+    const base = Math.min(1150, (this.level.speed + growth * this.meters / 10) * this.mods.speedMul) / 40 * 0.8;
     if (this.opts.demo) return base;
     // динамика как в раннерах: старт уже быстрый, и каждые 20 секунд ещё быстрее (до +35%)
     const t = this.runT || 0;
     // разгон с места: первые 1,5 с скорость плавно растёт от 55% до полной
-    return base * DYN * (1 + Math.min(0.35, t / 120)) * Math.min(1, 0.55 + 0.45 * t / 1.5);
+    const grow = this.level.ramp ? 0.82 + 0.6 * Math.min(1, this.meters / 4000) : 1 + Math.min(0.35, t / 120);
+    return base * DYN * grow * Math.min(1, 0.55 + 0.45 * t / 1.5);
   }
   threatX() {
     const o = this.objs.filter(o => !o.dead && o.z > Z_HERO).sort((a, b) => a.z - b.z)[0];
@@ -172,8 +175,15 @@ export class Game3D {
   }
 
   // ---------- появление препятствий ----------
+  // бесконечный забег: «виртуальная комната» растёт с метрами — враги открываются по порядку, как в поместье
+  get vroom() { return 1 + Math.floor(this.meters / 25); }
+  get rampK() { return this.level.ramp ? Math.min(1, this.meters / 3000) : 1; }   // 0 в начале, 1 к трём километрам
   weights() {
-    const w = { ...this.level.obstacles };
+    const w = this.level.ramp ? enemyWeights(this.vroom) : { ...this.level.obstacles };
+    if (this.level.ramp) {
+      this.knownTypes ||= new Set(Object.keys(w));
+      for (const k of Object.keys(w)) if (!this.knownTypes.has(k)) { this.knownTypes.add(k); if (this.runT > 2) this.toast('Новый враг: ' + (ENEMY[k]?.name || k), 2); }
+    }
     for (const k in w) if (ENEMY[k]?.hp) w[k] *= this.mods.hordeMul;
     return w;
   }
@@ -264,17 +274,17 @@ export class Game3D {
 
   spawnRow(atDist) {
     const z = Z_HERO + (atDist - this.dist);
-    if (!this.boss && this.runT > 3 && Math.random() < 0.4) { const len = this.spawnPattern(z); if (len) return len; }
+    if (!this.boss && this.runT > 3 && Math.random() < (this.level.ramp ? 0.08 + 0.4 * this.rampK : 0.4)) { const len = this.spawnPattern(z); if (len) return len; }
     const type = pickWeighted(this.weights());
     if (!type) return;
     const kind = KIND[type] || 'block';
     const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
     let used = [];
-    if (kind === 'block' || kind === 'foe') used = lanes.slice(0, Math.random() < 0.45 + (this.level.combo || 0) * 0.4 ? 2 : 1);
+    if (kind === 'block' || kind === 'foe') used = lanes.slice(0, Math.random() < (this.level.ramp ? 0.15 + 0.4 * this.rampK : 0.45) + (this.level.combo || 0) * 0.4 * this.rampK ? 2 : 1);
     else used = Math.random() < 0.35 ? [-1, 0, 1] : lanes.slice(0, Math.random() < 0.5 ? 2 : 1);
     for (const l of used) this.add(type, l, z);
     // сдвоенная волна: в свободной дорожке — что-то ещё
-    if (used.length < 3 && Math.random() < (this.level.combo || 0)) {
+    if (used.length < 3 && Math.random() < (this.level.combo || 0) * this.rampK) {
       const t2 = pickWeighted(this.weights());
       const free = lanes.filter(l => !used.includes(l));
       if (t2 && free.length > 1 && (KIND[t2] === 'low' || KIND[t2] === 'high')) this.add(t2, free[0], z + rand(1.5, 3));
@@ -315,7 +325,8 @@ export class Game3D {
       while (this.nextSpawn < this.dist + FAR - 8 && this.nextSpawn < this.finish - 25) {
         const extra = this.spawnRow(this.nextSpawn) || 0;
         // ряды идут плотнее: около секунды между ними
-        this.nextSpawn += extra + rand(L.gap[0], L.gap[1]) * this.speed * 0.6 + 4;
+        const gk = this.level.ramp ? 1.7 - 0.85 * this.rampK : 1;   // сначала просторно, потом теснее
+        this.nextSpawn += extra + rand(L.gap[0], L.gap[1]) * this.speed * 0.6 * gk + 4;
       }
     }
     if (!this.opts.demo && this.status === 'running' && !this.boss && !this.stairs && !this.magnets.length &&
@@ -324,7 +335,7 @@ export class Game3D {
       const free = [-1, 0, 1].filter(l => !this.objs.some(o => o.lane === l && Math.abs(o.z - zz) < 4));
       const r = Math.random(), kind = r < 0.35 ? 'magnet' : r < 0.6 ? 'wings' : r < 0.8 ? 'double' : 'cloak';
       if (free.length) this.magnets.push({ lane: free[Math.floor(Math.random() * free.length)], z: zz, id: this.nextId++, kind });
-      this.nextMagnet += 220 + Math.random() * 160;
+      this.nextMagnet += 600 + Math.random() * 400;   // бонус — редкая удача
     }
     if (this.relicAt > 0 && this.dist + FAR - 10 > this.relicAt) {
       this.relics.push({ lane: [-1, 0, 1][Math.floor(Math.random() * 3)], z: Z_HERO + this.relicAt - this.dist, bias: 1 });

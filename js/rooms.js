@@ -1,8 +1,8 @@
 // Поместье «Паноптикум»: 1000 комнат в 10 актах по 100, внутри актов — локации. Сценарий — SCENARIO.md.
 // Здесь же сюжетные карточки между комнатами.
 
-import { DIFFICULTY, PX_PER_METER } from './config.js?v=fc312f6';
-import { ENEMY } from './enemies.js?v=fc312f6';
+import { DIFFICULTY, PX_PER_METER } from './config.js?v=d1c3394';
+import { ENEMY } from './enemies.js?v=d1c3394';
 
 export const ROOMS_TOTAL = 1000;
 
@@ -220,7 +220,7 @@ export function endlessLevel(diffKey, maxRoom = 0) {
     length: Infinity,
     speed: 430 * D.speed, speedGrowth: 6,
     gap: [1.1 * D.gap, 1.55 * D.gap],
-    combo: D.combo, comboGrowth: true,
+    combo: D.combo, comboGrowth: true, ramp: true,   // 3D: начинаем с простого, сложность растёт с метрами
     enemy: D.enemy,
     obstacles, hintAll: !!D.hints, nightmare: !!D.nightmare,
     palette: { wallTint: { gray: 0.5, mul: [0.86, 0.84, 0.98] } },

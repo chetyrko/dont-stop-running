@@ -240,3 +240,27 @@ h2 { margin: 0 0 6px; font-size: 84px; line-height: 0.95; color: var(--paper); t
 .char-cell .cp { font-size: 22px; color: #8e8b87; }
 .char-cell.on { border-color: #f2d27a; }
 .char-cell.chosen .cp { color: #7d9a6a; }
+
+/* ---------- 3D-режим ---------- */
+#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: none; z-index: 0; }
+#stage { z-index: 1; }
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.35s; z-index: 5; }
+#fade.on { opacity: 1; }
+body.v3d #menu .menu-top { height: auto; top: 70px; }
+body.v3d #menu .title { font-size: 104px; text-shadow: 4px 5px 0 var(--blood), 0 0 18px #000; }
+body.v3d #menu .menu-bottom { top: auto; bottom: calc(var(--sh) * 0.3); align-items: flex-start; padding-left: 40px; }
+body.v3d #menu .menu-bottom .btn { min-width: 300px; font-size: 46px; }
+body.v3d #menu .menu-bottom .btn.big { min-width: 340px; font-size: 58px; }
+body.v3d #menu .tap-hint { display: block; }
+.tap-hint { display: none; position: absolute; left: 0; right: 0; bottom: calc(var(--sh) * 0.12); font-size: 40px; color: #e8dcc4; text-shadow: 0 0 10px #000; animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+.screen.lobby { justify-content: flex-start; padding-top: 0; }
+.lobby-info { position: absolute; top: 120px; left: 0; right: 0; font-size: 44px; line-height: 1.1; color: #e8dcc4; text-shadow: 0 0 10px #000, 2px 2px 0 #000; }
+.lobby-info small { display: block; font-size: 32px; color: #d9a0a0; }
+.lobby-start { position: absolute; top: calc(var(--sh) * 0.42); left: 0; right: 0; font-size: 150px; line-height: 1; color: #e8dcc4;
+  text-shadow: 5px 6px 0 var(--blood), 0 0 24px #000; animation: pulse 1.4s infinite; pointer-events: none; }
+.lobby-hint { position: absolute; top: calc(var(--sh) * 0.42 + 150px); left: 0; right: 0; font-size: 36px; color: #b9b5ae; text-shadow: 0 0 8px #000; pointer-events: none; }
+.lobby-bottom { position: absolute; bottom: 60px; left: 0; right: 0; display: flex; gap: 18px; justify-content: center; }
+.lobby-bottom .btn { min-width: 220px; }
+body.v3d #over { padding-top: calc(var(--sh) * 0.46); background: linear-gradient(to bottom, rgba(5,4,4,0) 0, rgba(5,4,4,0) 40%, rgba(5,4,4,0.9) 50%); }
+body.v3d #story { background: rgba(11,9,8,0.92); }

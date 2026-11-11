@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <canvas id="gl"></canvas>
   <div id="stage">
     <canvas id="game"></canvas>
 
@@ -24,6 +25,19 @@
         <button data-go="settings" class="btn">Настройки</button>
       </div>
       <div class="wallet"><span class="coin-ico"></span><span class="gold-total">0</span></div>
+      <div class="tap-hint">нажми на экран — и беги</div>
+    </section>
+
+    <!-- 3D: экран перед забегом — герой разминается, «СТАРТ» по центру, тап в любом месте -->
+    <section id="lobby" class="screen lobby hidden">
+      <button id="lobby-back" class="btn small back-top">‹ Меню</button>
+      <div id="lobby-info" class="lobby-info"></div>
+      <div class="lobby-start">СТАРТ</div>
+      <div class="lobby-hint">нажми в любом месте</div>
+      <div class="lobby-bottom">
+        <button id="lobby-rooms" class="btn small">Поместье</button>
+        <button id="lobby-endless" class="btn small">Сквозняк</button>
+      </div>
     </section>
 
     <!-- Поместье: бесконечный забег и комнаты -->
@@ -130,6 +144,7 @@
     </section>
 
   </div>
+  <div id="fade"></div>
   <div id="rotate">Поверни телефон вертикально ⟳</div>
   <script type="module" src="js/main.js"></script>
 </body>

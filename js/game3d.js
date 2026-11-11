@@ -12,8 +12,8 @@ import { demonReady, drawDemon } from './demon.js';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
-const Z_HERO = 3.6;            // где бежит герой (от камеры)
-const LANE = 1.3;              // ширина дорожки
+export const Z_HERO = 3.6;            // где бежит герой (от камеры)
+export const LANE = 1.3;              // ширина дорожки
 const WALL = 2.4;              // стены коридора
 const CEIL = 3.4;
 const FAR = 60;                // дальше — туман
@@ -22,15 +22,15 @@ const HERO_H = 1.6, SLIDE_H = 0.6;
 
 // Как проходится каждый вид в 3D.
 //  low — прыгнуть, high — пригнуться, block — уйти на другую дорожку, foe — выстрел или уйти.
-const KIND = {
+export const KIND = {
   pit: 'low', trapdoor: 'low', rats: 'low', lowcrow: 'low', hands: 'low', chandelier: 'low', skullroll: 'low',
   spikes: 'low', ink: 'low', candelabrum: 'low',
   flyer: 'high', spider: 'high', portrait: 'high', flock: 'high', swoop: 'high', beam: 'high', tentacle: 'high',
   furniture: 'block', wardrobe: 'block', clock: 'block', armor: 'block', gate: 'block', ghost: 'block', fogwall: 'block', shielded: 'block',
   monster: 'foe', hopper: 'foe', brute: 'foe', puppet: 'foe', mirror: 'foe',
 };
-const FLAT = new Set(['pit', 'trapdoor', 'ink']);       // рисуются прямо на полу
-const HINT = {
+export const FLAT = new Set(['pit', 'trapdoor', 'ink']);       // рисуются прямо на полу
+export const HINT = {
   low: '↑ прыжок', high: '↓ подкат', block: '← → другая дорожка', foe: '☝ тап — выстрел (или уйди с дорожки)',
 };
 

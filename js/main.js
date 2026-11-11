@@ -3,6 +3,7 @@
 import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js';
 import { Game } from './game.js';
 import { Game3D } from './game3d.js';
+import { World3D, Run3D } from './three3d.js';
 import { setupInput } from './input.js';
 import { sfx, unlockAudio, setSoundEnabled } from './audio.js';
 import { getSave, save, resetSave } from './storage.js';
@@ -45,6 +46,16 @@ let opisTab = 'beasts';
 let artSelected = null;
 let shopTab = 'chars';
 let charSel = null;
+let world = null;                // 3D-сцена (создаётся, когда включён 3D-режим)
+const glCanvas = $('#gl');
+const is3d = () => S.settings.view === '3d';
+// 3D — основной режим: один раз включаем его всем
+if (!S.settings.view3dDefault) { S.settings.view = '3d'; S.settings.view3dDefault = true; save(); }
+function applyView() {
+  document.body.classList.toggle('v3d', is3d());
+  if (is3d() && !world && images.wall !== undefined) { try { world = new World3D(glCanvas, images); } catch (e) { console.warn('WebGL недоступен', e); S.settings.view = 'classic'; } }
+}
+function fade(on) { $('#fade').classList.toggle('on', on); }
 
 // ---------- раскладка под экран ----------
 function resize() {
@@ -56,6 +67,8 @@ function resize() {
   stage.style.transform = `scale(${scale}) translate(-50%, -50%)`;
   stage.style.setProperty('--win-top', L.win.y + 'px');
   stage.style.setProperty('--win-bottom', (L.win.y + L.win.h) + 'px');
+  stage.style.setProperty('--sh', L.SH + 'px');
+  world?.resize();
   cvs.style.width = L.SW + 'px';
   cvs.style.height = L.SH + 'px';
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -78,7 +91,7 @@ function loadImages() {
 }
 
 // ---------- экраны ----------
-const SCREENS = ['menu', 'levels', 'artifacts', 'shop', 'settings', 'pause', 'over', 'story'];
+const SCREENS = ['menu', 'lobby', 'levels', 'artifacts', 'shop', 'settings', 'pause', 'over', 'story'];
 function show(name) {
   SCREENS.forEach(s => $('#' + s).classList.toggle('hidden', s !== name));
   if (name === 'levels') { viewAct = Math.floor(Math.min(ROOMS_TOTAL - 1, S.progress.maxRoom) / 100) + 1; renderLevels(); }
@@ -116,6 +129,13 @@ function iconCanvas(a, size) {
 // ---------- запуск забегов ----------
 function startDemo() {
   game = null; comic = null; mini = null;
+  applyView();
+  if (is3d() && world) {          // 3D: герой во весь экран, опёрся на меню
+    demo = null;
+    world.setHero(currentSkin(), currentChar().weapon);
+    world.setMode('title');
+    return;
+  }
   const G = S.settings.view === '3d' ? Game3D : Game;
   demo = new G(demoLevel(), currentSkin(), { demo: true, paperFx: S.settings.paper, images });
 }
@@ -125,8 +145,9 @@ function startRun(level, extra = {}) {
   demo = null; comic = null; mini = null;
   paused = false;
   checkpoint = extra.startAt || 0;
-  const G = S.settings.view === '3d' ? Game3D : Game;   // режим игры из настроек
+  const G = is3d() && world ? Run3D : S.settings.view === '3d' ? Game3D : Game;   // режим игры из настроек
   game = new G(level, currentSkin(), {
+    world,
     character: currentChar(),
     images,
     vibration: S.settings.vibration,
@@ -146,8 +167,45 @@ function startRun(level, extra = {}) {
     onCheckpoint: (cp) => { checkpoint = cp; },
   });
   hud = new Hud(L, images);
+  if (game instanceof Run3D) { world.setHero(currentSkin(), currentChar().weapon); world.startRun(game); }
   show(null);
 }
+
+// ---------- 3D: меню → разминка → забег ----------
+function toLobby() {
+  if (!world) return;
+  sfx.click();
+  show(null);
+  world.leaveTitle(() => {
+    fade(true);
+    setTimeout(() => {
+      if (!S.seenComics.includes('prologue')) { fade(false); playComic('prologue', enterLobby); }
+      else enterLobby();
+    }, 380);
+  });
+}
+function enterLobby() {
+  game = null; demo = null; comic = null; mini = null;
+  world.setHero(currentSkin(), currentChar().weapon);
+  world.setMode('lobby');
+  const next = Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1), lv = roomLevel(next, diff());
+  $('#lobby-info').innerHTML = `Комната ${next} · ${lv.place}<small>${ACTS[Math.floor((next - 1) / 100)].title} · ${currentChar().name}</small>`;
+  show('lobby');
+  setTimeout(() => fade(false), 60);
+}
+$('#lobby').addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  unlockAudio();
+  startRoom(Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1));
+});
+$('#lobby-back').onclick = (e) => { e.stopPropagation(); sfx.click(); startDemo(); show('menu'); };
+$('#lobby-rooms').onclick = (e) => { e.stopPropagation(); sfx.click(); show('levels'); };
+$('#lobby-endless').onclick = (e) => { e.stopPropagation(); sfx.click(); startEndless(); };
+$('#menu').addEventListener('click', (e) => {
+  if (!is3d() || e.target.closest('button')) return;
+  unlockAudio();
+  toLobby();
+});
 
 function startRoom(n) {
   n = Math.max(1, Math.min(ROOMS_TOTAL, n));
@@ -661,7 +719,7 @@ function toggleSetting(key) {
 }
 $('#set-view').onclick = () => {
   S.settings.view = S.settings.view === '3d' ? 'classic' : '3d';
-  save(); sfx.click(); renderSettings(); startDemo();
+  save(); sfx.click(); applyView(); renderSettings(); startDemo();
 };
 $('#set-diff').onclick = () => {
   const i = DIFF_ORDER.indexOf(diff());
@@ -687,7 +745,10 @@ $('#set-reset').onclick = () => {
   renderSettings();
 };
 
-$$('[data-go]').forEach(b => b.addEventListener('click', () => { sfx.click(); show(b.dataset.go); }));
+$$('[data-go]').forEach(b => b.addEventListener('click', (e) => {
+  if (is3d() && b.dataset.go === 'levels' && b.closest('#menu')) { e.stopPropagation(); toLobby(); return; }
+  sfx.click(); show(b.dataset.go);
+}));
 
 // ---------- пауза ----------
 function pause() {
@@ -710,7 +771,7 @@ setupInput(cvs, (a, e) => {
   if (comic) { if (a !== 'pause') comic.tap(x, y); return; }
   if (mini) { if (a === 'shoot') mini.tap(x, y); else if (e && a !== 'pause') mini.swipe?.(x, y, a); return; }
   if (a === 'pause') { paused ? resume() : pause(); return; }
-  if (a === 'shoot' && e && hud && hud.hitEye(x, y)) { pause(); return; }
+  if (a === 'shoot' && e && (game?.hitEye ? game.hitEye(x, y) : hud && hud.hitEye(x, y))) { pause(); return; }
   if (game && !paused) game.action(a);
 });
 document.addEventListener('pointerdown', unlockAudio, { once: true });
@@ -724,6 +785,18 @@ function frame(now) {
   time += dt;
   const k = cvs.width / L.SW;
   ctx.setTransform(k, 0, 0, k, 0, 0);
+  const use3d = is3d() && world && !comic && !mini;
+  const disp = use3d ? 'block' : 'none';
+  if (glCanvas.style.display !== disp) glCanvas.style.display = disp;
+  if (use3d) {
+    // 3D: мир на весь экран, поверх — только сердца, Око, оболы и подсказки
+    ctx.clearRect(0, 0, L.SW, L.SH);
+    if (game && !paused) game.update(dt);
+    world.frame(paused ? 0 : dt);
+    if (game?.drawOverlay) game.drawOverlay(ctx, L, time, paused ? 0 : dt, cvs.getBoundingClientRect());
+    requestAnimationFrame(frame);
+    return;
+  }
   ctx.fillStyle = '#050404';
   ctx.fillRect(0, 0, L.SW, L.SH);
   if (comic) {
@@ -767,6 +840,6 @@ Promise.all([loadImages(), loadHeroRig(), loadDemon()]).then(() => resize()).the
 
 // для отладки из консоли
 window.__dsr = {
-  get game() { return game; }, get comic() { return comic; }, get mini() { return mini; }, get save() { return S; }, startMini,
+  get game() { return game; }, get world() { return world; }, toLobby, enterLobby, get comic() { return comic; }, get mini() { return mini; }, get save() { return S; }, startMini,
   startRoom, startEndless, startRun, playComic, roomLevel, endlessLevel, computeMods,
 };

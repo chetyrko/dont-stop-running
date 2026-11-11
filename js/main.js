@@ -708,7 +708,8 @@ window.__kickText = kickText;
 function renderControls() {
   const k = S.settings.kickSide === 'right';
   const rows = is3d()
-    ? [['⇆', 'дорожка', 'обойти мебель, решётки, туман'], ['↑', 'прыжок', 'ямы, люки, крысы, руки из пола, шипы'], ['↓', 'подкат', 'вороны, паук, портреты, взгляд Ока'], ['☝', 'тап', 'выстрел в тени и марионеток'], ['👁', 'Око', 'пауза']]
+    ? [['⇆', 'дорожка', 'обойти что угодно'], ['↑', 'прыжок', 'ямы, люки, крысы, руки из пола, шипы'], ['↓', 'подкат', 'вороны, паук, портреты, взгляд Ока'],
+      ['👢', 'пинок', 'кнопка: шкафы, часы, доспехи, тень со щитом'], ['💨', 'рывок', 'кнопка: призрак, решётка, туман'], ['☝', 'тап', 'выстрел в тени и марионеток'], ['👁', 'Око', 'пауза']]
     : [['↑', 'прыжок', 'ямы, люки, крысы, руки из пола, низкие вороны, шипы'], ['↓', 'подкат', 'вороны, паук, портреты, взгляд Ока'],
       [k ? '→' : '←', 'пинок', 'шкафы, часы, доспехи, тень со щитом'], [k ? '←' : '→', 'рывок', 'призрачная решётка, призрак, туман'],
       ['☝', 'тап', 'выстрел в тени и марионеток'], ['👁', 'глаз', 'пауза']];
@@ -726,7 +727,7 @@ function renderSettings() {
   $('#view-desc').textContent = v3 ? 'Вид сзади, три дорожки, Флит объёмный.' : 'Вид сбоку, как в рисунках.';
   $('#diff-desc').textContent = DIFF_DESC[diff()];
   $('#kick-desc').textContent = v3
-    ? 'Пинок есть в классике. В 3D-забеге мебель обходят по дорожкам.'
+    ? (st.kickSide === 'right' ? 'В 3D-забеге кнопка «Пинок» справа внизу, «Рывок» — слева.' : 'В 3D-забеге кнопка «Пинок» слева внизу, «Рывок» — справа.')
     : (st.kickSide === 'right' ? 'Свайп вправо — пинок, свайп влево — рывок.' : 'Свайп влево — пинок, свайп вправо — рывок.');
   $('#set-sound').classList.toggle('on', !!st.sound);
   $('#set-vibration').classList.toggle('on', !!st.vibration);
@@ -804,6 +805,21 @@ setupInput(cvs, (a, e) => {
   if (game && !paused) game.action(a);
 });
 document.addEventListener('pointerdown', unlockAudio, { once: true });
+// кнопки пинка и рывка (3D): нажатие не уходит в свайпы
+for (const [id, a] of [['#act-kick', 'smash'], ['#act-dash', 'dash']]) {
+  $(id).addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation(); unlockAudio();
+    if (game && !paused && !comic && !mini) game.action(a);
+  });
+}
+function syncActButtons() {
+  const on = is3d() && world && game && !game.opts.demo && game.status === 'running' && !paused && !comic && !mini;
+  const el = $('#act-btns');
+  if (el.classList.contains('hidden') === on) el.classList.toggle('hidden', !on);
+  const side = S.settings.kickSide === 'right' ? 'kick-right' : 'kick-left';
+  if (!el.classList.contains(side)) { el.classList.remove('kick-left', 'kick-right'); el.classList.add(side); }
+  if (on) { $('#act-dash').classList.toggle('cd', (game.p.dashCd || 0) > 0); $('#act-kick').classList.toggle('cd', (game.p.kickT || 0) > 0); }
+}
 
 // ---------- цикл ----------
 let last = performance.now();
@@ -823,9 +839,11 @@ function frame(now) {
     if (game && !paused) game.update(dt);
     world.frame(paused ? 0 : dt);
     if (game?.drawOverlay) game.drawOverlay(ctx, L, time, paused ? 0 : dt, cvs.getBoundingClientRect());
+    syncActButtons();
     requestAnimationFrame(frame);
     return;
   }
+  if (!$('#act-btns').classList.contains('hidden')) $('#act-btns').classList.add('hidden');
   ctx.fillStyle = '#050404';
   ctx.fillRect(0, 0, L.SW, L.SH);
   if (comic) {

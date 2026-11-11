@@ -121,6 +121,22 @@ export class Game3D {
       if (this.y <= 0.001) { this.vy = 6.4 * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
       else if (M.doubleJump && !p.dj) { p.dj = true; this.vy = 6.0 * Math.sqrt(M.jumpMul); sfx.jump(); }
     }
+    else if (a === 'dash') {
+      // рывок: короткий бросок вперёд сквозь призраков, решётки и туман
+      if ((p.dashCd || 0) > 0) return;
+      p.dashT = 0.5 * (M.dashLen || 1); p.dashCd = 0.9; sfx.slide(); this.shake = Math.max(this.shake, 3);
+    }
+    else if (a === 'smash') {
+      // пинок: мебель, доспехи и щит в своей дорожке, если они близко
+      if ((p.kickT || 0) > 0) return;
+      p.kickT = 0.4; sfx.kick();
+      for (const o of this.objs) {
+        if (o.dead || o.lane !== Math.round(this.hx) || o.z > Z_HERO + 3.2 || o.z < Z_HERO - 0.3) continue;
+        if (ENEMY[o.type]?.act !== 'kick') continue;
+        if (ENEMY[o.type].hp) { o.hp -= 2; o.flash = 0.14; if (o.hp <= 0) this.kill(o); }
+        else { o.dead = 0.01; this.bonus += 25; this.shake = Math.max(this.shake, 7); }
+      }
+    }
     else if (a === 'slide') {
       if (this.y > 0.05) this.vy = Math.min(this.vy, -12);   // быстро вниз
       p.slideT = 0.75 * M.slideMul; sfx.slide();
@@ -198,6 +214,7 @@ export class Game3D {
       if (this.deathT > 3.3) { this.status = 'over'; this.opts.onEnd?.(false); }
     } else if (this.status === 'over') v = 0;
     if (this.opts.demo) v = 7;
+    if (p.dashT > 0 && this.status === 'running') v *= 1.6;   // рывок
     const step = v * dt;
     this.dist += step;
     p.run += step;
@@ -220,7 +237,7 @@ export class Game3D {
     if (this.opts.demo && Math.sin(this.t * 0.6) > 0.995) this.lane = [-1, 0, 1][Math.floor(Math.random() * 3)];
 
     // таймеры
-    for (const k of ['slideT', 'shootCd', 'invuln', 'hurtT', 'flash']) p[k] = Math.max(0, p[k] - dt);
+    for (const k of ['slideT', 'shootCd', 'invuln', 'hurtT', 'flash', 'dashT', 'dashCd', 'kickT']) p[k] = Math.max(0, (p[k] || 0) - dt);
     this.shake = Math.max(0, this.shake - dt * 30);
     this.flashRed = Math.max(0, this.flashRed - dt * 2);
 
@@ -282,7 +299,7 @@ export class Game3D {
         if (o.z > Z_HERO + 0.35 || o.z + len < Z_HERO - 0.35) continue;
         if (!inLane(o.lane)) continue;
         const k = o.kind;
-        const safe = (k === 'low' && this.y > 0.55) || (k === 'high' && p.slideT > 0);
+        const safe = (k === 'low' && this.y > 0.55) || (k === 'high' && p.slideT > 0) || (p.dashT > 0 && ENEMY[o.type]?.act === 'dash');
         if (safe) continue;
         o.hit = true;
         if (p.invuln > 0) continue;

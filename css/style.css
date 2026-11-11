@@ -288,3 +288,16 @@ body.v3d #story { background: rgba(11,9,8,0.92); }
 .set-ctl .controls { width: 100%; }
 #set-reset { align-self: center; margin-top: 10px; }
 body.v3d #story { background: #050404; }
+
+/* кнопки пинка и рывка в 3D-забеге */
+#act-btns { position: absolute; left: 0; right: 0; bottom: calc(var(--sh, 0px) * 0 + 60px); height: 0; pointer-events: none; z-index: 5; }
+.act-btn {
+  position: absolute; bottom: 0; width: 170px; height: 170px; border-radius: 50%; pointer-events: auto;
+  font: inherit; font-size: 40px; line-height: 1; color: var(--paper); background: rgba(22, 18, 15, 0.72);
+  border: 5px solid var(--paper); box-shadow: 0 0 0 4px var(--blood) inset, 0 6px 0 rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; touch-action: none;
+}
+.act-btn .ico { font-size: 54px; font-family: sans-serif; }
+.act-btn:active, .act-btn.cd { opacity: 0.5; transform: scale(0.94); }
+#act-btns.kick-left #act-kick, #act-btns.kick-right #act-dash { left: 30px; }
+#act-btns.kick-left #act-dash, #act-btns.kick-right #act-kick { right: 30px; }

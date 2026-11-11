@@ -26,7 +26,8 @@ const SRC = {
 const S = 0.16;        // пиксели рисунка → единицы героя (рост ≈ 150)
 const GROUND = 1195;   // линия пола на рисунках автора
 const CX = 600;        // вертикальная ось героя на рисунках
-export const RUN_CYCLE = 0.72; // секунд на полный цикл бега (два шага)
+export const RUN_CYCLE = 0.72;
+export const RIG = { S: 0.16, GROUND: 1195, CX: 600 }; // секунд на полный цикл бега (два шага)
 
 // Части в позе покоя (со сборки автора): картинка, сустав, конец кости.
 const INST = {};
@@ -309,7 +310,8 @@ function drawPose(ctx, p, skin, extra) {
 // extra: { kickT, recoil, flash, aim, vy, land, state }
 //   state — любой объект игры: в нём хранится прошлая поза, чтобы смена действий
 //   (бег → прыжок → подкат…) тоже шла плавно, без скачка.
-export function drawRigHero(ctx, x, y, pose, t, skin = {}, extra = {}) {
+// Поза (углы и длины костей, точки суставов на рисунке 1280×1280) — для 2D-перекладки и для 3D-модели.
+export function rigPose(pose, t, extra = {}) {
   let p, sq = 0;
   if (pose === 'run') p = runPose(t);
   else if (pose === 'kick') {
@@ -347,6 +349,11 @@ export function drawRigHero(ctx, x, y, pose, t, skin = {}, extra = {}) {
   }
 
   sq += 0.2 * (extra.land || 0);
+  return { p, sq };
+}
+
+export function drawRigHero(ctx, x, y, pose, t, skin = {}, extra = {}) {
+  const { p, sq } = rigPose(pose, t, extra);
   ctx.save();
   ctx.translate(x, y);
   if (sq) ctx.scale(1 + sq * 0.7, 1 - sq); // присед при приземлении, вытягивание в полёте

@@ -7,7 +7,8 @@
 // «СТАРТ» по центру; run — забег, камера сзади.
 
 import * as THREE from '../vendor/three.module.min.js';
-import { HeroCut, cutoutMesh, liveCutout } from './cutout3d.js';
+import { cutoutMesh, liveCutout } from './cutout3d.js';
+import { Hero3D } from './hero3d.js';
 import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js';
 import { ENEMY } from './enemies.js';
 import * as art from './art.js';
@@ -321,10 +322,9 @@ function makeEnemy(type, images, look) {
       return m;
     }
     case 'mirror': {
-      const cut = new HeroCut({ tint: { mul: [0.7, 0.75, 0.85] } });
-      if (cut.ok) {
-        cut.root.rotation.y = Math.PI / 2 + 0.6;   // бежит навстречу, зеркально
-        cut.parts.forEach(p => { p.mesh.material.color.setRGB(0.62, 0.68, 0.8); });
+      const cut = new Hero3D({ shirt: '#7d8794' }, 'pistol');
+      if (cut) {
+        cut.root.rotation.y = Math.PI;   // бежит навстречу
         const st = {};
         const gg = new THREE.Group(); gg.add(cut.root);
         return { g: gg, anim: (o, t) => cut.pose('run', t + o.id * 0.1, { state: st, tau: 0.09 }) };
@@ -497,7 +497,8 @@ export function portraitCanvas(look, label = 'Ф. ВЕЙН') {
   });
 }
 
-const RUN_YAW = -1.35;   // почти профиль — как на рисунках
+const RUN_YAW = -0.45;   // вид сзади вполоборота: виден и профиль, и спина
+const RUN_SCALE = 0.62;  // Флит в забеге — небольшой, как в конце смерти
 // камера в забеге высоко: фигуры откидываются к ней (как в Don't Starve), чтобы рисунок не сплющивался
 const lean = (cam, x, y, z) => -Math.atan2(cam.y - y, Math.max(0.5, cam.z - z)) * 0.85;   // верх фигуры откинут от камеры: её плоскость смотрит вверх, на камеру
 const h0 = (w) => (w.hero?.root.scale.y || 1);   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
@@ -603,8 +604,10 @@ export class World3D {
     this.heroKey = key;
     if (this.hero) this.scene.remove(this.hero.root);
     // Флит из деталей автора (объёмные вырезки), если рисунки загрузились; иначе — простая модель
-    const cut = new HeroCut({ ...look, noGun: weapon === 'fists' });
-    if (cut.ok && cut.parts.size > 5) {
+    // полноценная 3D-модель; движение — по рисункам бега из rig.js
+    let cut = null;
+    try { cut = new Hero3D(look, weapon); } catch (e) { console.warn('3D-модель героя', e); }
+    if (cut) {
       const root = new THREE.Group(); root.add(cut.root);
       this.hero = { root, cut, st: {} };
     } else this.hero = makeHero(look, weapon);
@@ -684,7 +687,8 @@ export class World3D {
       const k = this.mode === 'leave' ? ease(this.modeT / 0.9) : 0;
       h.root.visible = true;
       h.root.position.set(lerp(0.38, 0, k), 0, lerp(0, -5, k));
-      h.root.rotation.y = h.cut ? lerp(Math.PI / 2, -0.15, ease(this.modeT / 0.3) * (this.mode === 'leave' ? 1 : 0))
+      h.root.scale.set(this.look?.sx || 1, this.look?.sy || 1, this.look?.sx || 1);
+      h.root.rotation.y = h.cut ? lerp(Math.PI / 2 + 0.55, -0.15, ease(this.modeT / 0.3) * (this.mode === 'leave' ? 1 : 0))
         : lerp(Math.PI - 0.35, 0, ease(this.modeT / 0.25) * (this.mode === 'leave' ? 1 : 0));
       if (this.mode === 'leave') { this.poseH(h, { mode: 'run', t, run: this.modeT * 4 }); if (this.modeT > 0.95 && this.onLeft) { const f = this.onLeft; this.onLeft = null; f(); } }
       else this.poseH(h, { mode: 'lean', t });
@@ -692,7 +696,8 @@ export class World3D {
     } else if (this.mode === 'lobby') {
       this.dist += dt * 0.3;
       h.root.position.set(-0.75, 0, 0);
-      h.root.rotation.y = h.cut ? -Math.PI / 2 + 0.35 : Math.PI - 0.55;
+      h.root.visible = true; h.root.scale.set(this.look?.sx || 1, this.look?.sy || 1, this.look?.sx || 1);
+      h.root.rotation.y = h.cut ? -Math.PI / 2 - 0.55 : Math.PI - 0.55;
       this.poseH(h, { mode: 'warmup', t });
       camPos = [0.2, 1.5, 4.6]; camLook = [0.1, 1.05, -1.5];
     } else if (this.mode === 'run' && this.game) {
@@ -704,11 +709,12 @@ export class World3D {
       if (!dying) {
         h.root.visible = !(g.p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running');
         h.root.position.set(lerp(-0.75, hx, intro), g.y, 0);
-        h.root.rotation.set(h.cut ? lean(this.camPos, hx, 0.9, 0) * intro : 0, h.cut ? lerp(-Math.PI / 2 + 0.35, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
-        h.root.scale.set(h.root.scale.x, h.root.scale.y, h.root.scale.z);
+        h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
+        const rs = lerp(1, RUN_SCALE, intro);
+        h.root.scale.set(rs * (this.look?.sx || 1), rs * (this.look?.sy || 1), rs * (this.look?.sx || 1));
         if (g.status === 'won') { h.root.position.z = -ease(g.enter) * 3; h.root.visible = g.enter < 0.85; }
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
-        this.poseH(h, { mode, t, run: g.p.run, vy: g.vy });
+        this.poseH(h, { mode, t, run: g.p.run, vy: g.vy, kick: g.p.kickT });
         // камера выше и дальше: враги видны поверх головы Флита
         camPos = [hx * 0.5 + 0.4, 5.3, 8.8]; camLook = [hx * 0.5, 0.3, -12];   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
@@ -722,8 +728,8 @@ export class World3D {
         this.poseH(h, { mode: 'frozen', t });
         const shake = T > 0.3 && T < 1.5 ? Math.sin(t * 40) * 0.03 : 0;
         h.root.position.set(lerp(hx, P.x + 0.45, drag) + shake, lerp(0, P.y - 0.95, drag), lerp(0, P.z, drag));
-        h.root.rotation.set((h.cut ? lean(this.camPos, hx, 0.9, 0) : 0) * (1 - k) + lerp(0, -0.25, ease(T / 0.3)) * (1 - drag), h.cut ? lerp(RUN_YAW, 0, drag) : lerp(0, Math.PI / 2, drag), Math.sin(t * 9) * 0.06 * (T < 1.5 ? 1 : 0));
-        const s = lerp(1, 0.6, drag) * (T > 1.45 ? Math.max(0.01, 1 - (T - 1.45) / 0.15) : 1);
+        h.root.rotation.set(lerp(0, -0.25, ease(T / 0.3)) * (1 - drag), h.cut ? lerp(RUN_YAW, 0, drag) : lerp(0, Math.PI / 2, drag), Math.sin(t * 9) * 0.06 * (T < 1.5 ? 1 : 0));
+        const s = RUN_SCALE * (T > 1.45 ? Math.max(0.01, 1 - (T - 1.45) / 0.15) : 1);
         h.root.scale.set(s * (this.look?.sx || 1), s * (this.look?.sy || 1), s * (this.look?.sx || 1));
         h.root.visible = T < 1.6;
         this.deathFx(T, t, h.root.position, P, hx);
@@ -880,7 +886,7 @@ export class World3D {
     const ex = { state: h.st, tau: 0.09 };
     let pose = 'run', tt = s.t;
     switch (s.mode) {
-      case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; break;
+      case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; if (s.kick > 0) { pose = 'kick'; ex.kickT = 1 - s.kick / 0.4; ex.tau = 0.04; } break;
       case 'jump': pose = 'jump'; ex.vy = -(s.vy || 0) * 140; break;
       case 'slide': pose = 'slide'; ex.tau = 0.06; break;
       case 'warmup': pose = 'idle'; ex.blend = { pose: 'kick', k: 0.5 - 0.5 * Math.cos(s.t * 2.4) }; ex.tau = 0.15; break;
@@ -1027,7 +1033,7 @@ export class Run3D extends Game3D {
         const q = this.world.toStage(o.lane * LANE, 2.6, -(o.z - Z_HERO), L, rect);
         if (q.front) {
           ctx.font = font(46); ctx.textAlign = 'center';
-          const text = HINT[o.kind], w = ctx.measureText(text).width + 34, x = clamp(q.x, w / 2 + 10, W - w / 2 - 10), y = clamp(q.y, 230, L.SH * 0.6);
+          const act = ENEMY[o.type]?.act, text = act === 'kick' && o.kind === 'block' ? '👢 пинок или другая дорожка' : act === 'dash' ? '💨 рывок или другая дорожка' : HINT[o.kind], w = ctx.measureText(text).width + 34, x = clamp(q.x, w / 2 + 10, W - w / 2 - 10), y = clamp(q.y, 230, L.SH * 0.6);
           ctx.fillStyle = 'rgba(232,220,196,0.92)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 3;
           ctx.beginPath(); ctx.roundRect(x - w / 2, y - 32, w, 64, 12); ctx.fill(); ctx.stroke();
           ctx.fillStyle = '#7a2f35'; ctx.fillText(text, x, y + 2);

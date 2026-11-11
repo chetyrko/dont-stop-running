@@ -88,26 +88,42 @@
 
     <!-- Настройки -->
     <section id="settings" class="screen hidden">
-      <h2>Настройки</h2>
-      <div class="buttons">
-        <button id="set-view" class="btn big">Режим</button>
-        <div id="view-desc" class="hint-line"></div>
-        <button id="set-diff" class="btn big">Сложность</button>
-        <div id="diff-desc" class="hint-line"></div>
-        <button id="set-sound" class="btn toggle">Звук: вкл</button>
-        <button id="set-vibration" class="btn toggle">Вибрация: вкл</button>
-        <button id="set-paper" class="btn toggle">Эффект бумаги: вкл</button>
+      <div class="set-head">
+        <button data-go="menu" class="btn small set-back">‹ Назад</button>
+        <h2>Настройки</h2>
+      </div>
+      <div class="set-list">
+        <div class="set-row">
+          <div class="set-name">Вид</div>
+          <div class="seg" id="seg-view"><button data-v="3d">3D-забег</button><button data-v="classic">Классика</button></div>
+          <div id="view-desc" class="set-desc"></div>
+        </div>
+        <div class="set-row">
+          <div class="set-name">Сложность</div>
+          <div class="seg seg4" id="seg-diff"><button data-v="easy">Лёгкий</button><button data-v="normal">Средний</button><button data-v="hard">Сложный</button><button data-v="nightmare">Кошмар</button></div>
+          <div id="diff-desc" class="set-desc"></div>
+        </div>
+        <div class="set-row">
+          <div class="set-name">Пинок</div>
+          <div class="seg" id="seg-kick"><button data-v="left">← свайп влево</button><button data-v="right">свайп вправо →</button></div>
+          <div id="kick-desc" class="set-desc"></div>
+        </div>
+        <div class="set-row">
+          <div class="set-name">Бесконечный режим</div>
+          <div class="seg" id="seg-endless"><button data-v="off">Выкл</button><button data-v="on">Вкл</button></div>
+          <div class="set-desc">Выкл — только сюжет: каждый забег — следующая комната поместья. Вкл — в лобби и в выборе комнат появится «Сквозняк», бесконечный забег.</div>
+        </div>
+        <div class="set-row set-toggles">
+          <button id="set-sound" class="tgl">Звук</button>
+          <button id="set-vibration" class="tgl">Вибрация</button>
+          <button id="set-paper" class="tgl">Бумага</button>
+        </div>
+        <details class="set-row set-ctl">
+          <summary class="set-name">Управление ▾</summary>
+          <div class="controls" id="controls-list"></div>
+        </details>
         <button id="set-reset" class="btn small danger">Сбросить прогресс</button>
       </div>
-      <div class="controls">
-        <div class="ctl"><span class="g">↑</span><span class="a">прыжок</span><span class="w">ямы, люки, крысы, руки из пола, низкие вороны, шипы</span></div>
-        <div class="ctl"><span class="g">↓</span><span class="a">подкат</span><span class="w">вороны, паук, портреты, взгляд Ока</span></div>
-        <div class="ctl"><span class="g">←</span><span class="a">пинок</span><span class="w">шкафы, часы, доспехи, тень со щитом</span></div>
-        <div class="ctl"><span class="g">→</span><span class="a">рывок</span><span class="w">призрачная решётка, призрак, туман</span></div>
-        <div class="ctl"><span class="g">☝</span><span class="a">тап</span><span class="w">выстрел в тени и марионеток</span></div>
-        <div class="ctl"><span class="g">👁</span><span class="a">глаз</span><span class="w">пауза</span></div>
-      </div>
-      <button data-go="menu" class="btn small">Назад</button>
     </section>
 
     <!-- Пауза -->

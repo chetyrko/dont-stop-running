@@ -530,7 +530,7 @@ export class World3D {
     });
     this.floorTex = canvasTex(planks, [WALL * 2 / 1.3, LEN / 1.3]);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, LEN), new THREE.MeshLambertMaterial({ map: this.floorTex }));
-    floor.rotation.x = -Math.PI / 2; floor.position.z = -LEN / 2 + 8; sc.add(floor);
+    floor.rotation.x = -Math.PI / 2; floor.position.z = -LEN / 2 + 16; sc.add(floor);
     const rug = makeCanvas(128, 256, (x) => {
       x.fillStyle = '#6a2a28'; x.fillRect(0, 0, 128, 256);
       x.fillStyle = '#c9a24a'; x.fillRect(6, 0, 4, 256); x.fillRect(118, 0, 4, 256);
@@ -538,7 +538,7 @@ export class World3D {
     });
     this.rugTex = canvasTex(rug, [1, LEN / 2.5]);
     const rugM = new THREE.Mesh(new THREE.PlaneGeometry(LANE * 3.15, LEN), new THREE.MeshLambertMaterial({ map: this.rugTex }));
-    rugM.rotation.x = -Math.PI / 2; rugM.position.set(0, 0.006, -LEN / 2 + 8); sc.add(rugM);
+    rugM.rotation.x = -Math.PI / 2; rugM.position.set(0, 0.006, -LEN / 2 + 16); sc.add(rugM);
     // стены: рисунок автора wall.png, повторяется вдоль коридора
     const wallImg = this.images.wall;
     const wtex = wallImg ? new THREE.Texture(wallImg) : canvasTex(makeCanvas(256, 128, (x) => { for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#cbbd9f' : '#e4d8c0'; x.fillRect(i * 32, 0, 32, 128); } }));
@@ -549,19 +549,19 @@ export class World3D {
       const t = wtex.clone(); t.needsUpdate = true; t.repeat.set(LEN / tile, 1);
       const m = new THREE.Mesh(new THREE.PlaneGeometry(LEN, CEIL), new THREE.MeshLambertMaterial({ map: t }));
       m.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
-      m.position.set(side * WALL, CEIL / 2, -LEN / 2 + 8);
+      m.position.set(side * WALL, CEIL / 2, -LEN / 2 + 16);
       sc.add(m);
       return { m, t, side };
     });
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, LEN), new THREE.MeshLambertMaterial({ color: 0x1a1412 }));
-    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, CEIL, -LEN / 2 + 8); sc.add(ceil);
+    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, CEIL, -LEN / 2 + 16); sc.add(ceil);
     // арки и бра каждые 8 м
     this.arches = [];
     for (let i = 0; i < 15; i++) {
       const a = new THREE.Group();
       a.add(box(0.28, CEIL, 0.32, 0x241a14, [-WALL + 0.14, CEIL / 2, 0]));
       a.add(box(0.28, CEIL, 0.32, 0x241a14, [WALL - 0.14, CEIL / 2, 0]));
-      a.add(box(WALL * 2, 0.34, 0.34, 0x241a14, [0, CEIL - 0.17, 0]));
+      a.userData.beam = a.add(box(WALL * 2, 0.34, 0.34, 0x241a14, [0, CEIL - 0.17, 0])) && a.children[a.children.length - 1];
       for (const s of [-1, 1]) {
         a.add(box(0.08, 0.3, 0.08, 0x5a4a3a, [s * (WALL - 0.08), 2.05, -1.6], { noOutline: true }));
         a.add(ball(0.07, 0xffd27a, [s * (WALL - 0.12), 2.28, -1.6], { basic: true, noOutline: true }));
@@ -704,7 +704,7 @@ export class World3D {
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
         this.poseH(h, { mode, t, run: g.p.run, vy: g.vy });
         // камера выше и дальше: враги видны поверх головы Флита
-        camPos = [hx * 0.5 + 0.3, 3.25, 5.9]; camLook = [hx * 0.5, 0.55, -12];
+        camPos = [hx * 0.5 + 0.4, 5.3, 8.8]; camLook = [hx * 0.5, 0.3, -12];   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
         // «стал портретом»: поднимается к левой стене, вокруг возникает рама, портрет остаётся на стене
         // портрет вешается посередине между арками, чтобы колонна его не закрывала
@@ -722,7 +722,7 @@ export class World3D {
           this.scene.add(this.deathPortrait);
         }
         if (this.deathPortrait) { const q = ease((T - 0.95) / 0.6); this.deathPortrait.scale.set(q, q, 1); }
-        camPos = [lerp(hx * 0.5 + 0.35, 0.9, k), lerp(3.25, 1.95, k), lerp(5.9, P.z + 3.4, k)]; camLook = [lerp(hx * 0.5, P.x, k), lerp(0.5, P.y, k), lerp(-12, P.z, k)];
+        camPos = [lerp(hx * 0.5 + 0.35, 0.9, k), lerp(5.3, 1.95, k), lerp(8.8, P.z + 3.4, k)]; camLook = [lerp(hx * 0.45, P.x, k), lerp(0.5, P.y, k), lerp(-12, P.z, k)];
       }
       this.syncRun(g, t);
     } else {
@@ -741,11 +741,12 @@ export class World3D {
     this.rugTex.offset.y = d / 2.5;
     for (const w of this.walls) w.t.offset.x = (w.side < 0 ? 1 : -1) * d / this.wallTile;
     const base = d % 8;
-    this.arches.forEach((a, i) => { a.position.z = 8 + base - (i + 1) * 8; });
+    // в забеге камера выше потолка: верхние балки арок закрывали бы вид, их прячем
+    this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.mode !== "run"; });
     for (const p of this.portraits || []) {
       const z = -(p.userData.at - d);
       p.position.set(p.userData.side * (WALL - 0.03), 1.9, z);
-      p.visible = z < 8 && z > -60;
+      p.visible = z < 14 && z > -60;
     }
     this.renderer.render(this.scene, this.camera);
   }

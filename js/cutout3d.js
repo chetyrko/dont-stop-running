@@ -163,6 +163,39 @@ export function inflateGeometry(img, T) {
       if (side) idx.push(a, b, c, b, e, c); else idx.push(a, c, b, b, c, e);
     }
   }
+  // сглаживание (Таубин): «лесенка» по краю и грани на гребнях уходят, объём не сдувается
+  const verts = [];
+  for (let k = 0; k < gw * gh; k++) if (map[0][k] >= 0) verts.push(k);
+  const nb = new Map();
+  for (const k of verts) {
+    const i = k % gw, j = (k - i) / gw, list = [];
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const ii = i + di, jj = j + dj;
+      if (ii < 0 || jj < 0 || ii >= gw || jj >= gh) continue;
+      const v = map[0][jj * gw + ii];
+      if (v >= 0) list.push(v);
+    }
+    nb.set(map[0][k], list);
+  }
+  const rim = new Set(verts.filter(k => dist[k] - step <= 0.5).map(k => map[0][k]));
+  for (let it = 0; it < 8; it++) {
+    const f = it % 2 ? -0.53 : 0.5;
+    const nx = new Map();
+    for (const [v, list] of nb) {
+      if (!list.length) continue;
+      let sx = 0, sy = 0, sz = 0;
+      for (const u of list) { sx += pos[u * 3]; sy += pos[u * 3 + 1]; sz += pos[u * 3 + 2]; }
+      const n = list.length;
+      nx.set(v, [pos[v * 3] + f * (sx / n - pos[v * 3]), pos[v * 3 + 1] + f * (sy / n - pos[v * 3 + 1]), pos[v * 3 + 2] + f * (sz / n - pos[v * 3 + 2])]);
+    }
+    for (const [v, q] of nx) { pos[v * 3] = q[0]; pos[v * 3 + 1] = q[1]; pos[v * 3 + 2] = rim.has(v) ? 0 : Math.max(0, q[2]); }
+  }
+  for (const k of verts) {
+    const a = map[0][k], b = map[1][k];
+    if (b < 0) continue;
+    pos[b * 3] = pos[a * 3]; pos[b * 3 + 1] = pos[a * 3 + 1]; pos[b * 3 + 2] = -pos[a * 3 + 2];
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));

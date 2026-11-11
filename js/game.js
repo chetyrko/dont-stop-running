@@ -851,7 +851,7 @@ export class Game {
           const box = this.obstBox(o);
           const d = OBST[o.type];
           const top = d.pitLike || d.act === 'dash' ? GROUND_Y - 330 : o.type === 'chandelier' ? 200 : (box ? box.t : GROUND_Y - 120) - 60;
-          art.drawHint(ctx, Math.min(W - 200, Math.max(200, x + o.w / 2)), Math.max(70, top), d.hint, t);
+          art.drawHint(ctx, Math.min(W - 200, Math.max(200, x + o.w / 2)), Math.max(70, top), (window.__kickText || ((x) => x))(d.hint), t);
           break;
         }
       }

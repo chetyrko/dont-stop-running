@@ -354,8 +354,8 @@ function renderStory(lvl, g, earned, first) {
   tx.className = 'story-text' + (st.kind === 'house' ? ' house' : '');
   $('#story-gain').innerHTML = `Оболы: <b>+${earned}</b>${first ? ' (первое прохождение)' : ''} · счёт <b>${g.score}</b>` + foundHtml(g);
   const next = lvl.room + 1;
-  $('#btn-next').textContent = next <= ROOMS_TOTAL ? `Комната ${next}` : 'Коридор Вечного Сквозняка';
-  $('#btn-next').onclick = () => { sfx.click(); next <= ROOMS_TOTAL ? startRoom(next) : startEndless(); };
+  $('#btn-next').textContent = next <= ROOMS_TOTAL ? `Комната ${next}` : S.settings.endless ? 'Коридор Вечного Сквозняка' : 'В меню';
+  $('#btn-next').onclick = () => { sfx.click(); next <= ROOMS_TOTAL ? startRoom(next) : S.settings.endless ? startEndless() : (startDemo(), show('menu')); };
   show('story');
 }
 
@@ -466,7 +466,7 @@ function renderBeasts() {
     } else {
       const k = knowledge(rec, S.progress.maxRoom);
       const [desc, secret] = BEAST_TEXT[t] || ['', ''];
-      let html = `<div class="nm">${d.name}</div><div class="how">${d.hint}</div><div class="lock">впервые: комната ${rec.first} · встреч: ${rec.runs} · убито: ${rec.kills}</div>`;
+      let html = `<div class="nm">${d.name}</div><div class="how">${kickText(d.hint)}</div><div class="lock">впервые: комната ${rec.first} · встреч: ${rec.runs} · убито: ${rec.kills}</div>`;
       html += k >= KNOW_DESC ? `<div class="tx">${desc}</div>` : `<div class="lock">Описание откроется через ${KNOW_DESC - k} комн.</div>`;
       if (k >= KNOW_DESC) html += k >= KNOW_SECRET ? `<div class="sec">Тайна: ${secret}</div>` : `<div class="lock">Тайна откроется через ${KNOW_SECRET - k} комн.</div>`;
       info.innerHTML = html;
@@ -698,16 +698,47 @@ const DIFF_DESC = {
   hard: 'Быстрее, теснее, чаще сдвоенные препятствия. Оболы ×1.7.',
   nightmare: 'Одно сердце. Всё быстрее и злее. Оболы ×2.5, артефакты находятся чаще.',
 };
+// стрелки и слова в подсказках, если пинок перенесён на свайп вправо
+function kickText(t) {
+  if (S.settings.kickSide !== 'right' || is3d() || !t) return t;
+  return t.replace(/←|→|влево|вправо/g, (m) => ({ '←': '→', '→': '←', 'влево': 'вправо', 'вправо': 'влево' })[m]);
+}
+window.__kickText = kickText;
+
+function renderControls() {
+  const k = S.settings.kickSide === 'right';
+  const rows = is3d()
+    ? [['⇆', 'дорожка', 'обойти мебель, решётки, туман'], ['↑', 'прыжок', 'ямы, люки, крысы, руки из пола, шипы'], ['↓', 'подкат', 'вороны, паук, портреты, взгляд Ока'], ['☝', 'тап', 'выстрел в тени и марионеток'], ['👁', 'Око', 'пауза']]
+    : [['↑', 'прыжок', 'ямы, люки, крысы, руки из пола, низкие вороны, шипы'], ['↓', 'подкат', 'вороны, паук, портреты, взгляд Ока'],
+      [k ? '→' : '←', 'пинок', 'шкафы, часы, доспехи, тень со щитом'], [k ? '←' : '→', 'рывок', 'призрачная решётка, призрак, туман'],
+      ['☝', 'тап', 'выстрел в тени и марионеток'], ['👁', 'глаз', 'пауза']];
+  $('#controls-list').innerHTML = rows.map(([g, a, w]) => `<div class="ctl"><span class="g">${g}</span><span class="a">${a}</span><span class="w">${w}</span></div>`).join('');
+}
+
 function renderSettings() {
   const st = S.settings;
-  const v3 = S.settings.view === '3d';
-  $('#set-view').textContent = 'Режим: ' + (v3 ? '3D-забег' : 'Классика');
-  $('#view-desc').textContent = v3 ? 'Вид сзади, три дорожки. Свайп ← → — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел.' : 'Вид сбоку, как раньше.';
-  $('#set-diff').textContent = 'Сложность: ' + DIFFICULTY[diff()].name;
+  const v3 = st.view === '3d';
+  const seg = (id, val) => $$(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === val));
+  seg('seg-view', v3 ? '3d' : 'classic');
+  seg('seg-diff', diff());
+  seg('seg-kick', st.kickSide === 'right' ? 'right' : 'left');
+  seg('seg-endless', st.endless ? 'on' : 'off');
+  $('#view-desc').textContent = v3 ? 'Вид сзади, три дорожки, Флит объёмный.' : 'Вид сбоку, как в рисунках.';
   $('#diff-desc').textContent = DIFF_DESC[diff()];
-  $('#set-sound').textContent = 'Звук: ' + (st.sound ? 'вкл' : 'выкл');
-  $('#set-vibration').textContent = 'Вибрация: ' + (st.vibration ? 'вкл' : 'выкл');
-  $('#set-paper').textContent = 'Эффект бумаги: ' + (st.paper ? 'вкл' : 'выкл');
+  $('#kick-desc').textContent = v3
+    ? 'Пинок есть в классике. В 3D-забеге мебель обходят по дорожкам.'
+    : (st.kickSide === 'right' ? 'Свайп вправо — пинок, свайп влево — рывок.' : 'Свайп влево — пинок, свайп вправо — рывок.');
+  $('#set-sound').classList.toggle('on', !!st.sound);
+  $('#set-vibration').classList.toggle('on', !!st.vibration);
+  $('#set-paper').classList.toggle('on', !!st.paper);
+  renderControls();
+  applyEndless();
+}
+// бесконечный режим можно спрятать: тогда игра — только сюжет
+function applyEndless() {
+  const on = !!S.settings.endless;
+  $('#lobby-endless')?.classList.toggle('hidden', !on);
+  $('#btn-endless')?.classList.toggle('hidden', !on);
 }
 function toggleSetting(key) {
   S.settings[key] = !S.settings[key];
@@ -717,18 +748,15 @@ function toggleSetting(key) {
   sfx.click();
   renderSettings();
 }
-$('#set-view').onclick = () => {
-  S.settings.view = S.settings.view === '3d' ? 'classic' : '3d';
-  save(); sfx.click(); applyView(); renderSettings(); startDemo();
-};
-$('#set-diff').onclick = () => {
-  const i = DIFF_ORDER.indexOf(diff());
-  S.settings.difficulty = DIFF_ORDER[(i + 1) % DIFF_ORDER.length];
-  save(); sfx.click(); renderSettings();
-};
+const onSeg = (id, fn) => $$(`#${id} button`).forEach(b => b.onclick = () => { sfx.click(); fn(b.dataset.v); save(); renderSettings(); });
+onSeg('seg-view', (v) => { if (S.settings.view === v) return; S.settings.view = v; save(); applyView(); startDemo(); });
+onSeg('seg-diff', (v) => { S.settings.difficulty = v; });
+onSeg('seg-kick', (v) => { S.settings.kickSide = v; });
+onSeg('seg-endless', (v) => { S.settings.endless = v === 'on'; });
 $('#set-sound').onclick = () => toggleSetting('sound');
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
+applyEndless();
 let resetArmed = false;
 $('#set-reset').onclick = () => {
   const b = $('#set-reset');
@@ -772,6 +800,7 @@ setupInput(cvs, (a, e) => {
   if (mini) { if (a === 'shoot') mini.tap(x, y); else if (e && a !== 'pause') mini.swipe?.(x, y, a); return; }
   if (a === 'pause') { paused ? resume() : pause(); return; }
   if (a === 'shoot' && e && (game?.hitEye ? game.hitEye(x, y) : hud && hud.hitEye(x, y))) { pause(); return; }
+  if (!is3d() && S.settings.kickSide === 'right') a = a === 'kick' ? 'right' : a === 'right' ? 'kick' : a;   // пинок — свайпом вправо
   if (game && !paused) game.action(a);
 });
 document.addEventListener('pointerdown', unlockAudio, { once: true });

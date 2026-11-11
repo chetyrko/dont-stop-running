@@ -160,20 +160,28 @@ export function shopOffers(seed, size, owned) {
 }
 
 // ---------- значки (рисуются кодом в чернильном стиле) ----------
-export function drawArtifactIcon(ctx, a, x, y, size) {
+export function drawArtifactIcon(ctx, a, x, y, size, opt = {}) {
   const r = size / 2;
   ctx.save();
   ctx.translate(x, y);
-  // медальон: цвет — редкость, проклятые — тёмно-красные
-  ctx.fillStyle = a.cursed ? '#5a1e1e' : a.rarity.color;
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = Math.max(2, size * 0.06);
-  ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, 7); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = a.cursed ? '#2a0f0f' : '#e8dcc4';
-  ctx.beginPath(); ctx.arc(0, 0, r * 0.76, 0, 7); ctx.fill();
-  const k = r * 0.5;
-  ctx.fillStyle = a.cursed ? '#c25a4a' : '#16120f';
-  ctx.strokeStyle = a.cursed ? '#c25a4a' : '#16120f';
+  let k;
+  if (opt.plain) {
+    // просто предмет, без медальона (для поиска предметов и «трёх в ряд»)
+    k = r * 0.95;
+    ctx.fillStyle = opt.color || '#16120f';
+    ctx.strokeStyle = opt.color || '#16120f';
+  } else {
+    // медальон: цвет — редкость, проклятые — тёмно-красные
+    ctx.fillStyle = a.cursed ? '#5a1e1e' : a.rarity.color;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = Math.max(2, size * 0.06);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.95, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = a.cursed ? '#2a0f0f' : '#e8dcc4';
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.76, 0, 7); ctx.fill();
+    k = r * 0.5;
+    ctx.fillStyle = a.cursed ? '#c25a4a' : '#16120f';
+    ctx.strokeStyle = a.cursed ? '#c25a4a' : '#16120f';
+  }
   ctx.lineWidth = Math.max(1.5, size * 0.05);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const P = (pts, fill = true) => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px * k, py * k) : ctx.moveTo(px * k, py * k)); ctx.closePath(); fill ? ctx.fill() : ctx.stroke(); };
@@ -195,7 +203,7 @@ export function drawArtifactIcon(ctx, a, x, y, size) {
     case 'fang': P([[-0.5, -0.8], [0.5, -0.8], [0.1, 0.9], [-0.1, 0.9]]); break;
     case 'chest': P([[-0.85, -0.3], [0.85, -0.3], [0.85, 0.75], [-0.85, 0.75]], false); ctx.beginPath(); ctx.arc(0, -0.3 * k, 0.85 * k, Math.PI, 0); ctx.stroke(); C(0, 0.1, 0.15); break;
     case 'cloak': P([[0, -0.9], [0.4, -0.5], [0.8, 0.9], [0, 0.6], [-0.8, 0.9], [-0.4, -0.5]]); break;
-    case 'gear': for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; P([[Math.cos(an - 0.15) * 0.6, Math.sin(an - 0.15) * 0.6], [Math.cos(an - 0.1) * 0.9, Math.sin(an - 0.1) * 0.9], [Math.cos(an + 0.1) * 0.9, Math.sin(an + 0.1) * 0.9], [Math.cos(an + 0.15) * 0.6, Math.sin(an + 0.15) * 0.6]]); } C(0, 0, 0.62); ctx.fillStyle = a.cursed ? '#2a0f0f' : '#e8dcc4'; C(0, 0, 0.25); break;
+    case 'gear': for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; P([[Math.cos(an - 0.15) * 0.6, Math.sin(an - 0.15) * 0.6], [Math.cos(an - 0.1) * 0.9, Math.sin(an - 0.1) * 0.9], [Math.cos(an + 0.1) * 0.9, Math.sin(an + 0.1) * 0.9], [Math.cos(an + 0.15) * 0.6, Math.sin(an + 0.15) * 0.6]]); } C(0, 0, 0.62); ctx.fillStyle = opt.plain ? '#e8dcc4' : a.cursed ? '#2a0f0f' : '#e8dcc4'; C(0, 0, 0.25); break;
     case 'mirror': ctx.beginPath(); ctx.ellipse(0, -0.2 * k, 0.5 * k, 0.65 * k, 0, 0, 7); ctx.stroke(); P([[-0.1, 0.45], [0.1, 0.45], [0.1, 0.95], [-0.1, 0.95]]); break;
     case 'bell': P([[-0.7, 0.6], [-0.5, -0.4], [0, -0.85], [0.5, -0.4], [0.7, 0.6]]); C(0, 0.78, 0.18); break;
     case 'lantern': P([[-0.45, -0.6], [0.45, -0.6], [0.55, 0.8], [-0.55, 0.8]], false); P([[-0.2, -0.95], [0.2, -0.95], [0.2, -0.6], [-0.2, -0.6]]); C(0, 0.15, 0.22); break;

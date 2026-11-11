@@ -16,8 +16,9 @@ export function setupInput(el, onAction) {
     const dx = e.clientX - start.x, dy = e.clientY - start.y;
     if (Math.hypot(dx, dy) < SWIPE_DIST) return;
     start.fired = true;
-    if (Math.abs(dy) > Math.abs(dx)) onAction(dy < 0 ? 'jump' : 'slide');
-    else onAction(dx < 0 ? 'kick' : 'right');
+    const from = { clientX: start.x, clientY: start.y };
+    if (Math.abs(dy) > Math.abs(dx)) onAction(dy < 0 ? 'jump' : 'slide', from);
+    else onAction(dx < 0 ? 'kick' : 'right', from);
   });
 
   const end = (e) => {

@@ -187,3 +187,10 @@ h2 { margin: 0 0 6px; font-size: 84px; line-height: 0.95; color: var(--paper); t
 .story-text.house { font-size: 58px; color: #d9a0a0; letter-spacing: 1px; }
 .story-gain { font-size: 36px; color: #b9b5ae; line-height: 1.15; margin-bottom: 20px; }
 .story-gain b { color: #f0d27c; }
+
+/* кнопка «Назад» всегда видна наверху прокручиваемых экранов */
+.back-top {
+  position: sticky; top: 8px; z-index: 5; align-self: flex-start; margin-left: 4px;
+  min-width: 0 !important; font-size: 40px !important; padding: 6px 22px 8px !important;
+}
+.screen.scroll { padding-top: 16px; }

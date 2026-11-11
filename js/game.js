@@ -104,7 +104,11 @@ export class Game {
     this.found = [];          // артефакты, найденные в этом забеге
     this.spawnCount = 0;
     this.finishX = Number.isFinite(L.length) ? PLAYER_X + L.length * PX_PER_METER : Infinity;
-    this.nextSpawnX = W + 300;
+    // старт с флажка (лёгкий режим): забег продолжается с сохранённого места
+    this.startAt = this.opts.startAt || 0;
+    this.camX = this.startAt * PX_PER_METER;
+    this.lastCp = this.startAt;
+    this.nextSpawnX = this.camX + W + 300;
     this.doorOpen = 0;
     this.enter = 0;
     this.lastHealM = 0;
@@ -401,6 +405,16 @@ export class Game {
       if (Math.random() < this.level.findChance * M.luck) this.relics.push({ x: this.camX + W + 200, y: GROUND_Y - 120, taken: false });
     }
 
+    // флажки сохранения
+    for (const cp of L.checkpoints || []) {
+      if (cp > this.lastCp && this.meters >= cp && this.status === 'running') {
+        this.lastCp = cp;
+        this.toast('Флажок: место сохранено');
+        sfx.coin();
+        this.opts.onCheckpoint?.(cp);
+      }
+    }
+
     // лечение артефактом
     if (M.healEvery && this.status === 'running' && this.meters - this.lastHealM >= M.healEvery) {
       this.lastHealM = this.meters;
@@ -618,6 +632,20 @@ export class Game {
     // ямы
     for (const o of this.obstacles) {
       if (o.type === 'pit' && sx(o.x) < W + 50 && sx(o.x + o.w) > -50) art.drawPit(ctx, sx(o.x), o.w, art.makeRng(o.id * 31 + (boil % 2)));
+    }
+    // флажки сохранения (лёгкий режим)
+    for (const cp of L.checkpoints || []) {
+      const fx = sx(PLAYER_X + cp * PX_PER_METER);
+      if (fx < -60 || fx > W + 60) continue;
+      const got = this.lastCp >= cp;
+      ctx.save();
+      ctx.strokeStyle = '#16120f'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(fx, GROUND_Y + 4); ctx.lineTo(fx, GROUND_Y - 190); ctx.stroke();
+      const wave = Math.sin(t * 5 + cp) * 6;
+      ctx.fillStyle = got ? '#c9a24a' : '#b3302c'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(fx, GROUND_Y - 188); ctx.quadraticCurveTo(fx + 40, GROUND_Y - 180 + wave, fx + 78, GROUND_Y - 166);
+      ctx.quadraticCurveTo(fx + 40, GROUND_Y - 148 + wave, fx, GROUND_Y - 142); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
     }
     // дверь выхода
     if (Number.isFinite(this.finishX) && sx(this.finishX) < W + 200) art.drawFinish(ctx, sx(this.finishX) + DOOR_AHEAD, this.doorOpen, L.doorLabel || 'ВЫХОД');

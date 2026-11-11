@@ -1,7 +1,7 @@
 // Поместье «Паноптикум»: 400 комнат в 4 актах по 100, внутри актов — локации.
 // Здесь же сюжетные карточки между комнатами.
 
-import { DIFFICULTY } from './config.js';
+import { DIFFICULTY, PX_PER_METER } from './config.js';
 
 export const ROOMS_TOTAL = 400;
 
@@ -87,12 +87,22 @@ export function roomLevel(room, diffKey) {
   const place = placeOf(room);
   const boss = room % 100 === 0;
   const gapK = Math.max(0.5, (1 - t * 0.38 - a * 0.07)) * D.gap;
+  // длительность растёт по всей игре: 1 минута в первой комнате → 5 минут к 400-й
+  const secs = Math.round(60 + 240 * (room - 1) / (ROOMS_TOTAL - 1));
+  const speed = (390 + a * 55 + t * 190) * D.speed;
+  const length = Math.round(secs * speed * 1.12 / PX_PER_METER);
+  // флажки сохранения на лёгком: делят комнату на равные куски (примерно каждые 45 с)
+  const parts = Math.max(2, Math.round(secs / 45));
+  const checkpoints = D.checkpoints ? Array.from({ length: parts - 1 }, (_, i) => Math.round(length * (i + 1) / parts)) : [];
   return {
     kind: 'room', room, act: a + 1, diff: diffKey,
     name: `Комната ${room}`, place: place.name,
-    length: boss ? Infinity : Math.round(85 + t * 85 + a * 15),   // метров — короткие забеги
-    speed: (390 + a * 55 + t * 190) * D.speed,
-    speedGrowth: 2 + a,
+    length: boss ? Infinity : length,   // в метрах
+    seconds: secs,
+    speed,
+    speedGrowth: speed * 0.22 / (length / 10),   // к концу комнаты скорость вырастает на ~22%
+    checkpoints: boss ? [] : checkpoints,
+    special: boss ? null : specialRoom(room),
     gap: [1.05 * gapK, 1.5 * gapK],
     combo: Math.min(0.8, D.combo + t * 0.15 + a * 0.08),
     enemy: D.enemy * (1 + a * 0.08),
@@ -104,6 +114,16 @@ export function roomLevel(room, diffKey) {
     boss: boss ? { name: ACTS[a].boss, hp: Math.round((16 + a * 6) * D.boss), act: a + 1 } : null,
     doorLabel: room === ROOMS_TOTAL ? 'ВХОД' : 'ВЫХОД',
   };
+}
+
+// Особые комнаты вместо бега: поиск предметов в середине каждого акта (50, 150, 250, 350)
+// и редкие (2%) головоломки — «три в ряд» или «пятнашки» с портретом.
+export function specialRoom(room) {
+  if (room % 100 === 50) return 'search';
+  const h = Math.sin(room * 12.9898 + 78.233) * 43758.5453;
+  const r = h - Math.floor(h);
+  if (room > 5 && r < 0.02) return room % 2 ? 'match3' : 'puzzle';
+  return null;
 }
 
 // Бесконечный забег: «Коридор Вечного Сквозняка».

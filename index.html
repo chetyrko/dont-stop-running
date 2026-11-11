@@ -28,6 +28,7 @@
 
     <!-- Поместье: бесконечный забег и комнаты -->
     <section id="levels" class="screen scroll hidden">
+      <button data-go="menu" class="btn small back-top">‹ Назад</button>
       <h2>Поместье<br>«Паноптикум»</h2>
       <div id="records" class="records"></div>
       <div class="buttons">
@@ -43,6 +44,7 @@
 
     <!-- Артефакты -->
     <section id="artifacts" class="screen scroll hidden">
+      <button data-go="menu" class="btn small back-top">‹ Назад</button>
       <h2>Артефакты</h2>
       <div id="art-count" class="records"></div>
       <div class="hint-line">В забег можно взять не больше, чем мест в ряду ниже. Найденное в забеге начнёт действовать со следующего забега.</div>
@@ -55,6 +57,7 @@
 
     <!-- Лавка -->
     <section id="shop" class="screen scroll hidden">
+      <button data-go="menu" class="btn small back-top">‹ Назад</button>
       <h2>Лавка старьёвщика</h2>
       <div class="wallet"><span class="coin-ico"></span><span class="gold-total">0</span></div>
       <div id="shop-tabs" class="tabs"></div>
@@ -95,7 +98,8 @@
       <h2 id="over-title">Ты стал портретом</h2>
       <div class="result" id="over-result"></div>
       <div class="buttons">
-        <button class="btn big btn-restart">Ещё раз</button>
+        <button id="btn-checkpoint" class="btn big hidden">С флажка</button>
+        <button class="btn btn-restart">Сначала</button>
         <button class="btn btn-tomenu">В меню</button>
       </div>
     </section>

@@ -12,6 +12,7 @@ import { loadDemon } from './demon.js';
 import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter } from './rooms.js';
 import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js';
 import { ComicPlayer } from './comic.js';
+import { MINIGAMES } from './minigames.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -24,6 +25,8 @@ let S = getSave();
 let game = null;          // текущий забег
 let demo = null;          // фон для меню
 let comic = null;         // показываемый комикс
+let mini = null;          // мини-игра (поиск предметов, три в ряд, пятнашки)
+let checkpoint = 0;       // последний взятый флажок (лёгкий режим), в метрах
 let paused = false;
 let currentLevel = null;
 let images = {};
@@ -78,7 +81,7 @@ function show(name) {
 
 function updateWallet() { $$('.gold-total').forEach(el => el.textContent = S.gold); }
 function currentSkin() { return SKINS.find(s => s.id === S.skin) || SKINS[0]; }
-const diff = () => S.settings.difficulty || 'normal';
+const diff = () => S.settings.difficulty || 'nightmare';
 
 function iconCanvas(a, size) {
   const c = document.createElement('canvas');
@@ -89,14 +92,15 @@ function iconCanvas(a, size) {
 
 // ---------- запуск забегов ----------
 function startDemo() {
-  game = null; comic = null;
+  game = null; comic = null; mini = null;
   demo = new Game(demoLevel(), currentSkin(), { demo: true, paperFx: S.settings.paper, images });
 }
 
-function startRun(level) {
+function startRun(level, extra = {}) {
   currentLevel = level;
-  demo = null; comic = null;
+  demo = null; comic = null; mini = null;
   paused = false;
+  checkpoint = extra.startAt || 0;
   game = new Game(level, currentSkin(), {
     images,
     vibration: S.settings.vibration,
@@ -106,6 +110,8 @@ function startRun(level) {
     onSeen: (type) => { if (!S.seenHints.includes(type)) { S.seenHints.push(type); save(); } },
     onRelic: findRelic,
     onEnd: onGameEnd,
+    startAt: extra.startAt || 0,
+    onCheckpoint: (cp) => { checkpoint = cp; },
   });
   hud = new Hud(L, images);
   show(null);
@@ -118,7 +124,24 @@ function startRoom(n) {
     playComic('prologue', () => startRoom(1));
     return;
   }
-  startRun(roomLevel(n, diff()));
+  const lvl = roomLevel(n, diff());
+  if (lvl.special) startMini(lvl); else startRun(lvl);
+}
+
+// Особая комната: поиск предметов, «три в ряд», «пятнашки».
+function startMini(lvl) {
+  currentLevel = lvl;
+  game = null; demo = null; comic = null;
+  show(null);
+  mini = new MINIGAMES[lvl.special](lvl, images, currentSkin(), (res) => {
+    mini = null;
+    if (res.quit) { startDemo(); show('menu'); return; }
+    const found = [];
+    // награда: поиск — шанс артефакта, редкие головоломки — артефакт всегда
+    if (res.won && (lvl.special !== 'search' || Math.random() < 0.5)) found.push(findRelic(lvl.special === 'search' ? 1 : 2));
+    const coins = res.won ? (lvl.special === 'search' ? 20 : 35) + lvl.act * 8 : 0;
+    finishRoom(lvl, { won: res.won, coins, coinMult: 1, score: coins * 10, meters: 0, found });
+  });
 }
 
 function startEndless() { startRun(endlessLevel(diff())); }
@@ -146,10 +169,16 @@ function findRelic(bias) {
 }
 
 function onGameEnd(won) {
-  const g = game, lvl = currentLevel, D = DIFFICULTY[lvl.diff] || DIFFICULTY.normal;
-  let earned = Math.round(g.coins * D.coin * g.mods.coinMult);
+  const g = game;
+  finishRoom(currentLevel, { won, coins: g.coins, coinMult: g.mods.coinMult, score: g.score, meters: g.meters, found: g.found });
+}
+
+function finishRoom(lvl, g) {
+  const D = DIFFICULTY[lvl.diff] || DIFFICULTY.normal;
+  let earned = Math.round(g.coins * D.coin * g.coinMult);
   const score = g.score;
   const R = S.records;
+  $('#btn-checkpoint').classList.add('hidden');
 
   if (lvl.kind === 'endless') {
     if (score > (R.endless[lvl.diff] || 0)) R.endless[lvl.diff] = score;
@@ -162,11 +191,19 @@ function onGameEnd(won) {
     return;
   }
 
-  if (!won) {
+  if (!g.won) {
     R.deaths++;
     S.gold += earned; save();
-    $('#over-title').textContent = 'Ты стал портретом';
-    $('#over-result').innerHTML = `<div>${lvl.name} · ${lvl.place}</div><div>Оболы: <b>+${earned}</b></div>` + foundHtml(g);
+    $('#over-title').textContent = lvl.special ? 'Не вышло' : 'Ты стал портретом';
+    $('#over-result').innerHTML = `<div>${lvl.name} · ${lvl.place}</div>` + (g.meters ? `<div>Пробежал: <b>${g.meters} м</b> из ${lvl.length}</div>` : '') + `<div>Оболы: <b>+${earned}</b></div>` + foundHtml(g);
+    // лёгкий режим: можно продолжить с последнего флажка
+    if (checkpoint > 0 && !lvl.special) {
+      const cpBtn = $('#btn-checkpoint');
+      cpBtn.textContent = `С флажка (${checkpoint} м)`;
+      cpBtn.classList.remove('hidden');
+      const cp = checkpoint;
+      cpBtn.onclick = () => { sfx.click(); startRun(roomLevel(lvl.room, diff()), { startAt: cp }); };
+    }
     show('over');
     return;
   }
@@ -468,7 +505,7 @@ function pause() {
 }
 function resume() { paused = false; show(null); }
 $('#btn-resume').onclick = () => { sfx.click(); resume(); };
-$$('.btn-restart').forEach(b => b.onclick = () => { sfx.click(); startRun(currentLevel.kind === 'room' ? roomLevel(currentLevel.room, diff()) : endlessLevel(diff())); });
+$$('.btn-restart').forEach(b => b.onclick = () => { sfx.click(); currentLevel.kind === 'room' ? startRoom(currentLevel.room) : startEndless(); });
 $$('.btn-tomenu').forEach(b => b.onclick = () => { sfx.click(); startDemo(); show('menu'); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
@@ -478,6 +515,7 @@ setupInput(cvs, (a, e) => {
   const r = cvs.getBoundingClientRect();
   const x = e ? (e.clientX - r.left) * L.SW / r.width : 0, y = e ? (e.clientY - r.top) * L.SH / r.height : 0;
   if (comic) { if (a !== 'pause') comic.tap(x, y); return; }
+  if (mini) { if (a === 'shoot') mini.tap(x, y); else if (e && a !== 'pause') mini.swipe?.(x, y, a); return; }
   if (a === 'pause') { paused ? resume() : pause(); return; }
   if (a === 'shoot' && e && hud && hud.hitEye(x, y)) { pause(); return; }
   if (game && !paused) game.action(a);
@@ -497,6 +535,16 @@ function frame(now) {
   ctx.fillRect(0, 0, L.SW, L.SH);
   if (comic) {
     comic.draw(ctx, time, dt);
+  } else if (mini && (mini.update(dt), mini)) {   // update может завершить игру и обнулить mini
+    if (mini.useFrame) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(L.win.x, L.win.y, L.win.w, L.win.h); ctx.clip();
+      ctx.translate(L.win.x, L.win.y); ctx.scale(L.win.s, L.win.s);
+      mini.drawWorld(ctx);
+      ctx.restore();
+      ctx.drawImage(frameImg, 0, 0, L.SW, L.SH);
+    }
+    mini.drawUI(ctx, L);
   } else {
     const g = game || demo;
     if (g) {
@@ -526,6 +574,6 @@ Promise.all([loadImages(), loadHeroRig(), loadDemon()]).then(() => resize()).the
 
 // для отладки из консоли
 window.__dsr = {
-  get game() { return game; }, get comic() { return comic; }, get save() { return S; },
+  get game() { return game; }, get comic() { return comic; }, get mini() { return mini; }, get save() { return S; }, startMini,
   startRoom, startEndless, startRun, playComic, roomLevel, endlessLevel, computeMods,
 };

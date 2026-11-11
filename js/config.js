@@ -42,7 +42,7 @@ export const PX_PER_METER = 40;
 // enemy — скорость врагов, coin — множитель оболов в конце забега, lives — сердца,
 // find — шанс найти артефакт, boss — множитель здоровья босса.
 export const DIFFICULTY = {
-  easy:      { name: 'Лёгкий',        lives: 3, speed: 0.86, gap: 1.3,  combo: 0.0,  enemy: 0.8,  coin: 1.0, find: 0.8, boss: 0.7, hints: true },
+  easy:      { name: 'Лёгкий',        lives: 3, speed: 0.86, gap: 1.3,  combo: 0.0,  enemy: 0.8,  coin: 1.0, find: 0.8, boss: 0.7, hints: true, checkpoints: true },
   normal:    { name: 'Средний',       lives: 3, speed: 1.0,  gap: 1.0,  combo: 0.15, enemy: 1.0,  coin: 1.3, find: 1.0, boss: 1.0 },
   hard:      { name: 'Сложный',       lives: 3, speed: 1.14, gap: 0.84, combo: 0.35, enemy: 1.25, coin: 1.7, find: 1.2, boss: 1.3 },
   nightmare: { name: 'Кошмар наяву',  lives: 1, speed: 1.28, gap: 0.72, combo: 0.55, enemy: 1.5,  coin: 2.5, find: 1.5, boss: 1.6, nightmare: true },
@@ -51,7 +51,7 @@ export const DIFF_ORDER = ['easy', 'normal', 'hard', 'nightmare'];
 
 // Экономика: оболы редкие, вещи дорогие.
 export const ECONOMY = {
-  coinRowChance: 0.22,   // шанс ряда оболов между препятствиями
+  coinRowChance: 0.15,   // шанс ряда оболов между препятствиями
   firstClearBonus: 6,    // оболы за первое прохождение комнаты (+ номер акта)
   shopSize: 6,           // сколько артефактов на прилавке
   shopRerollPrice: 30,   // обновить прилавок

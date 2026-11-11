@@ -1,11 +1,11 @@
 // Экран телефона: чёрная резная рамка-окно, в которой идёт игра,
 // и плашки сверху — жизни, глаз (он же кнопка паузы), счётчик денег.
 
-import { W, H, SCREEN_W, PLAYER, FRAME_WINDOW } from './config.js?v=9351b1c';
-import { recolor } from './pixels.js?v=9351b1c';
-import { BY_ID, drawArtifactIcon } from './artifacts.js?v=9351b1c';
-import { EXITS } from './rooms.js?v=9351b1c';
-import { makeRng, inkLine, inkShape, inkEllipse, hatch, INK } from './art.js?v=9351b1c';
+import { W, H, SCREEN_W, PLAYER, FRAME_WINDOW } from './config.js?v=a7a9a27';
+import { recolor } from './pixels.js?v=a7a9a27';
+import { BY_ID, drawArtifactIcon } from './artifacts.js?v=a7a9a27';
+import { EXITS } from './rooms.js?v=a7a9a27';
+import { makeRng, inkLine, inkShape, inkEllipse, hatch, INK } from './art.js?v=a7a9a27';
 
 // Раскладка экрана под высоту телефона (в логических пикселях ширины 720).
 // framed = есть нарисованная рамка frame.png: окно во всю ширину экрана.

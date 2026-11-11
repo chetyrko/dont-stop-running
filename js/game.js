@@ -1,14 +1,14 @@
 // Логика забега: герой, препятствия, враги, босс, монеты, находки, отрисовка.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER_X, PLAYER, SCORE, PX_PER_METER, HERO_SCALE, DIFFICULTY, ECONOMY } from './config.js?v=67230c4';
-import { recolor } from './pixels.js?v=67230c4';
-import { demonReady, drawDemon } from './demon.js?v=67230c4';
-import * as art from './art.js?v=67230c4';
-import { sfx } from './audio.js?v=67230c4';
-import { rigReady, drawRigHero } from './rig.js?v=67230c4';
-import { computeMods } from './artifacts.js?v=67230c4';
-import { applyCharacter, applyUpgrades } from './characters.js?v=67230c4';
-import { ENEMY, drawTrapdoor } from './enemies.js?v=67230c4';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER_X, PLAYER, SCORE, PX_PER_METER, HERO_SCALE, DIFFICULTY, ECONOMY } from './config.js?v=6a4a0cb';
+import { recolor } from './pixels.js?v=6a4a0cb';
+import { demonReady, drawDemon } from './demon.js?v=6a4a0cb';
+import * as art from './art.js?v=6a4a0cb';
+import { sfx } from './audio.js?v=6a4a0cb';
+import { rigReady, drawRigHero } from './rig.js?v=6a4a0cb';
+import { computeMods } from './artifacts.js?v=6a4a0cb';
+import { applyCharacter, applyUpgrades } from './characters.js?v=6a4a0cb';
+import { ENEMY, drawTrapdoor } from './enemies.js?v=6a4a0cb';
 
 // Все виды врагов и препятствий — в enemies.js.
 const OBST = ENEMY;

@@ -6,8 +6,8 @@
 // Движение — по тем же 10 рисункам бега, что и во 2D: из rig.js берутся углы и длины костей
 // (rigPose), и каждая кость 3D-модели поворачивается так же, как на рисунке.
 
-import * as THREE from '../vendor/three.module.min.js?v=67230c4';
-import { rigPose, RIG, RUN_CYCLE } from './rig.js?v=67230c4';
+import * as THREE from '../vendor/three.module.min.js?v=6a4a0cb';
+import { rigPose, RIG, RUN_CYCLE } from './rig.js?v=6a4a0cb';
 
 const M = RIG.S * 0.0115;                  // пиксель рисунка 1280×1280 → метры (рост ≈ 1.9 м)
 const INK = 0x0d0a09;
@@ -62,7 +62,7 @@ function skinTex() {
   }));
   return texCache.get('skin');
 }
-const toon = (o) => new THREE.MeshToonMaterial({ gradientMap: toonRamp(), ...o });
+export const toon = (o) => new THREE.MeshToonMaterial({ gradientMap: toonRamp(), ...o });
 
 // чернильный контур: деталь, раздутая вдоль нормалей, рисуется изнанкой
 let inkMat;
@@ -77,7 +77,7 @@ function ink() {
 
 // ---------- геометрия ----------
 // скруглённый ящик: вершины коробки притягиваются к скруглённым рёбрам
-function roundedBox(w, h, d, r, seg = 4) {
+export function roundedBox(w, h, d, r, seg = 4) {
   const g = new THREE.BoxGeometry(w, h, d, seg * 2, seg * 2, seg * 2);
   const p = g.attributes.position, v = new THREE.Vector3(), inner = new THREE.Vector3(w / 2 - r, h / 2 - r, d / 2 - r);
   for (let i = 0; i < p.count; i++) {
@@ -98,7 +98,7 @@ function limbGeom(r1, r2, seg = 12) {
   return g;
 }
 
-function mesh(geom, material, outline = true) {
+export function mesh(geom, material, outline = true) {
   const m = new THREE.Mesh(geom, material);
   if (outline) m.add(new THREE.Mesh(geom, ink()));
   return m;

@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=67230c4';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=67230c4';
-import { Hero3D } from './hero3d.js?v=67230c4';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=67230c4';
-import { ENEMY } from './enemies.js?v=67230c4';
-import * as art from './art.js?v=67230c4';
-import { drawRigHero, rigReady } from './rig.js?v=67230c4';
-import { recolor } from './pixels.js?v=67230c4';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=67230c4';
-import { EXITS } from './rooms.js?v=67230c4';
-import { sfx } from './audio.js?v=67230c4';
+import * as THREE from '../vendor/three.module.min.js?v=6a4a0cb';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=6a4a0cb';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=6a4a0cb';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=6a4a0cb';
+import { ENEMY } from './enemies.js?v=6a4a0cb';
+import * as art from './art.js?v=6a4a0cb';
+import { drawRigHero, rigReady } from './rig.js?v=6a4a0cb';
+import { recolor } from './pixels.js?v=6a4a0cb';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=6a4a0cb';
+import { EXITS } from './rooms.js?v=6a4a0cb';
+import { sfx } from './audio.js?v=6a4a0cb';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -221,15 +221,46 @@ function makeDemon(skull = 0xe6dcc8, scale = 1) {
   } };
 }
 
-function makeCrow() {
-  const g = new THREE.Group();
-  const b = ball(0.18, 0x1d1719, [0, 0, 0]); b.scale.set(1, 0.8, 1.6); g.add(b);
-  g.add(ball(0.12, 0x1d1719, [0, 0.06, 0.28]));
-  const beak = cone(0.05, 0.2, 0xc9a24a, [0, 0.04, 0.45]); beak.rotation.x = Math.PI / 2; g.add(beak);
-  g.add(ball(0.03, 0xf4ead2, [0.07, 0.1, 0.36], { noOutline: true }));
-  const wings = [-1, 1].map(side => { const w = new THREE.Group(); w.position.x = side * 0.12; g.add(w); w.add(box(0.55, 0.02, 0.3, 0x2a2225, [side * 0.28, 0, 0])); return w; });
-  const tail = box(0.18, 0.02, 0.22, 0x1d1719, [0, 0.02, -0.32]); g.add(tail);
-  return { g, wings };
+// Ворона: объёмная модель, летит клювом на Флита и машет крыльями.
+// Крыло — три пера-лопасти на «плече» и «локте», чтобы взмах шёл волной.
+function featherGeom(len, wid) {
+  const sh = new THREE.Shape();
+  sh.moveTo(0, -wid * 0.5); sh.quadraticCurveTo(len * 0.6, -wid * 0.7, len, -wid * 0.1);
+  sh.lineTo(len * 0.92, wid * 0.2); sh.quadraticCurveTo(len * 0.5, wid * 0.6, 0, wid * 0.5); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: false, curveSegments: 6 });
+  g.rotateX(Math.PI / 2); g.translate(0, 0.006, 0);
+  return g;
+}
+function makeCrow(scale = 1) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const black = toon({ color: 0x17141a }), sheen = toon({ color: 0x2c2838 }), beakM = toon({ color: 0x3a3330 }), eyeM = toon({ color: 0xf0e6d0 });
+  // тело — вытянутая капля, голова впереди (+z — к Флиту и камере)
+  const torso = inked(new THREE.SphereGeometry(0.17, 16, 12), black); torso.scale.set(1, 0.85, 1.55); body.add(torso);
+  const head = inked(new THREE.SphereGeometry(0.11, 14, 10), black); head.position.set(0, 0.07, 0.27); body.add(head);
+  const beak = inked(new THREE.ConeGeometry(0.045, 0.2, 10), beakM); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.05, 0.43); body.add(beak);
+  for (const s of [-1, 1]) {
+    const e = inked(new THREE.SphereGeometry(0.028, 10, 8), eyeM, false); e.position.set(s * 0.06, 0.11, 0.33); body.add(e);
+    const pu = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: 0xb3202a })); pu.position.set(s * 0.07, 0.11, 0.352); body.add(pu);
+  }
+  // хохолок и хвост веером
+  const crest = inked(new THREE.ConeGeometry(0.04, 0.12, 6), black); crest.position.set(0, 0.18, 0.22); crest.rotation.x = -0.6; body.add(crest);
+  for (let i = -2; i <= 2; i++) { const f = inked(featherGeom(0.32, 0.08), sheen); f.rotation.y = Math.PI / 2 + i * 0.22; f.position.set(i * 0.02, 0.01, -0.22); body.add(f); }
+  // крылья: плечо → локоть, на каждом по перьям
+  const wings = [-1, 1].map(side => {
+    const sh = new THREE.Group(); sh.position.set(side * 0.13, 0.05, 0.02); body.add(sh);
+    const el = new THREE.Group(); el.position.x = side * 0.3; sh.add(el);
+    for (let i = 0; i < 2; i++) { const f = inked(featherGeom(0.34, 0.2 - i * 0.04), i ? sheen : black); f.rotation.y = side < 0 ? Math.PI : 0; f.position.z = -i * 0.06; sh.add(f); }
+    for (let i = 0; i < 3; i++) { const f = inked(featherGeom(0.4 - i * 0.06, 0.13), i % 2 ? sheen : black); f.rotation.y = (side < 0 ? Math.PI : 0) + side * (-0.15 - i * 0.2); f.position.z = -i * 0.03; el.add(f); }
+    return { sh, el, side };
+  });
+  g.scale.setScalar(scale);
+  // взмах: плечо ведёт, локоть отстаёт — крыло гнётся волной
+  const flap = (t) => {
+    const a = Math.sin(t * 13), b = Math.sin(t * 13 - 0.9);
+    for (const w of wings) { w.sh.rotation.z = w.side * (0.15 + a * 0.75); w.el.rotation.z = w.side * (b * 0.55); }
+    body.position.y = -a * 0.04; body.rotation.x = 0.1 + a * 0.05;
+  };
+  return { g, wings, flap };
 }
 
 // Плоский рисунок из enemies.js — в текстуру (для мебели, доспехов, портретов).
@@ -273,7 +304,7 @@ function billboard(canvas, w, h) {
 // Живой рисунок врага: тот же рисунок, что во 2D-режиме (рисунки автора и enemies.js),
 // перерисовывается до 30 раз в секунду на холст и стоит в коридоре объёмной «картонкой».
 const PX = 1 / 125;            // метров в пикселе 2D-сцены (пол — 490, потолок — 0)
-const DRAWN = new Set(['monster', 'hopper', 'brute', 'puppet', 'shielded', 'ghost', 'flyer', 'lowcrow', 'swoop', 'flock', 'spider',
+const DRAWN = new Set(['monster', 'hopper', 'brute', 'puppet', 'shielded', 'ghost', 'spider',
   'portrait', 'rats', 'hands', 'chandelier', 'skullroll', 'spikes', 'candelabrum']);
 function makeDrawn(type) {
   const d = ENEMY[type], w = d.w || 150;
@@ -342,17 +373,19 @@ function makeEnemy(type, images, look) {
       break;
     }
     case 'flyer': case 'lowcrow': case 'swoop': {
-      const c = makeCrow(); g.add(c.g); c.g.rotation.y = Math.PI;
-      c.g.position.y = type === 'lowcrow' ? 0.3 : 1.2;
+      // высота — как у рисунка во 2D: ворона над головой (подкат), низкая — у пола (прыжок)
+      const c = makeCrow(type === 'swoop' ? 1.2 : 1.05); g.add(c.g);
+      c.g.position.y = type === 'lowcrow' ? 0.32 : 1.15;
       anim = (o, t) => {
-        c.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * Math.sin(t * 18 + o.id) * 0.7; });
-        if (type === 'swoop') c.g.position.y = lerp(1.2, 3.0, clamp((o.z - Z_HERO - 3) / 14, 0, 1));
+        c.flap(t + o.id * 0.37);
+        c.g.position.x = Math.sin(t * 2 + o.id) * 0.08;
+        if (type === 'swoop') { const k = clamp((o.z - Z_HERO - 3) / 14, 0, 1); c.g.position.y = lerp(1.15, 3.2, k); c.g.rotation.x = -0.5 * (1 - k) * (k > 0 ? 1 : 0) + 0.4 * k; }
       };
       break;
     }
     case 'flock': {
-      const cs = [0, 1, 2].map(i => { const c = makeCrow(); c.g.rotation.y = Math.PI; c.g.position.set((i - 1) * 0.42, 1.2 + (i % 2) * 0.15, i * 0.3); g.add(c.g); return c; });
-      anim = (o, t) => cs.forEach((c, i) => c.wings.forEach((w, j) => { w.rotation.z = (j ? -1 : 1) * Math.sin(t * 18 + i) * 0.7; }));
+      const cs = [0, 1, 2].map(i => { const c = makeCrow(0.9); c.g.position.set((i - 1) * 0.42, 1.12 + (i % 2) * 0.16, i * 0.35); g.add(c.g); return c; });
+      anim = (o, t) => cs.forEach((c, i) => { c.flap(t + i * 0.5); c.g.position.x = (i - 1) * 0.42 + Math.sin(t * 2.5 + i) * 0.06; });
       break;
     }
     case 'spider': {

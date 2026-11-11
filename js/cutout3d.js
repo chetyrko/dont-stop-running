@@ -86,10 +86,111 @@ export function liveCutout(canvas, metersPerPx) {
 }
 
 // ---------- 3D-Флит из деталей автора ----------
-const DEPTH = { torso: 0.34, pelvis: 0.3, head: 0.27, sleeve: 0.15, forearm: 0.1, thigh: 0.13, shin: 0.11, foot: 0.13, gun: 0.06, fist: 0.1 };
-const LAT = { Thigh: 0.1, Shin: 0.1, Foot: 0.1, Sleeve: 0.21, Forearm: 0.23 };
+// Каждая деталь «надувается» по своему контуру: середина толще, к краю объём скругляется до нуля,
+// как у лепной фигурки. Рисунок автора проецируется спереди и сзади, свет — ступенчатый
+// (как заливка тушью), по силуэту — чернильный контур. Получается объёмная модель, которая
+// с любого ракурса выглядит нарисованной.
+
+const DEPTH = { torso: 0.34, pelvis: 0.3, head: 0.26, sleeve: 0.15, forearm: 0.1, thigh: 0.14, shin: 0.11, foot: 0.12, gun: 0.06, fist: 0.11 };
+const LAT = { Thigh: 0.1, Shin: 0.1, Foot: 0.1, Sleeve: 0.2, Forearm: 0.22 };
 const K = 0.0115;          // единицы героя → метры (рост ≈ 1.75 м)
-const DPX = 20;            // толщина геометрии в пикселях
+
+function alphaGrid(img, step) {
+  const w = img.width, h = img.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+  const a = x.getImageData(0, 0, w, h).data;
+  const gw = Math.ceil(w / step) + 1, gh = Math.ceil(h / step) + 1;
+  const inside = new Uint8Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const px = Math.min(w - 1, i * step), py = Math.min(h - 1, j * step);
+    inside[j * gw + i] = a[(py * w + px) * 4 + 3] > 90 ? 1 : 0;
+  }
+  return { gw, gh, inside };
+}
+
+// Расстояние до края (фаска 3-4), в пикселях картинки.
+function distField(gw, gh, inside, step) {
+  const INF = 1e9, d = new Float32Array(gw * gh);
+  for (let k = 0; k < d.length; k++) d[k] = inside[k] ? INF : 0;
+  const s1 = step, s2 = step * Math.SQRT2;
+  const at = (i, j) => (i < 0 || j < 0 || i >= gw || j >= gh) ? 0 : d[j * gw + i];
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const k = j * gw + i; if (!d[k]) continue;
+    d[k] = Math.min(d[k], at(i - 1, j) + s1, at(i, j - 1) + s1, at(i - 1, j - 1) + s2, at(i + 1, j - 1) + s2);
+  }
+  for (let j = gh - 1; j >= 0; j--) for (let i = gw - 1; i >= 0; i--) {
+    const k = j * gw + i; if (!d[k]) continue;
+    d[k] = Math.min(d[k], at(i + 1, j) + s1, at(i, j + 1) + s1, at(i + 1, j + 1) + s2, at(i - 1, j + 1) + s2);
+  }
+  return d;
+}
+
+const inflCache = new Map();
+// Объёмная деталь: x, y — пиксели картинки (y вниз), z — толщина в тех же пикселях (±T).
+export function inflateGeometry(img, T) {
+  const key = img.src + '|' + Math.round(T);
+  if (inflCache.has(key)) return inflCache.get(key);
+  const W = img.width, H = img.height;
+  const step = Math.max(3, Math.ceil(Math.max(W, H) / 96));
+  const { gw, gh, inside } = alphaGrid(img, step);
+  const dist = distField(gw, gh, inside, step);
+  let maxD = 0; for (const v of dist) if (v > maxD) maxD = v;
+  const R = Math.max(step, Math.min(maxD - step, T * 1.15));
+  const INK = Math.max(9, step * 2.5);
+  const zOf = (k) => { const q = Math.min(1, Math.max(0, dist[k] - step) / R); return T * Math.sqrt(1 - (1 - q) * (1 - q)); };
+  const pos = [], uv = [], idx = [];
+  const map = [new Int32Array(gw * gh).fill(-1), new Int32Array(gw * gh).fill(-1)];
+  const vert = (side, i, j) => {
+    const k = j * gw + i;
+    if (map[side][k] >= 0) return map[side][k];
+    const x = Math.min(W, i * step), y = Math.min(H, j * step);
+    pos.push(x, y, (side ? -1 : 1) * zOf(k));
+    // у края поверхность крутая, и проекция растянула бы чернильную линию полосами;
+    // поэтому край берёт цвет чуть глубже внутри детали (контур рисует чернильная обводка)
+    const D = (ii, jj) => dist[Math.min(gh - 1, Math.max(0, jj)) * gw + Math.min(gw - 1, Math.max(0, ii))];
+    let gx = D(i + 1, j) - D(i - 1, j), gy = D(i, j + 1) - D(i, j - 1);
+    const gl = Math.hypot(gx, gy) || 1; gx /= gl; gy /= gl;
+    const inset = Math.max(0, Math.min(INK, INK - (dist[k] - step)));
+    uv.push((x + gx * inset) / W, 1 - (y + gy * inset) / H);
+    return (map[side][k] = pos.length / 3 - 1);
+  };
+  for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
+    const k = j * gw + i;
+    if (!(inside[k] && inside[k + 1] && inside[k + gw] && inside[k + gw + 1])) continue;
+    for (const side of [0, 1]) {
+      const a = vert(side, i, j), b = vert(side, i + 1, j), c = vert(side, i, j + 1), e = vert(side, i + 1, j + 1);
+      if (side) idx.push(a, b, c, b, e, c); else idx.push(a, c, b, b, c, e);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  inflCache.set(key, g);
+  return g;
+}
+
+// ступенчатый свет, как заливка тушью в три тона
+let toonRamp;
+function ramp() {
+  if (toonRamp) return toonRamp;
+  toonRamp = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 190, 190, 190, 255, 255, 255, 255, 255]), 3, 1);
+  toonRamp.minFilter = toonRamp.magFilter = THREE.NearestFilter; toonRamp.needsUpdate = true;
+  return toonRamp;
+}
+
+// чернильный контур: та же деталь, раздутая вдоль нормалей, рисуется изнанкой
+let inkMat;
+function inkMaterial() {
+  return inkMat ||= new THREE.ShaderMaterial({
+    uniforms: { uW: { value: 0.02 }, uC: { value: new THREE.Color(0x0d0907) } },
+    vertexShader: 'uniform float uW; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vec3 n = normalize(normalMatrix * normal); mv.xyz += n * uW; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'uniform vec3 uC; void main(){ gl_FragColor = vec4(uC, 1.0); }',
+    side: THREE.BackSide,
+  });
+}
 
 export class HeroCut {
   constructor(look = {}) {
@@ -98,29 +199,37 @@ export class HeroCut {
     const imgs = rigImages();
     this.ok = !!imgs;
     if (!imgs) return;
-    const shirt = look.shirt && look.id !== undefined ? new THREE.Color(look.shirt) : null;
+    this.noGun = !!look.noGun;
+    const rest = captureRigPose('idle', 0, {}, {}) || [];
+    const unit = {};
+    for (const r of rest) { const [a, b, c, d] = r.m; unit[r.tag] = Math.sqrt(Math.abs(a * d - b * c)); }
     const tint = look.tint?.mul ? new THREE.Color(...look.tint.mul.map(v => Math.min(1.6, v))) : null;
     const add = (tag, imgKey) => {
       const img = imgs[imgKey];
       if (!img) return;
-      const geom = cutoutGeometry(img, DPX);
-      if (!geom) return;
+      const depth = DEPTH[imgKey] ?? 0.12;
+      const u = unit[tag] || 0.16;
+      const T = depth / 2 / (u * K);                       // полутолщина в пикселях картинки
+      const geom = inflateGeometry(img, T);
       const colored = (imgKey === 'torso' || imgKey === 'sleeve') && tint;
-      const mesh = new THREE.Mesh(geom, cutoutMaterial(img, colored ? tint : undefined));
+      const mat = new THREE.MeshToonMaterial({ map: texOf(img), gradientMap: ramp(), alphaTest: 0.4, side: THREE.DoubleSide, color: colored ? tint : 0xffffff });
+      const mesh = new THREE.Mesh(geom, mat);
       mesh.matrixAutoUpdate = false;
+      const ink = new THREE.Mesh(geom, inkMaterial());
+      mesh.add(ink);
       this.root.add(mesh);
-      const side = tag[0] === 'f' && tag !== 'fist' ? 1 : tag[0] === 'b' ? -1 : tag === 'gun' ? 1 : tag === 'fist' ? -1 : 0;
-      const lat = side * (LAT[Object.keys(LAT).find(k => tag.endsWith(k))] ?? (tag === 'gun' ? 0.24 : tag === 'fist' ? 0.23 : 0));
-      this.parts.set(tag, { mesh, depth: DEPTH[imgKey] ?? 0.12, lat });
+      const side = tag === 'gun' ? 1 : tag === 'fist' ? -1 : tag[0] === 'f' ? 1 : tag[0] === 'b' ? -1 : 0;
+      const lk = Object.keys(LAT).find(k => tag.endsWith(k));
+      const lat = side * (lk ? LAT[lk] : tag === 'gun' ? 0.25 : tag === 'fist' ? 0.22 : 0);
+      this.parts.set(tag, { mesh, lat });
     };
     for (const p of RIG_PARTS) if (p.name !== 'head') add(p.name, p.img);
     add('head', 'head');
     add('fist', 'fist');
-    this.noGun = !!look.noGun;
     this.root.scale.set(look.sx || 1, look.sy || 1, look.sx || 1);
   }
 
-  // pose: run | jump | slide | idle | kick; t — секунды для цикла бега
+  // pose: run | jump | slide | idle | kick; t — время цикла бега; extra — как у drawRigHero
   pose(pose, t, extra = {}) {
     if (!this.ok) return;
     const out = captureRigPose(pose, t, { noGun: this.noGun }, extra);
@@ -130,8 +239,9 @@ export class HeroCut {
       const v = this.parts.get(r.tag);
       if (!v) continue;
       const [a, b, c, d, e, f] = r.m;
+      const zk = Math.sqrt(Math.abs(a * d - b * c)) * K;
       v.mesh.matrix.set(
-        0, 0, v.depth / DPX, v.lat - v.depth / 2,
+        0, 0, zk, v.lat,
         -b * K, -d * K, 0, -f * K,
         -a * K, -c * K, 0, -e * K,
         0, 0, 0, 1);

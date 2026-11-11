@@ -268,7 +268,7 @@ function billboard(canvas, w, h) {
 }
 
 // Живой рисунок врага: тот же рисунок, что во 2D-режиме (рисунки автора и enemies.js),
-// перерисовывается ~15 раз в секунду на холст и стоит в коридоре объёмной «картонкой».
+// перерисовывается до 30 раз в секунду на холст и стоит в коридоре объёмной «картонкой».
 const PX = 1 / 125;            // метров в пикселе 2D-сцены (пол — 490, потолок — 0)
 const DRAWN = new Set(['monster', 'hopper', 'brute', 'puppet', 'shielded', 'ghost', 'flyer', 'lowcrow', 'swoop', 'flock', 'spider',
   'portrait', 'rats', 'hands', 'chandelier', 'skullroll', 'spikes', 'candelabrum']);
@@ -282,7 +282,7 @@ function makeDrawn(type) {
   const fake = { t: 0, shake: 0, drawPips() {}, puff() {}, hx: 0 };
   let last = -1;
   const draw = (o, t) => {
-    const f = Math.floor(t * 15);
+    const f = Math.floor(t * (o.z - Z_HERO < 24 ? 30 : 8));   // вблизи — 30 кадров в секунду, вдали реже
     if (f === last) return;
     last = f;
     x.clearRect(0, 0, c.width, c.height);
@@ -324,8 +324,9 @@ function makeEnemy(type, images, look) {
       if (cut.ok) {
         cut.root.rotation.y = Math.PI / 2 + 0.6;   // бежит навстречу, зеркально
         cut.parts.forEach(p => { p.mesh.material.color.setRGB(0.62, 0.68, 0.8); });
+        const st = {};
         const gg = new THREE.Group(); gg.add(cut.root);
-        return { g: gg, anim: (o, t) => cut.pose('run', t + o.id * 0.1, {}) };
+        return { g: gg, anim: (o, t) => cut.pose('run', t + o.id * 0.1, { state: st, tau: 0.09 }) };
       }
       const h = makeHero({ shirt: '#9aa2aa' }, 'pistol', 0.75);
       h.root.rotation.y = Math.PI;
@@ -752,18 +753,18 @@ export class World3D {
   // Поза героя: вырезки из рисунков берут позу из 2D-анимации (rig.js), простая модель — свою.
   poseH(h, s) {
     if (!h.cut) return poseHero(h, s);
-    const ex = { state: h.st };
+    // переходы между действиями сглаживаются (tau), разминка — плавное смешивание стойки и маха ногой
+    const ex = { state: h.st, tau: 0.09 };
     let pose = 'run', tt = s.t;
     switch (s.mode) {
-      case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; if (s.kick > 0) { pose = 'kick'; ex.kickT = 1 - s.kick / 0.35; } break;
+      case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; break;
       case 'jump': pose = 'jump'; ex.vy = -(s.vy || 0) * 140; break;
-      case 'slide': pose = 'slide'; break;
-      case 'warmup': { const ph = (s.t * 0.55) % 2; pose = ph < 1 ? 'idle' : 'kick'; ex.kickT = (ph - 1) * 0.66; break; }
-      case 'lean': case 'frozen': pose = 'idle'; break;
+      case 'slide': pose = 'slide'; ex.tau = 0.06; break;
+      case 'warmup': pose = 'idle'; ex.blend = { pose: 'kick', k: 0.5 - 0.5 * Math.cos(s.t * 2.4) }; ex.tau = 0.15; break;
+      case 'lean': case 'frozen': pose = 'idle'; ex.tau = 0.2; break;
     }
-    if (s.aim) { ex.aim = 1; }
     h.cut.pose(pose, tt, ex);
-    // лёгкое дыхание в стойке
+    // дыхание в стойке
     h.cut.root.position.y = pose === 'idle' ? Math.sin(s.t * 2.2) * 0.008 : 0;
   }
 

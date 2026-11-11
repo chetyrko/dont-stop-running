@@ -321,6 +321,8 @@ export function drawRigHero(ctx, x, y, pose, t, skin = {}, extra = {}) {
     p = mixP(POSE.fly, POSE.reach, smooth(clamp((vy + 200) / 900, 0, 1)));
     sq = -0.1 * clamp(Math.abs(vy) / 1500, 0, 1);
   } else p = { ...(POSE[pose] || POSE.fly) };
+  // плавное смешивание с другой позой (для 3D: разминка, переходы)
+  if (extra.blend) p = mixP(p, extra.blend.pose === 'run' ? runPose(extra.blend.t ?? t) : POSE[extra.blend.pose], smooth(clamp(extra.blend.k, 0, 1)));
 
   // выстрел: рука с пистолетом выбрасывается вперёд, отдача подбрасывает ствол
   if (extra.aim && pose !== 'slide') {
@@ -337,7 +339,7 @@ export function drawRigHero(ctx, x, y, pose, t, skin = {}, extra = {}) {
     const dt = clamp((now - (st.time || now)) / 1000, 0, 0.1);
     st.time = now;
     if (st.p && dt > 0) {
-      const k = 1 - Math.exp(-dt / (extra.aim ? 0.02 : 0.045));
+      const k = 1 - Math.exp(-dt / (extra.aim ? 0.02 : extra.tau || 0.045));
       const z = { zg: p.zg, zf: p.zf };
       p = { ...mixP(st.p, p, k), ...z };
     }

@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=67cd7cc';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=67cd7cc';
-import { Hero3D } from './hero3d.js?v=67cd7cc';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=67cd7cc';
-import { ENEMY } from './enemies.js?v=67cd7cc';
-import * as art from './art.js?v=67cd7cc';
-import { drawRigHero, rigReady } from './rig.js?v=67cd7cc';
-import { recolor } from './pixels.js?v=67cd7cc';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=67cd7cc';
-import { EXITS } from './rooms.js?v=67cd7cc';
-import { sfx } from './audio.js?v=67cd7cc';
+import * as THREE from '../vendor/three.module.min.js?v=9351b1c';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=9351b1c';
+import { Hero3D } from './hero3d.js?v=9351b1c';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=9351b1c';
+import { ENEMY } from './enemies.js?v=9351b1c';
+import * as art from './art.js?v=9351b1c';
+import { drawRigHero, rigReady } from './rig.js?v=9351b1c';
+import { recolor } from './pixels.js?v=9351b1c';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=9351b1c';
+import { EXITS } from './rooms.js?v=9351b1c';
+import { sfx } from './audio.js?v=9351b1c';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -887,7 +887,8 @@ export class World3D {
     const k = o.kind;
     if (o.dead || (k !== 'low' && k !== 'high')) return;
     const z = -(o.z - Z_HERO);
-    put('s' + o.id, () => {
+    // стрелки на ковре — только если включены в настройках («Знаки»), тень под летучими — всегда
+    if (this.game?.opts.floorSigns) put('s' + o.id, () => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(LANE * 0.78, 2.0), new THREE.MeshBasicMaterial({ map: signTex(k), transparent: true, depthWrite: false, opacity: 1 }));
       m.rotation.x = -Math.PI / 2; m.position.y = 0.02;
       const g = new THREE.Group(); g.add(m); return { g };

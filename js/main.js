@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=67cd7cc';
-import { Game } from './game.js?v=67cd7cc';
-import { Game3D } from './game3d.js?v=67cd7cc';
-import { World3D, Run3D } from './three3d.js?v=67cd7cc';
-import { setupInput } from './input.js?v=67cd7cc';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=67cd7cc';
-import { getSave, save, resetSave } from './storage.js?v=67cd7cc';
-import { drawHero, makeRng, drawPit } from './art.js?v=67cd7cc';
-import { drawTrapdoor } from './enemies.js?v=67cd7cc';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=67cd7cc';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=67cd7cc';
-import { loadDemon } from './demon.js?v=67cd7cc';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=67cd7cc';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=67cd7cc';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=67cd7cc';
-import { ComicPlayer } from './comic.js?v=67cd7cc';
-import { MINIGAMES } from './minigames.js?v=67cd7cc';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=67cd7cc';
-import { recolor } from './pixels.js?v=67cd7cc';
-import { ENEMY } from './enemies.js?v=67cd7cc';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=67cd7cc';
-import { GROUND_Y } from './config.js?v=67cd7cc';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=9351b1c';
+import { Game } from './game.js?v=9351b1c';
+import { Game3D } from './game3d.js?v=9351b1c';
+import { World3D, Run3D } from './three3d.js?v=9351b1c';
+import { setupInput } from './input.js?v=9351b1c';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=9351b1c';
+import { getSave, save, resetSave } from './storage.js?v=9351b1c';
+import { drawHero, makeRng, drawPit } from './art.js?v=9351b1c';
+import { drawTrapdoor } from './enemies.js?v=9351b1c';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=9351b1c';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=9351b1c';
+import { loadDemon } from './demon.js?v=9351b1c';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=9351b1c';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=9351b1c';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=9351b1c';
+import { ComicPlayer } from './comic.js?v=9351b1c';
+import { MINIGAMES } from './minigames.js?v=9351b1c';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=9351b1c';
+import { recolor } from './pixels.js?v=9351b1c';
+import { ENEMY } from './enemies.js?v=9351b1c';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=9351b1c';
+import { GROUND_Y } from './config.js?v=9351b1c';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -153,6 +153,7 @@ function startRun(level, extra = {}) {
     images,
     vibration: S.settings.vibration,
     upgrades: upgradeLevels(),
+    floorSigns: !!S.settings.signs,
     paperFx: S.settings.paper,
     equipped: S.equipped,
     seenHints: S.seenHints,
@@ -768,6 +769,7 @@ function renderSettings() {
   $('#set-sound').classList.toggle('on', !!st.sound);
   $('#set-vibration').classList.toggle('on', !!st.vibration);
   $('#set-paper').classList.toggle('on', !!st.paper);
+  $('#set-signs').classList.toggle('on', !!st.signs);
   renderControls();
   applyEndless();
 }
@@ -793,6 +795,7 @@ onSeg('seg-endless', (v) => { S.settings.endless = v === 'on'; });
 $('#set-sound').onclick = () => toggleSetting('sound');
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
+$('#set-signs').onclick = () => toggleSetting('signs');
 applyEndless();
 let resetArmed = false;
 $('#set-reset').onclick = () => {

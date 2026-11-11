@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=7047215';
-import * as art from './art.js?v=7047215';
-import { sfx } from './audio.js?v=7047215';
-import { computeMods } from './artifacts.js?v=7047215';
-import { applyCharacter, applyUpgrades } from './characters.js?v=7047215';
-import { ENEMY } from './enemies.js?v=7047215';
-import { demonReady, drawDemon } from './demon.js?v=7047215';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=fc312f6';
+import * as art from './art.js?v=fc312f6';
+import { sfx } from './audio.js?v=fc312f6';
+import { computeMods } from './artifacts.js?v=fc312f6';
+import { applyCharacter, applyUpgrades } from './characters.js?v=fc312f6';
+import { ENEMY } from './enemies.js?v=fc312f6';
+import { demonReady, drawDemon } from './demon.js?v=fc312f6';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -472,7 +472,7 @@ export class Game3D {
         this.lastHealM = this.meters;
         if (this.lives < this.maxLives) { this.lives++; this.toast('+1 сердце'); }
       }
-      if (this.dist >= this.finish) { this.status = 'won'; this.endTimer = 0.3; sfx.win(); }
+      if (this.dist >= this.finish) { this.lane = 0; this.status = 'won'; this.endTimer = 0.3; sfx.win(); }
     }
 
     for (const tt of this.toasts) tt.life -= dt;

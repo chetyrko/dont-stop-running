@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=7047215';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=7047215';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=7047215';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=7047215';
-import { ENEMY } from './enemies.js?v=7047215';
-import * as art from './art.js?v=7047215';
-import { drawRigHero, rigReady } from './rig.js?v=7047215';
-import { recolor } from './pixels.js?v=7047215';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=7047215';
-import { EXITS } from './rooms.js?v=7047215';
-import { sfx } from './audio.js?v=7047215';
+import * as THREE from '../vendor/three.module.min.js?v=fc312f6';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=fc312f6';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=fc312f6';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=fc312f6';
+import { ENEMY } from './enemies.js?v=fc312f6';
+import * as art from './art.js?v=fc312f6';
+import { drawRigHero, rigReady } from './rig.js?v=fc312f6';
+import { recolor } from './pixels.js?v=fc312f6';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=fc312f6';
+import { EXITS } from './rooms.js?v=fc312f6';
+import { sfx } from './audio.js?v=fc312f6';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -863,7 +863,8 @@ export class World3D {
         h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), h.cut ? 0 : (g.lane - g.hx) * 0.25);
         const rs = lerp(1, RUN_SCALE, intro);
         h.root.scale.set(rs * (this.look?.sx || 1), rs * (this.look?.sy || 1), rs * (this.look?.sx || 1));
-        if (g.status === 'won') { h.root.position.z = -ease(g.enter) * 3; h.root.visible = g.enter < 0.85; }
+        // финиш: сначала к двери по центру, потом внутрь (из боковой дорожки — не в стену)
+        if (g.status === 'won') { h.root.position.x = lerp(hx, 0, ease(g.enter * 2.2)); h.root.position.z = -ease((g.enter - 0.25) / 0.75) * 3; h.root.rotation.y = -Math.atan2(-hx, 3) * (1 - ease(g.enter * 2.2)) * 0.6; h.root.visible = g.enter < 0.9; }
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
         // шаги — с живой частотой (1,3–1,6 цикла в секунду), не привязанной к скорости, иначе на разгоне ноги дрожат
         this.runPh = (this.runPh || 0) + dt * (0.9 + Math.min(g.speed, 16) * 0.02);

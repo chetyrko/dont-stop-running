@@ -6,8 +6,8 @@
 // Движение — по тем же 10 рисункам бега, что и во 2D: из rig.js берутся углы и длины костей
 // (rigPose), и каждая кость 3D-модели поворачивается так же, как на рисунке.
 
-import * as THREE from '../vendor/three.module.min.js?v=6a9cae3';
-import { rigPose, RIG } from './rig.js?v=6a9cae3';
+import * as THREE from '../vendor/three.module.min.js?v=d80a38b';
+import { rigPose, RIG } from './rig.js?v=d80a38b';
 
 const M = RIG.S * 0.0115;                  // пиксель рисунка 1280×1280 → метры (рост ≈ 1.9 м)
 const INK = 0x0d0a09;

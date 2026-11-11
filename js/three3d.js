@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=6a9cae3';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=6a9cae3';
-import { Hero3D } from './hero3d.js?v=6a9cae3';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=6a9cae3';
-import { ENEMY } from './enemies.js?v=6a9cae3';
-import * as art from './art.js?v=6a9cae3';
-import { drawRigHero, rigReady } from './rig.js?v=6a9cae3';
-import { recolor } from './pixels.js?v=6a9cae3';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=6a9cae3';
-import { EXITS } from './rooms.js?v=6a9cae3';
-import { sfx } from './audio.js?v=6a9cae3';
+import * as THREE from '../vendor/three.module.min.js?v=d80a38b';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=d80a38b';
+import { Hero3D } from './hero3d.js?v=d80a38b';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=d80a38b';
+import { ENEMY } from './enemies.js?v=d80a38b';
+import * as art from './art.js?v=d80a38b';
+import { drawRigHero, rigReady } from './rig.js?v=d80a38b';
+import { recolor } from './pixels.js?v=d80a38b';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=d80a38b';
+import { EXITS } from './rooms.js?v=d80a38b';
+import { sfx } from './audio.js?v=d80a38b';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -504,6 +504,21 @@ const RUN_SCALE = 0.62;  // Флит в забеге — небольшой, к�
 const lean = (cam, x, y, z) => -Math.atan2(cam.y - y, Math.max(0.5, cam.z - z)) * 0.85;   // верх фигуры откинут от камеры: её плоскость смотрит вверх, на камеру
 const h0 = (w) => (w.hero?.root.scale.y || 1);   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
 
+// текстура знака на полу: зелёные стрелки вверх (прыжок) или голубые вниз (подкат)
+const signCache = {};
+function signTex(kind) {
+  // одна крупная стрелка и черта: прыжок — стрелка над чертой (перепрыгнуть), подкат — стрелка под чертой (пролезть снизу)
+  return signCache[kind] ||= canvasTex(makeCanvas(160, 256, (x) => {
+    const up = kind === 'low', col = up ? '#9cf07a' : '#6fd0ff';
+    x.lineJoin = 'round'; x.lineWidth = 14; x.strokeStyle = '#0d0907'; x.fillStyle = col;
+    const bar = (y) => { x.beginPath(); x.roundRect(14, y, 132, 26, 10); x.stroke(); x.fill(); };
+    x.beginPath();
+    if (up) { bar(206); x.moveTo(80, 14); x.lineTo(150, 100); x.lineTo(108, 100); x.lineTo(108, 180); x.lineTo(52, 180); x.lineTo(52, 100); x.lineTo(10, 100); }
+    else { bar(18); x.moveTo(80, 242); x.lineTo(150, 156); x.lineTo(108, 156); x.lineTo(108, 70); x.lineTo(52, 70); x.lineTo(52, 156); x.lineTo(10, 156); }
+    x.closePath(); x.stroke(); x.fill();
+  }));
+}
+
 // рука из пола держит подкову-магнит
 function makeMagnetHand() {
   const g = new THREE.Group(), r = new THREE.Group(); g.add(r);
@@ -867,6 +882,23 @@ export class World3D {
     this.renderer.render(this.scene, this.camera);
   }
 
+  // знаки на ковре перед препятствием: ▲ — прыгай, ▼ — подкат; под летучими — тень на полу
+  floorSign(o, t, put) {
+    const k = o.kind;
+    if (o.dead || (k !== 'low' && k !== 'high')) return;
+    const z = -(o.z - Z_HERO);
+    put('s' + o.id, () => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(LANE * 0.78, 2.0), new THREE.MeshBasicMaterial({ map: signTex(k), transparent: true, depthWrite: false, opacity: 1 }));
+      m.rotation.x = -Math.PI / 2; m.position.y = 0.02;
+      const g = new THREE.Group(); g.add(m); return { g };
+    }, o.lane * LANE, 0, z + 3.0, (v) => { v.g.children[0].material.opacity = 0.85 + Math.sin(t * 8) * 0.15; });
+    if (k === 'high' && !FLAT.has(o.type)) put('h' + o.id, () => {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(0.45, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.y = 0.015; m.scale.y = 0.55;
+      const g = new THREE.Group(); g.add(m); return { g };
+    }, o.lane * LANE, 0, z);
+  }
+
   // лестница в одной дорожке и галерея второго этажа во всю ширину коридора
   syncGallery(g, t) {
     const S = g.stairs;
@@ -1044,6 +1076,7 @@ export class World3D {
     };
     for (const o of g.objs) {
       const gone = g.deathT !== undefined ? clamp(1 - g.deathT * 2, 0, 1) : 1;   // при смерти всё растворяется
+      if (gone > 0.5) this.floorSign(o, t, put);
       put('o' + o.id, () => makeEnemy(o.type, this.images, this.look), o.lane * LANE, 0, -(o.z - Z_HERO), (v) => {
         v.anim?.(o, t);
         if (v.face) v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * (g.deathT !== undefined ? 0 : 1), Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8, 0);

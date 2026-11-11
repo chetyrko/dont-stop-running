@@ -2,7 +2,7 @@
 // штриховка, акварельные пятна. Всё это — временный арт, пока нет настоящих
 // рисунков. Любой объект можно заменить картинкой через CUSTOM_ART в config.js.
 
-import { W, H, FLOOR_TOP } from './config.js?v=6a9cae3';
+import { W, H, FLOOR_TOP } from './config.js?v=d80a38b';
 
 export const INK = '#16120f';
 export const PAPER = '#e8dcc4';

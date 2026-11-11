@@ -3,6 +3,7 @@
 
 import { W, H, SCREEN_W, PLAYER, FRAME_WINDOW } from './config.js';
 import { recolor } from './pixels.js';
+import { BY_ID, drawArtifactIcon } from './artifacts.js';
 import { makeRng, inkLine, inkShape, inkEllipse, hatch, INK } from './art.js';
 
 // Раскладка экрана под высоту телефона (в логических пикселях ширины 720).
@@ -324,8 +325,8 @@ export class Hud {
     const w = L.win;
     const gy = w.y + w.h + (L.SH - w.y - w.h) * 0.55;
     ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = '#b9b5ae'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.62;
+    ctx.fillStyle = '#ddd8d0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = 'bold 64px "Amatic SC", serif';
     ctx.fillText('↑', L.SW / 2, gy - 120);
     ctx.fillText('↓', L.SW / 2, gy + 120);
@@ -338,6 +339,20 @@ export class Hud {
     ctx.fillText('пинок', L.SW / 2 - 150, gy + 46);
     ctx.fillText('тап — выстрел', L.SW / 2, gy + 200);
     ctx.restore();
+
+    // артефакты, взятые в забег — под прогрессом
+    const eq = (game.opts?.equipped || []).map(id => BY_ID[id]).filter(Boolean);
+    if (eq.length && !game.opts?.demo) {
+      const ay = w.y + w.h + 150, step = 92, ax0 = L.SW / 2 - (eq.length - 1) * step / 2;
+      eq.forEach((a, i) => drawArtifactIcon(ctx, a, ax0 + i * step, ay, 76));
+      ctx.save();
+      ctx.font = 'bold 30px "Amatic SC", serif'; ctx.fillStyle = '#8e8b87'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const extra = [];
+      if (game.shield > 0) extra.push(`щит ×${game.shield}`);
+      if (game.revives > 0) extra.push(`воскрешение ×${game.revives}`);
+      ctx.fillText(extra.length ? extra.join(' · ') : 'с собой', L.SW / 2, ay + 56);
+      ctx.restore();
+    }
 
     // прогресс до выхода — под окном
     const py = w.y + w.h + 52;

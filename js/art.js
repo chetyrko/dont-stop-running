@@ -697,7 +697,7 @@ export function drawHint(ctx, x, y, kind, t) {
     lowcrow: '↑ перепрыгни', hands: '↑ перепрыгни руки', chandelier: '↑ перепрыгни обломки',
     gate: '→ свайп вправо — рывок', hopper: '☝ тап — выстрел', brute: '☝ три выстрела',
   };
-  const text = labels[kind];
+  const text = labels[kind] || kind;
   if (!text) return;
   ctx.save();
   ctx.font = 'bold 52px "Amatic SC", serif';

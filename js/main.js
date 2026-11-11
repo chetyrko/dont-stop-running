@@ -144,7 +144,7 @@ function startMini(lvl) {
   });
 }
 
-function startEndless() { startRun(endlessLevel(diff())); }
+function startEndless() { startRun(endlessLevel(diff(), S.progress.maxRoom)); }
 
 function playComic(id, then) {
   game = null; demo = null;

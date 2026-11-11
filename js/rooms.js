@@ -2,6 +2,7 @@
 // Здесь же сюжетные карточки между комнатами.
 
 import { DIFFICULTY, PX_PER_METER } from './config.js';
+import { ENEMY } from './enemies.js';
 
 export const ROOMS_TOTAL = 400;
 
@@ -65,25 +66,29 @@ export function placeOf(room) {
   return { name: p[1], tint: p[2] };
 }
 
-// С какой комнаты появляется каждый вид препятствия (в первом акте; дальше — всё сразу).
-const UNLOCK = {
-  pit: 1, furniture: 1, flyer: 4, monster: 8, lowcrow: 15, hands: 25,
-  chandelier: 35, gate: 45, hopper: 55, brute: 70,
-};
-const WEIGHT = {
-  pit: 3, furniture: 2.5, flyer: 3, monster: 3, lowcrow: 2, hands: 2,
-  chandelier: 1.6, gate: 1.4, hopper: 2, brute: 1.2,
-};
+// Какие враги уже открыты к комнате room и с каким весом.
+// Новичок первые 8 комнат после открытия попадается втрое чаще, чтобы его точно встретили.
+export function enemyWeights(room) {
+  const w = {};
+  for (const [k, d] of Object.entries(ENEMY)) {
+    if (room < d.unlock) continue;
+    const fresh = room - d.unlock < 8 ? 3 : 1;
+    w[k] = d.weight * fresh;
+  }
+  return w;
+}
+
+// Враги, которые впервые появляются в этой комнате (для надписи в начале).
+export function newEnemies(room) {
+  return Object.entries(ENEMY).filter(([, d]) => d.unlock === room).map(([, d]) => d.name);
+}
 
 // Параметры комнаты: чем дальше, тем быстрее, плотнее и разнообразнее.
 export function roomLevel(room, diffKey) {
   const D = DIFFICULTY[diffKey] || DIFFICULTY.normal;
   const a = Math.floor((room - 1) / 100);          // 0..3 — номер акта
   const t = ((room - 1) % 100) / 99;              // 0..1 — прогресс внутри акта
-  const obstacles = {};
-  for (const [k, from] of Object.entries(UNLOCK)) {
-    if (a > 0 || room >= from) obstacles[k] = WEIGHT[k];
-  }
+  const obstacles = enemyWeights(room);
   const place = placeOf(room);
   const boss = room % 100 === 0;
   const gapK = Math.max(0.5, (1 - t * 0.38 - a * 0.07)) * D.gap;
@@ -103,6 +108,7 @@ export function roomLevel(room, diffKey) {
     speedGrowth: speed * 0.22 / (length / 10),   // к концу комнаты скорость вырастает на ~22%
     checkpoints: boss ? [] : checkpoints,
     special: boss ? null : specialRoom(room),
+    fresh: newEnemies(room),
     gap: [1.05 * gapK, 1.5 * gapK],
     combo: Math.min(0.8, D.combo + t * 0.15 + a * 0.08),
     enemy: D.enemy * (1 + a * 0.08),
@@ -127,9 +133,10 @@ export function specialRoom(room) {
 }
 
 // Бесконечный забег: «Коридор Вечного Сквозняка».
-export function endlessLevel(diffKey) {
+export function endlessLevel(diffKey, maxRoom = 0) {
   const D = DIFFICULTY[diffKey] || DIFFICULTY.normal;
-  const obstacles = { ...WEIGHT };
+  // в бесконечном забеге — все враги, которых игрок уже встречал в комнатах (но не меньше первых шести)
+  const obstacles = enemyWeights(Math.max(24, maxRoom + 1));
   return {
     kind: 'endless', room: 0, act: 0, diff: diffKey,
     name: 'Коридор Вечного Сквозняка', place: 'бесконечный забег',

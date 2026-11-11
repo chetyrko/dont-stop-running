@@ -7,22 +7,11 @@ import * as art from './art.js';
 import { sfx } from './audio.js';
 import { rigReady, drawRigHero } from './rig.js';
 import { computeMods } from './artifacts.js';
+import { ENEMY, drawTrapdoor } from './enemies.js';
 
-// Размеры и поведение препятствий.
-// act — чем проходится: jump, slide, kick, shoot, dash.
-const OBST = {
-  pit:        { w: 0,   h: 0,   act: 'jump' },                         // ширина зависит от скорости
-  flyer:      { w: 124, h: 70,  act: 'slide', lift: 100, speed: 140 }, // ворона на уровне головы
-  lowcrow:    { w: 104, h: 58,  act: 'jump',  lift: 8,   speed: 210 }, // ворона над самым полом
-  furniture:  { w: 150, h: 300, act: 'kick' },
-  monster:    { w: 160, h: 300, act: 'shoot', speed: 70,  hp: 1 },
-  brute:      { w: 210, h: 390, act: 'shoot', speed: 38,  hp: 3 },     // громила: три выстрела
-  hopper:     { w: 110, h: 190, act: 'shoot', speed: 175, hp: 1 },     // прыгун: быстрый, скачет
-  hands:      { w: 130, h: 100, act: 'jump' },                         // руки из пола
-  chandelier: { w: 150, h: 64,  act: 'jump' },                         // падает и лежит обломками
-  gate:       { w: 80,  h: 0,   act: 'dash' },                         // призрачная решётка
-};
-const FOES = new Set(['monster', 'brute', 'hopper']);
+// Все виды врагов и препятствий — в enemies.js.
+const OBST = ENEMY;
+const isPit = (o) => OBST[o.type].pitLike && (o.open ?? 1) > 0.6;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -178,22 +167,34 @@ export class Game {
   // ---------- спавн ----------
   weights() {
     const w = { ...this.level.obstacles };
-    for (const k of FOES) if (w[k]) w[k] *= this.mods.hordeMul;
+    for (const k in w) if (OBST[k]?.hp) w[k] *= this.mods.hordeMul;
     return w;
+  }
+
+  // Тот же вид два раза подряд — редко: перебрасываем.
+  pickType(w = this.weights()) {
+    let t = null;
+    for (let i = 0; i < 4; i++) {
+      t = pickWeighted(w);
+      if (t !== this.lastType && t !== this.lastType2) break;
+    }
+    this.lastType2 = this.lastType; this.lastType = t;
+    return t;
   }
 
   makeObstacle(type, x) {
     const d = OBST[type];
     const o = { id: this.nextId++, type, x, dead: 0, hit: false, variant: (Math.random() * 3) | 0, hp: d.hp || 0, flash: 0, rise: 0, fall: 0, hop: 0 };
     if (type === 'pit') { o.w = Math.min(270, Math.max(150, this.speed * 0.34)); o.h = 0; }
-    else { o.w = d.w; o.h = d.h; }
+    else { o.w = d.w; o.h = d.h || 0; }
+    if (type === 'trapdoor') o.open = 0;
     this.obstacles.push(o);
     return o;
   }
 
   spawn() {
     const lvl = this.level;
-    const type = pickWeighted(this.weights());
+    const type = this.pickType();
     if (!type) { this.nextSpawnX += 400; return; }
     const x = this.nextSpawnX;
     const o = this.makeObstacle(type, x);
@@ -204,7 +205,7 @@ export class Game {
     let combo = lvl.combo || 0;
     if (lvl.comboGrowth) combo = Math.min(0.75, combo + this.meters / 4000);
     if (Math.random() < combo) {
-      const t2 = pickWeighted(this.weights());
+      const t2 = this.pickType();
       if (t2 && !(type === 'gate' && t2 === 'gate')) {
         const o2 = this.makeObstacle(t2, end + this.speed * rand(0.42, 0.55));
         end = o2.x + o2.w;
@@ -266,11 +267,20 @@ export class Game {
     // таймеры
     for (const k of ['slideT', 'kickT', 'shootCd', 'flash', 'invuln', 'hurtT', 'landT', 'jumpBuf', 'slideBuf', 'dashT', 'dashCd']) p[k] = Math.max(0, p[k] - dt);
     p.recoil = Math.max(0, p.recoil - dt * 6);
+    // подкат не кончается, пока над головой низкое препятствие (стая, луч, щупальце…)
+    if (p.slideT > 0 && p.slideT < 0.12 && p.onGround) {
+      const x = this.camX + PLAYER_X, stand = { l: x - PLAYER.width / 2, r: x + PLAYER.width / 2, t: p.y - PLAYER.height };
+      for (const o of this.obstacles) {
+        if (o.dead || OBST[o.type].act !== 'slide') continue;
+        const b = this.obstBox(o);
+        if (b && stand.r > b.l - 10 && stand.l < b.r + 10 && stand.t < b.b) { p.slideT = 0.12; break; }
+      }
+    }
     this.shake = Math.max(0, this.shake - dt * 30);
 
     // физика героя
     const px = this.camX + PLAYER_X;
-    const overPit = this.obstacles.find(o => o.type === 'pit' && px > o.x + 18 && px < o.x + o.w - 18);
+    const overPit = this.obstacles.find(o => isPit(o) && px > o.x + 18 && px < o.x + o.w - 18);
     if (!p.onGround || overPit) {
       p.vy += PLAYER.gravity * dt;
       p.y += p.vy * dt;
@@ -303,15 +313,7 @@ export class Game {
       if (d.speed) o.x -= d.speed * es * dt;
       o.flash = Math.max(0, o.flash - dt);
       const dist = o.x - px;
-      if (o.type === 'hopper') o.hop = Math.max(0, Math.sin(this.t * 5.5 + o.id)) * 95;
-      if (o.type === 'hands' && dist < this.speed * 0.9) o.rise = Math.min(1, o.rise + dt * 4.5);
-      if (o.type === 'chandelier') {
-        if (!o.falling && dist < this.speed * 0.8) { o.falling = true; sfx.kick(); }
-        if (o.falling && o.fall < 1) {
-          o.fall = Math.min(1, o.fall + dt / 0.35);
-          if (o.fall >= 1) { this.shake = Math.max(this.shake, 9); this.puff(o.x + o.w / 2, GROUND_Y, 10); }
-        }
-      }
+      d.update?.(o, this, dt, dist);
       // подсказка показана — тип запомнен
       if (!this.seen.has(o.type) && o.x + o.w < px) { this.seen.add(o.type); this.opts.onSeen?.(o.type); }
     }
@@ -321,9 +323,9 @@ export class Game {
     // удар ногой
     if (p.kickT > PLAYER.kickTime * 0.25) {
       for (const o of this.obstacles) {
-        if (o.type !== 'furniture' || o.dead) continue;
+        if (OBST[o.type].act !== 'kick' || o.dead) continue;
         const d = o.x - hb.r;
-        if (d > -60 && d < PLAYER.kickRange + M.kickAdd) this.smash(o);
+        if (d > -60 && d < PLAYER.kickRange + M.kickAdd) OBST[o.type].kickKills ? this.kill(o) : this.smash(o);
       }
     }
 
@@ -332,17 +334,18 @@ export class Game {
       b.x += PLAYER.bulletSpeed * dt;
       for (const o of this.obstacles) {
         if (o.dead || b.dead || b.hitIds.includes(o.id)) continue;
-        if (!['furniture', 'gate', ...FOES].includes(o.type)) continue; // птицы, руки, люстры — пуля не берёт
+        const d = OBST[o.type];
+        if (!d.hp && !d.block) continue; // птицы, руки, люстры, призраки — пуля пролетает
         const box = this.obstBox(o);
         if (!box) continue;
         if (b.x > box.l && b.x < box.r + 20 && b.y > box.t && b.y < box.b) {
           b.hitIds.push(o.id);
-          if (FOES.has(o.type)) {
+          if (d.hp && !d.kickKills) {
             o.hp--; o.flash = 0.14;
             if (o.hp <= 0) this.kill(o);
             else { sfx.hit(); this.splat(b.x, b.y, 5); o.x += 18; }
             if (b.pierce > 0) { b.pierce--; continue; }
-          } else this.puff(b.x, b.y, 6, o.type === 'gate' ? '#5a5170' : '#5e4330');
+          } else this.puff(b.x, b.y, 6, d.act === 'dash' ? '#5a5170' : '#5e4330');
           b.dead = true;
         }
       }
@@ -366,15 +369,15 @@ export class Game {
     // столкновения
     if (this.status === 'running') {
       for (const o of this.obstacles) {
-        if (o.dead || o.hit || o.type === 'pit') continue;
-        if (o.type === 'gate' && p.dashT > 0) continue; // тенью сквозь решётку
+        if (o.dead || o.hit || OBST[o.type].pitLike) continue;
+        if (OBST[o.type].act === 'dash' && p.dashT > 0) continue; // тенью сквозь решётку и туман
         const box = this.obstBox(o);
         if (!box) continue;
         if (hb.r > box.l && hb.l < box.r && hb.b > box.t && hb.t < box.b) {
           o.hit = true;
           if (p.invuln > 0) continue;
           this.hurt();
-          if (o.type === 'furniture') this.smash(o, true);
+          if (OBST[o.type].block && !OBST[o.type].hp) this.smash(o, true);
         }
       }
     }
@@ -458,8 +461,9 @@ export class Game {
     B.attackT -= dt;
     // чем меньше здоровья, тем чаще швыряет препятствия
     if (B.attackT <= 0) {
-      const w = this.weights(); delete w.brute; delete w.gate;
-      const type = pickWeighted(w) || 'pit';
+      const w = this.weights(); delete w.brute;
+      for (const k in w) if (OBST[k].noBoss || OBST[k].pitLike && k !== 'pit') delete w[k];
+      const type = this.pickType(w) || 'pit';
       this.makeObstacle(type, this.camX + this.bossX() - 60);
       B.roar = 0.3;
       const rage = 1 - B.hp / B.max;
@@ -504,25 +508,7 @@ export class Game {
 
   obstBox(o) {
     const d = OBST[o.type];
-    switch (o.type) {
-      case 'flyer': case 'lowcrow': {
-        const b = GROUND_Y - d.lift + Math.sin(this.t * 3 + o.id) * (o.type === 'flyer' ? 4 : 2);
-        return { l: o.x + 10, r: o.x + o.w - 10, t: b - o.h, b };
-      }
-      case 'hands':
-        if (o.rise < 0.25) return null;
-        return { l: o.x + 12, r: o.x + o.w - 12, t: GROUND_Y - o.h * o.rise, b: GROUND_Y };
-      case 'chandelier': {
-        if (o.fall <= 0) return null;
-        if (o.fall < 1) { const y = 70 + (GROUND_Y - 100) * o.fall * o.fall; return { l: o.x, r: o.x + o.w, t: y - 20, b: y + 40 }; }
-        return { l: o.x + 8, r: o.x + o.w - 8, t: GROUND_Y - 62, b: GROUND_Y };
-      }
-      case 'gate': return { l: o.x + 15, r: o.x + o.w - 15, t: 0, b: GROUND_Y };
-      case 'hopper': { const b = GROUND_Y - o.hop; return { l: o.x + 14, r: o.x + o.w - 14, t: b - o.h + 20, b }; }
-      case 'brute': return { l: o.x + 24, r: o.x + o.w - 24, t: GROUND_Y - o.h + 30, b: GROUND_Y };
-      case 'monster': return { l: o.x + 14, r: o.x + o.w - 14, t: GROUND_Y - o.h + 20, b: GROUND_Y };
-      default: return { l: o.x + 6, r: o.x + o.w - 6, t: GROUND_Y - o.h + 20, b: GROUND_Y };
-    }
+    return d.box ? d.box(o, this) : null;
   }
 
   hurt() {
@@ -573,7 +559,7 @@ export class Game {
   kill(o) {
     o.dead = 0.01;
     this.kills++;
-    const pts = { monster: 40, hopper: 50, brute: 90 }[o.type] || 30;
+    const pts = OBST[o.type].pts || 30;
     this.bonus += pts;
     if (this.mods.killCoin) { this.coins += this.mods.killCoin; this.floatText(o.x + o.w / 2, GROUND_Y - o.h - 60, '+' + this.mods.killCoin + ' обол'); }
     const box = this.obstBox(o) || { t: GROUND_Y - 200, b: GROUND_Y };
@@ -631,7 +617,9 @@ export class Game {
 
     // ямы
     for (const o of this.obstacles) {
-      if (o.type === 'pit' && sx(o.x) < W + 50 && sx(o.x + o.w) > -50) art.drawPit(ctx, sx(o.x), o.w, art.makeRng(o.id * 31 + (boil % 2)));
+      if (!OBST[o.type].pitLike || sx(o.x) > W + 50 || sx(o.x + o.w) < -50) continue;
+      if (o.type === 'trapdoor') drawTrapdoor(ctx, o, sx(o.x), art.makeRng(o.id * 31 + (boil % 2)));
+      else art.drawPit(ctx, sx(o.x), o.w, art.makeRng(o.id * 31 + (boil % 2)));
     }
     // флажки сохранения (лёгкий режим)
     for (const cp of L.checkpoints || []) {
@@ -673,38 +661,21 @@ export class Game {
 
     // препятствия
     for (const o of this.obstacles) {
-      if (o.type === 'pit') continue;
+      const d = OBST[o.type];
+      if (d.pitLike) continue;
       const x = sx(o.x);
-      if (x > W + 260 || x + o.w < -60) continue;
-      if (o.type === 'furniture' && o.dead) continue;
-      const box = this.obstBox(o);
-      const big = { flyer: [0.35, 0.16], lowcrow: [0.3, 0.25], gate: [0, 0], chandelier: [o.fall >= 1 ? 0.55 : 0.4 * o.fall, 0.3] }[o.type] || [0.55, 0.3];
+      if (x > W + 420 || x + o.w < -60) continue;
+      if (d.block && !d.hp && o.dead) continue;           // разбитая мебель — только щепки
+      const big = o.type === 'chandelier' ? [o.fall >= 1 ? 0.55 : 0.4 * o.fall, 0.3] : (d.shadow || [0.55, 0.3]);
       if (!o.dead && big[0]) shadow(ctx, x + o.w / 2, GROUND_Y + 2, o.w * big[0], big[1]);
-      switch (o.type) {
-        case 'monster': case 'brute': case 'hopper': {
-          const variant = o.type === 'monster' ? '' : o.type;
-          const lift = o.type === 'hopper' ? o.hop : 0;
-          if (demonReady()) drawDemon(ctx, x + o.w / 2, GROUND_Y + 4 - lift, o.h, t * (o.type === 'hopper' ? 1.6 : 1), o.dead, o.id, variant, o.flash);
-          else art.drawMonster(ctx, x, GROUND_Y - lift, o.w, o.h, t, R(o.id), o.dead);
-          if (o.type === 'brute' && !o.dead) this.drawPips(ctx, x + o.w / 2, GROUND_Y - o.h - 18, o.hp, OBST.brute.hp);
-          break;
-        }
-        case 'flyer': art.drawFlyer(ctx, x, box.b, o.w, o.h, t, R(o.id), o.dead); break;
-        case 'lowcrow':
-          ctx.save(); ctx.filter = 'none';
-          art.drawFlyer(ctx, x, box.b, o.w, o.h, t * 1.3, R(o.id), o.dead);
-          ctx.restore(); break;
-        case 'furniture':
-          if (imgs.furniture) {
-            ctx.save(); if (o.dead) ctx.globalAlpha = 1 - o.dead;
-            this.drawImg(ctx, imgs.furniture, x, box.b - o.h, o.w, o.h);
-            ctx.restore();
-          } else art.drawFurniture(ctx, x, GROUND_Y, o.w, o.h, o.variant, R(o.id));
-          break;
-        case 'hands': art.drawHands(ctx, x, o.w, GROUND_Y, o.h, o.rise, t); break;
-        case 'chandelier': art.drawChandelier(ctx, x + o.w / 2, GROUND_Y, o.fall, t); break;
-        case 'gate': art.drawGate(ctx, x, o.w, GROUND_Y, t); break;
-      }
+      if (o.type === 'furniture') {
+        const box = this.obstBox(o);
+        if (imgs.furniture) {
+          ctx.save(); if (o.dead) ctx.globalAlpha = 1 - o.dead;
+          this.drawImg(ctx, imgs.furniture, x, box.b - o.h, o.w, o.h);
+          ctx.restore();
+        } else art.drawFurniture(ctx, x, GROUND_Y, o.w, o.h, 2, R(o.id));
+      } else d.draw?.(ctx, o, x, this, t, R);
     }
 
     // пули
@@ -795,8 +766,9 @@ export class Game {
         const x = sx(o.x);
         if (x > PLAYER_X + 40 && x < W - 60) {
           const box = this.obstBox(o);
-          const top = o.type === 'pit' || o.type === 'gate' ? GROUND_Y - 330 : o.type === 'chandelier' ? 200 : (box ? box.t : GROUND_Y - 120) - 60;
-          art.drawHint(ctx, Math.min(W - 160, x + o.w / 2), Math.max(70, top), o.type, t);
+          const d = OBST[o.type];
+          const top = d.pitLike || d.act === 'dash' ? GROUND_Y - 330 : o.type === 'chandelier' ? 200 : (box ? box.t : GROUND_Y - 120) - 60;
+          art.drawHint(ctx, Math.min(W - 200, Math.max(200, x + o.w / 2)), Math.max(70, top), d.hint, t);
           break;
         }
       }
@@ -815,6 +787,11 @@ export class Game {
       ctx.strokeText(L.name, W / 2, 90); ctx.fillText(L.name, W / 2, 90);
       ctx.font = 'bold 44px "Amatic SC", serif'; ctx.fillStyle = '#7a2f35';
       ctx.strokeText(L.place, W / 2, 150); ctx.fillText(L.place, W / 2, 150);
+      if (L.fresh?.length) {
+        const nt = 'Новый враг: ' + L.fresh.join(', ');
+        ctx.font = 'bold 40px "Amatic SC", serif'; ctx.fillStyle = '#b3302c';
+        ctx.strokeText(nt, W / 2, 200); ctx.fillText(nt, W / 2, 200);
+      }
       ctx.restore();
     }
 

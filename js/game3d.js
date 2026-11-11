@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=a081a5c';
-import * as art from './art.js?v=a081a5c';
-import { sfx } from './audio.js?v=a081a5c';
-import { computeMods } from './artifacts.js?v=a081a5c';
-import { applyCharacter } from './characters.js?v=a081a5c';
-import { ENEMY } from './enemies.js?v=a081a5c';
-import { demonReady, drawDemon } from './demon.js?v=a081a5c';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=dd334c8';
+import * as art from './art.js?v=dd334c8';
+import { sfx } from './audio.js?v=dd334c8';
+import { computeMods } from './artifacts.js?v=dd334c8';
+import { applyCharacter } from './characters.js?v=dd334c8';
+import { ENEMY } from './enemies.js?v=dd334c8';
+import { demonReady, drawDemon } from './demon.js?v=dd334c8';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -208,7 +208,8 @@ export class Game3D {
     this.t += dt;
     const p = this.p, M = this.mods, L = this.level;
     let v = this.speed;
-    if (this.status === 'won') { v *= 0.8; this.enter = Math.min(1, this.enter + dt / 0.9); if (this.enter >= 1) { this.endTimer -= dt; if (this.endTimer <= 0) { this.status = 'over'; this.opts.onEnd?.(true); } } }
+    if (this.status === 'won') { v = 0;   // коридор встаёт: Флит сам заходит в дверь, стена остаётся на месте
+      this.enter = Math.min(1, this.enter + dt / 0.9); if (this.enter >= 1) { this.endTimer -= dt; if (this.endTimer <= 0) { this.status = 'over'; this.opts.onEnd?.(true); } } }
     else if (this.status === 'dying') {
       v = 0; this.deathT += dt;
       if (this.deathT > 3.3) { this.status = 'over'; this.opts.onEnd?.(false); }

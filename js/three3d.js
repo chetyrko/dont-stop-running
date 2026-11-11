@@ -6,19 +6,20 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=a081a5c';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=a081a5c';
-import { Hero3D } from './hero3d.js?v=a081a5c';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=a081a5c';
-import { ENEMY } from './enemies.js?v=a081a5c';
-import * as art from './art.js?v=a081a5c';
-import { drawRigHero, rigReady } from './rig.js?v=a081a5c';
-import { recolor } from './pixels.js?v=a081a5c';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=a081a5c';
-import { EXITS } from './rooms.js?v=a081a5c';
-import { sfx } from './audio.js?v=a081a5c';
+import * as THREE from '../vendor/three.module.min.js?v=dd334c8';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=dd334c8';
+import { Hero3D } from './hero3d.js?v=dd334c8';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=dd334c8';
+import { ENEMY } from './enemies.js?v=dd334c8';
+import * as art from './art.js?v=dd334c8';
+import { drawRigHero, rigReady } from './rig.js?v=dd334c8';
+import { recolor } from './pixels.js?v=dd334c8';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=dd334c8';
+import { EXITS } from './rooms.js?v=dd334c8';
+import { sfx } from './audio.js?v=dd334c8';
 
-const WALL = 2.6, CEIL = 3.8, LEN = 120;
+const WALL = 2.6, CEIL = 7.0, LEN = 120;
+const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
 const INK = 0x16120f;
 const OUTLINE = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -548,17 +549,34 @@ export class World3D {
     const wallImg = this.images.wall;
     const wtex = wallImg ? new THREE.Texture(wallImg) : canvasTex(makeCanvas(256, 128, (x) => { for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#cbbd9f' : '#e4d8c0'; x.fillRect(i * 32, 0, 32, 128); } }));
     wtex.colorSpace = THREE.SRGBColorSpace; wtex.wrapS = THREE.MirroredRepeatWrapping; wtex.wrapT = THREE.ClampToEdgeWrapping;
-    const tile = CEIL * (wallImg ? wallImg.width / wallImg.height : 2);
+    const tile = PAPER * (wallImg ? wallImg.width / wallImg.height : 2);
     this.wallTile = tile;
-    this.walls = [-1, 1].map(side => {
-      const t = wtex.clone(); t.needsUpdate = true; t.repeat.set(LEN / tile, 1);
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(LEN, CEIL), new THREE.MeshLambertMaterial({ map: t }));
-      m.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
-      m.position.set(side * WALL, CEIL / 2, -LEN / 2 + 16);
-      sc.add(m);
-      return { m, t, side };
-    });
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, LEN), new THREE.MeshLambertMaterial({ color: 0x1a1412 }));
+    this.walls = [];
+    for (const side of [-1, 1]) {
+      // нижняя часть — обои автора, верхняя — те же обои, но в тени (свет бра туда не достаёт)
+      for (const [y0, h, tone] of [[0, PAPER, 1], [PAPER, CEIL - PAPER, 0.42]]) {
+        const t = wtex.clone(); t.needsUpdate = true; t.repeat.set(LEN / tile, h / PAPER);
+        if (y0) { t.wrapT = THREE.MirroredRepeatWrapping; }
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(LEN, h), new THREE.MeshLambertMaterial({ map: t }));
+        m.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+        m.position.set(side * WALL, y0 + h / 2, -LEN / 2 + 16);
+        m.userData.tone = tone;
+        m.material.color.setScalar(tone);
+        sc.add(m);
+        this.walls.push({ m, t, side, tone });
+      }
+      // карниз между обоями и верхом стены
+      sc.add(box(0.12, 0.16, LEN, 0x3a2a1e, [side * (WALL - 0.06), PAPER, -LEN / 2 + 16], { noOutline: true }));
+    }
+    // потолок: тёмные доски с кессонами
+    const ceilTex = canvasTex(makeCanvas(256, 256, (x) => {
+      x.fillStyle = '#3a2a20'; x.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#342519' : '#40301f'; x.fillRect(0, i * 32, 256, 32); x.fillStyle = 'rgba(10,6,4,0.6)'; x.fillRect(0, i * 32, 256, 2); }
+      x.strokeStyle = '#1c130d'; x.lineWidth = 10; x.strokeRect(5, 5, 246, 246);
+      for (let i = 0; i < 200; i++) { x.fillStyle = `rgba(15,8,4,${Math.random() * 0.15})`; x.fillRect(Math.random() * 256, Math.random() * 256, 18, 2); }
+    }), [1, LEN / (WALL * 2)]);
+    this.ceilTex = ceilTex;
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, LEN), new THREE.MeshLambertMaterial({ map: ceilTex, emissive: 0x1a120b }));
     ceil.rotation.x = Math.PI / 2; ceil.position.set(0, CEIL, -LEN / 2 + 16); sc.add(ceil);
     // арки и бра каждые 8 м
     this.arches = [];
@@ -573,20 +591,35 @@ export class World3D {
         const glow = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.18, depthWrite: false }));
         glow.position.set(s * (WALL - 0.12), 2.28, -1.6); a.add(glow);
       }
+      // люстра на цепи под потолком
+      a.add(cyl(0.012, 0.012, 0.6, 0x1a1410, [0, CEIL - 0.3, -4], { noOutline: true }));
+      const ring = piece(new THREE.TorusGeometry(0.42, 0.04, 6, 18), 0x5a4426, [0, CEIL - 0.65, -4]); ring.rotation.x = Math.PI / 2; a.add(ring);
+      for (let k = 0; k < 5; k++) {
+        const an = k / 5 * Math.PI * 2, cx = Math.cos(an) * 0.42, cz = -4 + Math.sin(an) * 0.42;
+        a.add(cyl(0.025, 0.025, 0.12, 0xefe4cc, [cx, CEIL - 0.57, cz], { noOutline: true }));
+        a.add(ball(0.04, 0xffd27a, [cx, CEIL - 0.48, cz], { basic: true, noOutline: true }));
+      }
+      const cg = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.1, depthWrite: false }));
+      cg.position.set(0, CEIL - 0.5, -4); a.add(cg);
       sc.add(a);
       this.arches.push(a);
     }
     // стена с выходом в конце комнаты
     this.exitCanvas = makeCanvas(672, 490, () => {});
     this.exitTex = canvasTex(this.exitCanvas);
-    this.exitWall = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, CEIL), new THREE.MeshLambertMaterial({ map: this.exitTex }));
+    this.exitWall = new THREE.Group();
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, PAPER), new THREE.MeshLambertMaterial({ map: this.exitTex }));
+    door.position.y = PAPER / 2; this.exitWall.add(door);
+    const upper = new THREE.Mesh(new THREE.PlaneGeometry(WALL * 2, CEIL - PAPER), new THREE.MeshLambertMaterial({ color: 0x5a4c3c }));
+    upper.position.y = PAPER + (CEIL - PAPER) / 2; this.exitWall.add(upper);
+    this.exitWall.add(box(WALL * 2, 0.16, 0.12, 0x3a2a1e, [0, PAPER, 0.06], { noOutline: true }));
     this.exitWall.visible = false; sc.add(this.exitWall);
   }
 
   setTint(t) {
     const c = t?.mul ? new THREE.Color(t.mul[0], t.mul[1], t.mul[2]) : new THREE.Color(1, 1, 1);
     if (t?.gray) c.lerp(new THREE.Color(0.85, 0.85, 0.85), t.gray * 0.4);
-    for (const w of this.walls) w.m.material.color = c;
+    for (const w of this.walls) w.m.material.color = c.clone().multiplyScalar(w.tone);
   }
 
   drawExitCanvas(kind, open, label) {
@@ -762,10 +795,11 @@ export class World3D {
     const d = this.dist;
     this.floorTex.offset.y = d / 1.3;
     this.rugTex.offset.y = d / 2.5;
+    this.ceilTex.offset.y = -d / (WALL * 2);
     for (const w of this.walls) w.t.offset.x = (w.side < 0 ? 1 : -1) * d / this.wallTile;
     const base = d % 8;
     // в забеге камера выше потолка: верхние балки арок закрывали бы вид, их прячем
-    this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.mode !== "run"; });
+    this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.camPos.y < CEIL - 0.5; });
     for (const p of this.portraits || []) {
       const z = -(p.userData.at - d);
       p.position.set(p.userData.side * (WALL - 0.03), 1.9, z);
@@ -956,7 +990,7 @@ export class World3D {
       const z = -zd;
       this.exitWall.visible = zd < 56 && zd > -2;
       if (this.exitWall.visible) {
-        this.exitWall.position.set(0, CEIL / 2, Math.min(z, -0.5));
+        this.exitWall.position.set(0, 0, Math.min(z, -0.5));
         const open = clamp(1 - (zd - 2) / 10, 0, 1);
         if (this._exitDrawn !== `${g.level.exit}${Math.round(open * 20)}${Math.floor(this.t * 6)}`) {
           this._exitDrawn = `${g.level.exit}${Math.round(open * 20)}${Math.floor(this.t * 6)}`;

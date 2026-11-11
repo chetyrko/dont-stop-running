@@ -2,10 +2,10 @@
 // Всё рисуется движком игры: фон — обои и пол автора, персонажи — герой и демоны из деталей.
 // Тап — следующая панель. Кнопка «Пропустить» в правом верхнем углу.
 
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=a081a5c';
-import { drawRigHero, rigReady } from './rig.js?v=a081a5c';
-import { drawDemon, demonReady } from './demon.js?v=a081a5c';
-import { drawFinish } from './art.js?v=a081a5c';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=dd334c8';
+import { drawRigHero, rigReady } from './rig.js?v=dd334c8';
+import { drawDemon, demonReady } from './demon.js?v=dd334c8';
+import { drawFinish } from './art.js?v=dd334c8';
 
 // Страница — набор панелей сверху вниз. h — доля высоты страницы.
 // scene: wall | door | black | eye | paper. actors: hero / demon / door / text.

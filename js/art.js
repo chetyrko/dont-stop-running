@@ -680,7 +680,8 @@ export function drawFinish(ctx, x, open = 0, label = 'ВЫХОД') {
     ctx.fillStyle = 'rgba(0,0,0,' + (0.12 + open * 0.3) + ')';
     ctx.fillRect(x0, top, lw, h);
   }
-  // табличка
+  // табличка (у последней двери игры её нет)
+  if (!label) { ctx.restore(); return; }
   ctx.fillStyle = '#e8dcc4'; ctx.strokeStyle = INK; ctx.lineWidth = 3.5;
   ctx.beginPath(); ctx.rect(x - 78, top - 70, 156, 46); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#7a2f35';
@@ -838,7 +839,7 @@ function opening(ctx, l, top, w, h) {
 }
 
 // kind: door | stairsUp | stairsDown | lift | secret; open: 0..1; img — книжный шкаф автора (для secret)
-export function drawExit(ctx, kind, x, open = 0, label = 'ВЫХОД', t = 0, img = null) {
+function drawExitBase(ctx, kind, x, open = 0, label = 'ВЫХОД', t = 0, img = null) {
   if (kind === 'door' || !kind) { drawFinish(ctx, x, open, label); return; }
   const y = FLOOR_TOP, w = 210, h = 310, l = x - w / 2, top = y - h;
   ctx.save();
@@ -933,3 +934,96 @@ export function drawExitFront(ctx, kind, x, close) {
   const w = 210, h = 310;
   drawLiftGrille(ctx, x - w / 2, FLOOR_TOP - h, w, h, close);
 }
+
+// Загадочные выходы: луч света, зеркало, картина, камин.
+export function drawExit(ctx, kind, x, open = 0, label = 'ВЫХОД', t = 0, img = null) {
+  const y = FLOOR_TOP;
+  if (kind === 'lightBeam') {
+    ctx.save();
+    // столб света с потолка, пылинки летят вверх
+    const a = 0.35 + open * 0.35 + Math.sin(t * 3) * 0.05;
+    const g = ctx.createLinearGradient(x - 90, 0, x + 90, 0);
+    g.addColorStop(0, 'rgba(255,240,190,0)'); g.addColorStop(0.5, `rgba(255,240,190,${a})`); g.addColorStop(1, 'rgba(255,240,190,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(x - 50, 0); ctx.lineTo(x + 50, 0); ctx.lineTo(x + 95, GROUND_Y_EXIT + 10); ctx.lineTo(x - 95, GROUND_Y_EXIT + 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `rgba(255,245,210,${0.25 + open * 0.3})`;
+    ctx.beginPath(); ctx.ellipse(x, GROUND_Y_EXIT + 4, 95, 18, 0, 0, 7); ctx.fill();
+    for (let i = 0; i < 14; i++) {
+      const ph = (t * 0.35 + i / 14) % 1, px = x + Math.sin(i * 7.3 + t) * 60 * (1 - ph * 0.4);
+      ctx.fillStyle = `rgba(255,250,220,${0.8 * (1 - ph)})`;
+      ctx.beginPath(); ctx.arc(px, GROUND_Y_EXIT - ph * GROUND_Y_EXIT, 2.5, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+  if (kind === 'mirror') {
+    const w = 170, h = 300, top = y - h;
+    ctx.save();
+    ctx.fillStyle = '#6b5a32'; ctx.strokeStyle = INK; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.ellipse(x, top + h / 2, w / 2 + 16, h / 2 + 16, 0, 0, 7); ctx.fill(); ctx.stroke();
+    // завитки рамы
+    for (const [dx, dy] of [[0, -h / 2 - 22], [0, h / 2 + 18], [-w / 2 - 18, 0], [w / 2 + 18, 0]]) { ctx.beginPath(); ctx.arc(x + dx, top + h / 2 + dy, 10, 0, 7); ctx.fill(); ctx.stroke(); }
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(x, top + h / 2, w / 2, h / 2, 0, 0, 7); ctx.clip();
+    const g = ctx.createLinearGradient(x - w / 2, top, x + w / 2, top + h);
+    g.addColorStop(0, '#9aa6ae'); g.addColorStop(0.5, '#cfd8dc'); g.addColorStop(1, '#6f7c84');
+    ctx.fillStyle = g; ctx.fillRect(x - w / 2, top, w, h);
+    // в отражении — тёмный силуэт, который ждёт; при открытии гладь идёт рябью
+    ctx.fillStyle = `rgba(30,25,30,${0.55 - open * 0.3})`;
+    ctx.beginPath(); ctx.ellipse(x, top + 110, 22, 26, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 40, top + h); ctx.quadraticCurveTo(x - 36, top + 150, x, top + 140); ctx.quadraticCurveTo(x + 36, top + 150, x + 40, top + h); ctx.closePath(); ctx.fill();
+    if (open > 0) {
+      ctx.strokeStyle = `rgba(255,255,255,${0.5 * open})`; ctx.lineWidth = 3;
+      for (let i = 1; i < 6; i++) { const r = ((t * 80 + i * 30) % 160); ctx.beginPath(); ctx.ellipse(x, top + h / 2, r * 0.6, r, 0, 0, 7); ctx.stroke(); }
+    }
+    ctx.restore();
+    ctx.restore();
+    return;
+  }
+  if (kind === 'painting') {
+    const w = 230, h = 200, top = y - 330;
+    ctx.save();
+    ctx.fillStyle = '#5a3e2a'; ctx.strokeStyle = INK; ctx.lineWidth = 5;
+    ctx.fillRect(x - w / 2 - 20, top - 20, w + 40, h + 40); ctx.strokeRect(x - w / 2 - 20, top - 20, w + 40, h + 40);
+    // в картине — уходящий вдаль коридор с открытой дверью
+    ctx.save(); ctx.beginPath(); ctx.rect(x - w / 2, top, w, h); ctx.clip();
+    ctx.fillStyle = '#c9bd9f'; ctx.fillRect(x - w / 2, top, w, h);
+    ctx.fillStyle = '#7d6e5a';
+    ctx.beginPath(); ctx.moveTo(x - w / 2, top + h); ctx.lineTo(x - 30, top + 110); ctx.lineTo(x + 30, top + 110); ctx.lineTo(x + w / 2, top + h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a8997c';
+    ctx.beginPath(); ctx.moveTo(x - w / 2, top); ctx.lineTo(x - 30, top + 50); ctx.lineTo(x - 30, top + 110); ctx.lineTo(x - w / 2, top + h); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + w / 2, top); ctx.lineTo(x + 30, top + 50); ctx.lineTo(x + 30, top + 110); ctx.lineTo(x + w / 2, top + h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `rgba(255,220,140,${0.5 + open * 0.5})`; ctx.fillRect(x - 14, top + 66, 28, 44);
+    ctx.fillStyle = `rgba(255,220,140,${0.15 + open * 0.3})`; ctx.fillRect(x - w / 2, top, w, h);
+    ctx.restore();
+    // табурет под картиной, чтобы до неё допрыгнуть
+    ctx.fillStyle = '#4a3a2c'; ctx.fillRect(x - 40, y - 60, 80, 14); ctx.strokeRect(x - 40, y - 60, 80, 14);
+    ctx.fillRect(x - 34, y - 46, 8, 46); ctx.fillRect(x + 26, y - 46, 8, 46);
+    ctx.restore();
+    return;
+  }
+  if (kind === 'fireplace') {
+    const w = 240, h = 230, l = x - w / 2, top = y - h;
+    ctx.save();
+    ctx.fillStyle = '#6e655c'; ctx.strokeStyle = INK; ctx.lineWidth = 5;
+    ctx.fillRect(l - 20, top - 30, w + 40, 34); ctx.strokeRect(l - 20, top - 30, w + 40, 34);
+    ctx.fillRect(l, top, 40, h); ctx.strokeRect(l, top, 40, h);
+    ctx.fillRect(l + w - 40, top, 40, h); ctx.strokeRect(l + w - 40, top, 40, h);
+    ctx.fillStyle = '#0d0a08'; ctx.fillRect(l + 40, top + 20, w - 80, h - 20);
+    // зелёное пламя
+    for (let i = 0; i < 6; i++) {
+      const fx = l + 60 + i * 24, fh = 60 + Math.sin(t * 9 + i * 1.7) * 18 + open * 50;
+      const g = ctx.createLinearGradient(0, y - fh, 0, y);
+      g.addColorStop(0, 'rgba(120,255,160,0)'); g.addColorStop(0.4, 'rgba(90,220,130,0.8)'); g.addColorStop(1, 'rgba(220,255,200,0.95)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(fx - 16, y); ctx.quadraticCurveTo(fx - 14, y - fh * 0.5, fx + Math.sin(t * 7 + i) * 6, y - fh); ctx.quadraticCurveTo(fx + 14, y - fh * 0.5, fx + 16, y); ctx.closePath(); ctx.fill();
+    }
+    const glow = ctx.createRadialGradient(x, y - 40, 10, x, y - 40, 200);
+    glow.addColorStop(0, `rgba(120,255,160,${0.25 + open * 0.2})`); glow.addColorStop(1, 'rgba(120,255,160,0)');
+    ctx.fillStyle = glow; ctx.fillRect(x - 220, top - 60, 440, h + 120);
+    ctx.restore();
+    return;
+  }
+  drawExitBase(ctx, kind, x, open, label, t, img);
+}
+const GROUND_Y_EXIT = 545;

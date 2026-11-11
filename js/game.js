@@ -107,6 +107,7 @@ export class Game {
       ? 2 + Math.floor(Math.random() * 4) : -1;
     this.relics = [];
     this.met = new Set();     // какие враги попались на глаза в этом забеге
+    this.killsBy = {};        // сколько убито каждого вида
     this.boss = L.boss ? {
       name: L.boss.name, hp: L.boss.hp, max: L.boss.hp, enter: 0, attackT: 2.4, dead: 0, flash: 0, roar: 0,
     } : null;
@@ -561,6 +562,7 @@ export class Game {
   kill(o) {
     o.dead = 0.01;
     this.kills++;
+    this.killsBy[o.type] = (this.killsBy[o.type] || 0) + 1;
     const pts = OBST[o.type].pts || 30;
     this.bonus += pts;
     if (this.mods.killCoin) { this.coins += this.mods.killCoin; this.floatText(o.x + o.w / 2, GROUND_Y - o.h - 60, '+' + this.mods.killCoin + ' обол'); }
@@ -710,9 +712,15 @@ export class Game {
       if (kind === 'stairsUp') { dx = go * 70; dy -= go * 190; fade = Math.max(0, (e - 0.6) / 0.4); }
       if (kind === 'stairsDown') { dx = go * 60; dy += go * 110; fade = Math.max(0, (e - 0.5) / 0.4); }
       if (kind === 'lift') fade = Math.max(0, (e - 0.8) / 0.2) * 0.6;
+      // луч света поднимает героя; в зеркало и камин — уходит в глубину и тает; в картину — запрыгивает в раму
+      if (kind === 'lightBeam') { dy = -go * 330 - deep * 10; fade = Math.max(0, (e - 0.55) / 0.45); }
+      if (kind === 'mirror') { dy = (FLOOR_TOP + 6 - GROUND_Y) * deep; fade = Math.max(0, (e - 0.5) / 0.4); }
+      if (kind === 'fireplace') { dy = (FLOOR_TOP + 6 - GROUND_Y) * deep; fade = Math.max(0, (e - 0.4) / 0.4); }
+      if (kind === 'painting') { dy = (FLOOR_TOP + 6 - GROUND_Y) * deep - Math.sin(Math.min(1, go) * Math.PI / 2) * 150; fade = Math.max(0, (e - 0.7) / 0.3); }
       ctx.globalAlpha = (1 - Math.min(1, fade)) * (p.dashT > 0 ? 0.55 : 1);
       ctx.translate(PLAYER_X + dx, p.y + dy);
-      ctx.scale(HERO_SCALE * (1 - 0.2 * deep), HERO_SCALE * (1 - 0.2 * deep));
+      const shrink = kind === 'painting' ? 0.2 * deep + 0.45 * go : kind === 'lightBeam' ? 0.1 * deep : 0.2 * deep;
+      ctx.scale(HERO_SCALE * (1 - shrink), HERO_SCALE * (1 - shrink));
       const ex = {
         kickT: 1 - p.kickT / PLAYER.kickTime, recoil: p.recoil, flash: p.flash,
         aim: p.shootCd > 0.05, hurt: p.hurtT > 0 || this.lives <= 0,

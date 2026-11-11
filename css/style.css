@@ -194,3 +194,17 @@ h2 { margin: 0 0 6px; font-size: 84px; line-height: 0.95; color: var(--paper); t
   min-width: 0 !important; font-size: 40px !important; padding: 6px 22px 8px !important;
 }
 .screen.scroll { padding-top: 16px; }
+
+/* опись: бестиарий */
+.opis-art { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.beasts { display: flex; flex-direction: column; gap: 14px; width: 660px; }
+.beast { display: flex; gap: 14px; padding: 12px; background: #1b1918; border: 4px solid #2f2c2a; border-radius: 12px; text-align: left; }
+.beast canvas { width: 180px; height: 150px; flex-shrink: 0; background: #d9cdb4; border: 3px solid #000; border-radius: 8px; }
+.beast .info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.beast .nm { font-size: 42px; color: #e8dcc4; line-height: 1; }
+.beast .how { font-size: 30px; color: #f2d27a; }
+.beast .tx { font-size: 30px; color: #b9b5ae; line-height: 1.05; }
+.beast .sec { font-size: 30px; color: #d9a0a0; line-height: 1.05; }
+.beast .lock { font-size: 26px; color: #6b6864; }
+.beast.unknown canvas { background: #2a2826; }
+.beast.unknown .nm { color: #6b6864; }

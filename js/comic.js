@@ -63,13 +63,77 @@ export const COMICS = {
   act4: [
     [
       { h: 0.5, scene: 'door', actors: [{ door: { x: 560, open: 0, label: 'ВХОД' } }, { hero: { x: 300, pose: 'run', t: 0.3 } }],
-        caption: 'Последняя дверь. На ней написано не «ВЫХОД», а «ВХОД».' },
-      { h: 0.5, scene: 'door', actors: [{ door: { x: 560, open: 1, label: 'ВХОД' } }, { hero: { x: 520, pose: 'jump' } }],
-        caption: 'Флит влетает в неё.' },
+        caption: 'Тень Стука рассеялась. За ней — дверь. На ней написано не «ВЫХОД», а «ВХОД».' },
+      { h: 0.5, scene: 'eye', caption: 'Око Дома', big: 'ЧЕТЫРЕСТА КОМНАТ БЫЛИ ЛИШЬ ПЕРВЫМ ЭТАЖОМ.' },
     ],
     [
-      { h: 0.45, scene: 'eye', caption: 'Око Дома', big: 'ЗАМОК СОРВАН. ТЕПЕРЬ Я БУДУ СТРОИТЬСЯ ДАЛЬШЕ.' },
-      { h: 0.55, scene: 'paper', big: 'ПЕРВЫЙ ЭТАЖ ПРОЙДЕН', caption: 'Четыреста комнат были лишь замком на клетке. Коридор Вечного Сквозняка ждёт.' },
+      { h: 0.4, scene: 'black', big: 'запах карболки', caption: 'Наверху пахнет больницей.' },
+      { h: 0.6, scene: 'paper', big: 'АКТ V\nГОСПИТАЛЬ ЗАБВЕНИЯ', caption: 'Второй этаж. Здесь лечат от воспоминаний.' },
+    ],
+  ],
+  act5: [
+    [
+      { h: 0.5, scene: 'paper', big: 'Медицинская карта\nПациент: Ф. В.\n«Поступил добровольно.\nПросил стереть всё»', caption: 'Кабинет главврача. На столе — история болезни.' },
+      { h: 0.5, scene: 'wall', actors: [{ hero: { x: 480, pose: 'idle', flip: true } }], caption: 'Подпись на согласии — его собственная.', bubble: { text: 'Я сам этого хотел?', x: 0.6, y: 0.3 } },
+    ],
+    [
+      { h: 0.4, scene: 'eye', caption: 'Око Дома', big: 'НЕ ЧИТАЙ ДАЛЬШЕ. ТАМ ТОЛЬКО ПРИЧИНА.' },
+      { h: 0.6, scene: 'paper', big: 'АКТ VI\nПОДВАЛЫ ОТРАЖЕНИЙ', caption: 'Лестница ведёт вниз, к зеркалам.' },
+    ],
+  ],
+  act6: [
+    [
+      { h: 0.5, scene: 'wall', actors: [{ hero: { x: 330, pose: 'idle' } }, { hero: { x: 640, pose: 'idle', flip: true } }],
+        caption: 'Отражение остановилось. Впервые оно не убегает.', bubble: { text: 'Я остался, чтобы держать дверь. Ты сбежал.', x: 0.45, y: 0.2 } },
+      { h: 0.5, scene: 'black', big: 'он растворился в стекле', caption: 'Двойник — та часть Флита, что не согласилась забыть.' },
+    ],
+    [
+      { h: 0.4, scene: 'eye', caption: 'Око Дома', big: 'ВРЕМЯ НЕ ЛЕЧИТ. ОНО РАСТЁТ.' },
+      { h: 0.6, scene: 'paper', big: 'АКТ VII\nОРАНЖЕРЕЯ ВРЕМЕНИ', caption: 'Сады, где вместо цветов растут часы.' },
+    ],
+  ],
+  act7: [
+    [
+      { h: 0.5, scene: 'wall', actors: [{ hero: { x: 480, pose: 'idle' } }], caption: 'В пруду вчерашнего дня — тот самый день.' },
+      { h: 0.5, scene: 'black', big: 'он стирал память\nи плакал от облегчения', caption: 'Флит видит себя прежнего.' },
+    ],
+    [
+      { h: 0.4, scene: 'eye', caption: 'Око Дома', big: 'Я ПРЯТАЛ ЭТОТ ДЕНЬ, ЧТОБЫ ТЕБЯ НЕ НАШЛИ ПО НЕМУ.' },
+      { h: 0.6, scene: 'paper', big: 'АКТ VIII\nГОРОД-ПРИЗРАК', caption: 'Дом вырос в город.' },
+    ],
+  ],
+  act8: [
+    [
+      { h: 0.5, scene: 'wall', actors: [{ hero: { x: 480, pose: 'jump' } }], caption: 'Мэр-Портрет упал со своего мольберта. Флит взбегает на мост.' },
+      { h: 0.5, scene: 'paper', big: 'дом внутри города\nгород внутри дома', caption: 'С моста видно всё. Наружу — некуда. И никогда не было.' },
+    ],
+    [
+      { h: 0.4, scene: 'eye', caption: 'Око Дома', big: 'ТЫ ИСКАЛ ВЫХОД. ВЫХОДА НЕТ. ЕСТЬ КАРАНДАШ.' },
+      { h: 0.6, scene: 'paper', big: 'АКТ IX\nЧЕРТЁЖНАЯ БЕЗДНА', caption: 'Пол становится бумагой.' },
+    ],
+  ],
+  act9: [
+    [
+      { h: 0.5, scene: 'wall', actors: [{ demon: { x: 600, h: 320 } }, { hero: { x: 300, pose: 'idle' } }],
+        caption: 'Прежний Оценщик, продержавшийся 212 комнат, падает.', bubble: { text: 'Око — не тюремщик. Оно в клетке, как и мы.', x: 0.45, y: 0.15 } },
+      { h: 0.5, scene: 'eye', caption: 'Око Дома', big: 'Я ЛИШЬ ЗАМОЧНАЯ СКВАЖИНА. В МЕНЯ СМОТРЯТ С ДРУГОЙ СТОРОНЫ.' },
+    ],
+    [
+      { h: 0.4, scene: 'black', big: 'тук.   тук.   тук.', caption: 'Стук совсем рядом.' },
+      { h: 0.6, scene: 'paper', big: 'АКТ X\nПОРОГ', caption: 'Последние сто комнат.' },
+    ],
+  ],
+  act10: [
+    [
+      { h: 0.5, scene: 'door', actors: [{ door: { x: 560, open: 0, label: '' } }, { hero: { x: 330, pose: 'idle' } }],
+        caption: 'Дверь без таблички. Стук прекратился.' },
+      { h: 0.5, scene: 'door', actors: [{ door: { x: 560, open: 1, label: '' } }, { hero: { x: 520, pose: 'run', t: 0.2 } }],
+        caption: 'Флит открывает её.' },
+    ],
+    [
+      { h: 0.5, scene: 'wall', actors: [{ hero: { x: 480, pose: 'idle' } }],
+        caption: 'За дверью — прихожая с полосатыми обоями. На вешалке висит цилиндр.', bubble: { text: '…Я здесь впервые?', x: 0.6, y: 0.3 } },
+      { h: 0.5, scene: 'black', big: 'Око закрылось', caption: 'Впервые за тысячу комнат никто не смотрит. Коридор Вечного Сквозняка открыт.' },
     ],
   ],
 };
@@ -171,7 +235,7 @@ export class ComicPlayer {
       if (I.eye) { const ew = 520, eh = I.eye.height * ew / I.eye.width; ctx.drawImage(I.eye, 500 - ew / 2, 250 - eh / 2, ew, eh); }
     }
     for (const a of pn.actors || []) {
-      if (a.door) drawFinish(ctx, a.door.x, a.door.open || 0, a.door.label || 'ВЫХОД');
+      if (a.door) drawFinish(ctx, a.door.x, a.door.open || 0, a.door.label ?? 'ВЫХОД');
       if (a.demon && demonReady()) drawDemon(ctx, a.demon.x, GROUND_Y + 4, a.demon.h || 300, t + a.demon.x * 0.01, 0, a.demon.x, a.demon.variant || '');
       if (a.hero && rigReady()) {
         ctx.save();

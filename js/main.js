@@ -5,7 +5,8 @@ import { Game } from './game.js';
 import { setupInput } from './input.js';
 import { sfx, unlockAudio, setSoundEnabled } from './audio.js';
 import { getSave, save, resetSave } from './storage.js';
-import { drawHero, makeRng } from './art.js';
+import { drawHero, makeRng, drawPit } from './art.js';
+import { drawTrapdoor } from './enemies.js';
 import { computeLayout, createFrame, windowPath, Hud } from './hud.js';
 import { loadHeroRig, rigReady, drawRigHero } from './rig.js';
 import { loadDemon } from './demon.js';
@@ -13,6 +14,9 @@ import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXIT
 import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js';
 import { ComicPlayer } from './comic.js';
 import { MINIGAMES } from './minigames.js';
+import { ENEMY } from './enemies.js';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js';
+import { GROUND_Y } from './config.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -34,6 +38,7 @@ let L = null, frameImg = null, hud = null;
 let scale = 1;
 let viewAct = 1;          // какой акт открыт в сетке комнат
 let artFilter = 'all';
+let opisTab = 'beasts';
 let artSelected = null;
 let shopTab = 'art';
 
@@ -73,7 +78,7 @@ const SCREENS = ['menu', 'levels', 'artifacts', 'shop', 'settings', 'pause', 'ov
 function show(name) {
   SCREENS.forEach(s => $('#' + s).classList.toggle('hidden', s !== name));
   if (name === 'levels') { viewAct = Math.floor(Math.min(ROOMS_TOTAL - 1, S.progress.maxRoom) / 100) + 1; renderLevels(); }
-  if (name === 'artifacts') renderArtifacts();
+  if (name === 'artifacts') renderOpis();
   if (name === 'shop') renderShop();
   if (name === 'settings') renderSettings();
   updateWallet();
@@ -170,7 +175,20 @@ function findRelic(bias) {
 
 function onGameEnd(won) {
   const g = game;
+  recordBeasts(g, currentLevel);
   finishRoom(currentLevel, { won, coins: g.coins, coinMult: g.mods.coinMult, score: g.score, meters: g.meters, found: g.found, met: g.met });
+}
+
+// Бестиарий: кого встретил в забеге и скольких убил.
+function recordBeasts(g, lvl) {
+  const room = lvl.kind === 'room' ? lvl.room : Math.max(1, S.progress.maxRoom);
+  for (const t of g.met) {
+    const r = S.bestiary[t] ||= { first: room, runs: 0, kills: 0 };
+    r.first = Math.min(r.first, room);
+    r.runs++;
+    r.kills += g.killsBy[t] || 0;
+  }
+  save();
 }
 
 function finishRoom(lvl, g) {
@@ -236,7 +254,7 @@ function renderStory(lvl, g, earned, first) {
   const st = storyAfter(lvl.room, g.met || new Set(), new Set(S.seenLore));
   if (st.key && !S.seenLore.includes(st.key)) { S.seenLore.push(st.key); save(); }
   const how = lvl.special ? '' : ' · ' + (EXITS[lvl.exit]?.phrase || 'через дверь');
-  $('#story-room').textContent = lvl.room < ROOMS_TOTAL ? `Комната ${lvl.room} → ${lvl.room + 1}${how}` : 'Комната 400';
+  $('#story-room').textContent = lvl.room < ROOMS_TOTAL ? `Комната ${lvl.room} → ${lvl.room + 1}${how}` : `Комната ${ROOMS_TOTAL}`;
   $('#story-label').textContent = st.label;
   const tx = $('#story-text');
   tx.textContent = st.kind === 'house' ? st.text : `«${st.text}»`;
@@ -275,7 +293,7 @@ function renderLevels() {
   ACTS.forEach(a => {
     const b = document.createElement('button');
     b.className = 'tab' + (a.n === viewAct ? ' on' : '');
-    b.textContent = 'Акт ' + ['I', 'II', 'III', 'IV'][a.n - 1];
+    b.textContent = 'Акт ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][a.n - 1];
     b.disabled = (a.n - 1) * 100 + 1 > next;
     b.onclick = () => { sfx.click(); viewAct = a.n; renderLevels(); };
     tabs.appendChild(b);
@@ -291,6 +309,77 @@ function renderLevels() {
     b.disabled = r > next;
     b.onclick = () => { sfx.click(); startRoom(r); };
     grid.appendChild(b);
+  }
+}
+
+// ---------- опись: бестиарий и артефакты ----------
+function renderOpis() {
+  const tabs = $('#opis-tabs');
+  tabs.innerHTML = '';
+  [['beasts', 'Бестиарий'], ['art', 'Артефакты']].forEach(([k, nm]) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (opisTab === k ? ' on' : '');
+    b.textContent = nm;
+    b.onclick = () => { sfx.click(); opisTab = k; renderOpis(); };
+    tabs.appendChild(b);
+  });
+  $('#opis-beasts').classList.toggle('hidden', opisTab !== 'beasts');
+  $('#opis-art').classList.toggle('hidden', opisTab !== 'art');
+  if (opisTab === 'beasts') renderBeasts(); else renderArtifacts();
+}
+
+// Маленький портрет монстра: рисуем его той же функцией, что и в игре.
+const MOCK = { t: 1.3, speed: 420, shake: 0, enemySpeed: 1, puff() {}, drawPips() {} };
+function beastCanvas(type, known) {
+  const c = document.createElement('canvas');
+  c.width = 360; c.height = 300;
+  const x = c.getContext('2d');
+  const d = ENEMY[type];
+  const w = d.w || 200, h = d.h || 120;
+  const o = { id: 3, type, x: 0, w, h, dead: 0, hp: d.hp || 0, flash: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150 };
+  const viewTop = GROUND_Y - 380;
+  const k = Math.min(300 / (w + 80), 300 / 400);
+  x.save();
+  x.translate((360 - w * k) / 2, 0); x.scale(k, k); x.translate(0, -viewTop);
+  try {
+    if (type === 'pit') drawPit(x, 0, 200, makeRng(3));
+    else if (type === 'trapdoor') drawTrapdoor(x, o, 0, makeRng(3));
+    else if (type === 'furniture' && images.furniture) x.drawImage(images.furniture, 0, GROUND_Y - h, w, h);
+    else d.draw?.(x, o, 0, MOCK, 1.3, () => makeRng(3));
+  } catch (e) { /* какой-то рисунок не подошёл для превью — не страшно */ }
+  x.restore();
+  if (!known) { x.globalCompositeOperation = 'source-atop'; x.fillStyle = '#0b0908'; x.fillRect(0, 0, 360, 300); }
+  return c;
+}
+
+function renderBeasts() {
+  const box = $('#opis-beasts');
+  box.innerHTML = '';
+  const types = Object.keys(ENEMY).sort((a, b) => ENEMY[a].unlock - ENEMY[b].unlock);
+  const met = types.filter(t => S.bestiary[t]);
+  const head = document.createElement('div');
+  head.className = 'records';
+  head.innerHTML = `Встречено: <b>${met.length}</b> / ${types.length}. Сведения о монстре открываются постепенно — чем дальше проходишь комнаты и чем чаще его встречаешь.`;
+  box.appendChild(head);
+  for (const t of types) {
+    const rec = S.bestiary[t], d = ENEMY[t];
+    const card = document.createElement('div');
+    card.className = 'beast' + (rec ? '' : ' unknown');
+    card.appendChild(beastCanvas(t, !!rec));
+    const info = document.createElement('div');
+    info.className = 'info';
+    if (!rec) {
+      info.innerHTML = `<div class="nm">???</div><div class="lock">Ещё не встречен</div>`;
+    } else {
+      const k = knowledge(rec, S.progress.maxRoom);
+      const [desc, secret] = BEAST_TEXT[t] || ['', ''];
+      let html = `<div class="nm">${d.name}</div><div class="how">${d.hint}</div><div class="lock">впервые: комната ${rec.first} · встреч: ${rec.runs} · убито: ${rec.kills}</div>`;
+      html += k >= KNOW_DESC ? `<div class="tx">${desc}</div>` : `<div class="lock">Описание откроется через ${KNOW_DESC - k} комн.</div>`;
+      if (k >= KNOW_DESC) html += k >= KNOW_SECRET ? `<div class="sec">Тайна: ${secret}</div>` : `<div class="lock">Тайна откроется через ${KNOW_SECRET - k} комн.</div>`;
+      info.innerHTML = html;
+    }
+    card.appendChild(info);
+    box.appendChild(card);
   }
 }
 

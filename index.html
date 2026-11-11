@@ -19,7 +19,7 @@
       </div>
       <div class="buttons menu-bottom">
         <button data-go="levels" class="btn big">Старт</button>
-        <button data-go="artifacts" class="btn">Артефакты</button>
+        <button data-go="artifacts" class="btn">Опись</button>
         <button data-go="shop" class="btn">Лавка</button>
         <button data-go="settings" class="btn">Настройки</button>
       </div>
@@ -45,13 +45,17 @@
     <!-- Артефакты -->
     <section id="artifacts" class="screen scroll hidden">
       <button data-go="menu" class="btn small back-top">‹ Назад</button>
-      <h2>Артефакты</h2>
+      <h2>Опись</h2>
+      <div id="opis-tabs" class="tabs"></div>
+      <div id="opis-beasts" class="beasts hidden"></div>
+      <div id="opis-art" class="opis-art">
       <div id="art-count" class="records"></div>
       <div class="hint-line">В забег можно взять не больше, чем мест в ряду ниже. Найденное в забеге начнёт действовать со следующего забега.</div>
       <div id="slots" class="slots"></div>
       <div id="art-detail" class="art-detail hidden"></div>
       <div id="art-tabs" class="tabs"></div>
       <div id="art-grid" class="art-grid"></div>
+      </div>
       <button data-go="menu" class="btn small">Назад</button>
     </section>
 

@@ -6,10 +6,10 @@
 // hp — сколько выстрелов (0 — пуля не берёт); block — пуля упирается и гаснет.
 // box(o, g) — опасная зона в мире (null — пока не опасно); draw(ctx, o, x, g, t, R) — рисунок.
 
-import { GROUND_Y, FLOOR_TOP, W, HERO_SCALE } from './config.js?v=6a4a0cb';
-import * as art from './art.js?v=6a4a0cb';
-import { demonReady, drawDemon } from './demon.js?v=6a4a0cb';
-import { rigReady, drawRigHero } from './rig.js?v=6a4a0cb';
+import { GROUND_Y, FLOOR_TOP, W, HERO_SCALE } from './config.js?v=b289d5d';
+import * as art from './art.js?v=b289d5d';
+import { demonReady, drawDemon } from './demon.js?v=b289d5d';
+import { rigReady, drawRigHero } from './rig.js?v=b289d5d';
 
 const head = (o, pad = 10, lift = 100, h = 70) => ({ l: o.x + pad, r: o.x + o.w - pad, t: GROUND_Y - lift - h, b: GROUND_Y - lift });
 const floor = (o, h, pad = 8) => ({ l: o.x + pad, r: o.x + o.w - pad, t: GROUND_Y - h, b: GROUND_Y });

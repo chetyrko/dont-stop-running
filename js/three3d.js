@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=6a4a0cb';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=6a4a0cb';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=6a4a0cb';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=6a4a0cb';
-import { ENEMY } from './enemies.js?v=6a4a0cb';
-import * as art from './art.js?v=6a4a0cb';
-import { drawRigHero, rigReady } from './rig.js?v=6a4a0cb';
-import { recolor } from './pixels.js?v=6a4a0cb';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=6a4a0cb';
-import { EXITS } from './rooms.js?v=6a4a0cb';
-import { sfx } from './audio.js?v=6a4a0cb';
+import * as THREE from '../vendor/three.module.min.js?v=b289d5d';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=b289d5d';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=b289d5d';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=b289d5d';
+import { ENEMY } from './enemies.js?v=b289d5d';
+import * as art from './art.js?v=b289d5d';
+import { drawRigHero, rigReady } from './rig.js?v=b289d5d';
+import { recolor } from './pixels.js?v=b289d5d';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=b289d5d';
+import { EXITS } from './rooms.js?v=b289d5d';
+import { sfx } from './audio.js?v=b289d5d';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -945,7 +945,7 @@ export class World3D {
     if (o.dead || (k !== 'low' && k !== 'high')) return;
     const z = -(o.z - Z_HERO);
     // стрелки на ковре — только если включены в настройках («Знаки»), тень под летучими — всегда
-    if (this.game?.opts.floorSigns) put('s' + o.id, () => {
+    if (false) put('s' + o.id, () => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(LANE * 0.78, 2.0), new THREE.MeshBasicMaterial({ map: signTex(k), transparent: true, depthWrite: false, opacity: 1 }));
       m.rotation.x = -Math.PI / 2; m.position.y = 0.02;
       const g = new THREE.Group(); g.add(m); return { g };
@@ -1258,15 +1258,6 @@ export class Run3D extends Game3D {
       ctx.font = font(38); ctx.textAlign = 'left';
       act.forEach(([ic, tm, col], i) => outlined(`${ic} ${Math.ceil(tm)}`, 22 + i * 92, 118, col));
     }
-    // подсказка над лестницей
-    if (this.stairs && this.base < 0.3 && rect) {
-      const S = this.stairs, ahead = S.a - this.dist;
-      if (ahead > 2 && ahead < 40) {
-        const q = this.world.toStage(S.lane * LANE, FLOOR2 + 0.6, -(ahead), L, rect);
-        if (q.front) { ctx.font = font(44); ctx.textAlign = 'center'; const tx = '↑ наверх', w = ctx.measureText(tx).width + 30, x = clamp(q.x, w / 2 + 10, W - w / 2 - 10), y = clamp(q.y, 230, L.SH * 0.6);
-          ctx.fillStyle = 'rgba(240,210,124,0.95)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 30, w, 60, 12); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#16120f'; ctx.fillText(tx, x, y + 2); }
-      }
-    }
     // множитель серии
     if (this.mult > 1) { ctx.font = font(46); ctx.textAlign = 'right'; outlined(`×${this.mult}`, W - 30, 118, ['', '', '#e8dcc4', '#f0d27c', '#f2a33a', '#e0573c'][this.mult]); }
     // прогресс до выхода
@@ -1308,16 +1299,6 @@ export class Run3D extends Game3D {
       if (Lv.fresh?.length) { ctx.font = font(36); outlined('Новый враг: ' + Lv.fresh.join(', '), W / 2, yb, '#f2d27a', 6); yb += 46; }
       ctx.globalAlpha = 1;
       yb += 8;
-    }
-    // подсказка о ближайшем новом враге (что делать — показывает и знак на ковре)
-    if (this.status === 'running' && this.base < 0.3) {
-      const o = this.objs.filter(o => !o.dead && !o.hit && o.z > Z_HERO + 3 && o.z < 26 && (this.level.hintAll || this.opts.showHint?.(o.type))).sort((a, b) => a.z - b.z)[0];
-      if (o) {
-        const act = ENEMY[o.type]?.act;
-        const lane = ['слева', 'по центру', 'справа'][o.lane + 1];
-        const what = act === 'kick' && o.kind === 'block' ? '👢 пинок или другая дорожка' : act === 'dash' ? '💨 рывок или другая дорожка' : HINT[o.kind];
-        strip(`${ENEMY[o.type]?.name || ''} ${lane}: ${what}`, 38, '#7a2f35', 'rgba(232,220,196,0.92)', '#16120f');
-      }
     }
     this.toasts.forEach((tt) => {
       ctx.globalAlpha = Math.min(1, tt.life * 3, (tt.max - tt.life) * 6);

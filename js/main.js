@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=6a4a0cb';
-import { Game } from './game.js?v=6a4a0cb';
-import { Game3D } from './game3d.js?v=6a4a0cb';
-import { World3D, Run3D } from './three3d.js?v=6a4a0cb';
-import { setupInput } from './input.js?v=6a4a0cb';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=6a4a0cb';
-import { getSave, save, resetSave } from './storage.js?v=6a4a0cb';
-import { drawHero, makeRng, drawPit } from './art.js?v=6a4a0cb';
-import { drawTrapdoor } from './enemies.js?v=6a4a0cb';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=6a4a0cb';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=6a4a0cb';
-import { loadDemon } from './demon.js?v=6a4a0cb';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=6a4a0cb';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=6a4a0cb';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=6a4a0cb';
-import { ComicPlayer } from './comic.js?v=6a4a0cb';
-import { MINIGAMES } from './minigames.js?v=6a4a0cb';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=6a4a0cb';
-import { recolor } from './pixels.js?v=6a4a0cb';
-import { ENEMY } from './enemies.js?v=6a4a0cb';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=6a4a0cb';
-import { GROUND_Y } from './config.js?v=6a4a0cb';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=b289d5d';
+import { Game } from './game.js?v=b289d5d';
+import { Game3D } from './game3d.js?v=b289d5d';
+import { World3D, Run3D } from './three3d.js?v=b289d5d';
+import { setupInput } from './input.js?v=b289d5d';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=b289d5d';
+import { getSave, save, resetSave } from './storage.js?v=b289d5d';
+import { drawHero, makeRng, drawPit } from './art.js?v=b289d5d';
+import { drawTrapdoor } from './enemies.js?v=b289d5d';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=b289d5d';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=b289d5d';
+import { loadDemon } from './demon.js?v=b289d5d';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=b289d5d';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=b289d5d';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=b289d5d';
+import { ComicPlayer } from './comic.js?v=b289d5d';
+import { MINIGAMES } from './minigames.js?v=b289d5d';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=b289d5d';
+import { recolor } from './pixels.js?v=b289d5d';
+import { ENEMY } from './enemies.js?v=b289d5d';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=b289d5d';
+import { GROUND_Y } from './config.js?v=b289d5d';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -779,7 +779,6 @@ function renderSettings() {
   $('#set-sound').classList.toggle('on', !!st.sound);
   $('#set-vibration').classList.toggle('on', !!st.vibration);
   $('#set-paper').classList.toggle('on', !!st.paper);
-  $('#set-signs').classList.toggle('on', !!st.signs);
   renderControls();
   applyEndless();
 }
@@ -805,7 +804,6 @@ onSeg('seg-endless', (v) => { S.settings.endless = v === 'on'; });
 $('#set-sound').onclick = () => toggleSetting('sound');
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
-$('#set-signs').onclick = () => toggleSetting('signs');
 applyEndless();
 let resetArmed = false;
 $('#set-reset').onclick = () => {

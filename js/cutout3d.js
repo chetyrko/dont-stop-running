@@ -2,8 +2,8 @@
 // на обеих плоских сторонах — сам рисунок, боковые стенки окрашены цветом рисунка у края.
 // Из таких деталей собран 3D-Флит (по анимации из rig.js) и статичные враги.
 
-import * as THREE from '../vendor/three.module.min.js?v=6a4a0cb';
-import { captureRigPose, RIG_PARTS, rigImages } from './rig.js?v=6a4a0cb';
+import * as THREE from '../vendor/three.module.min.js?v=b289d5d';
+import { captureRigPose, RIG_PARTS, rigImages } from './rig.js?v=b289d5d';
 
 const geomCache = new WeakMap();
 

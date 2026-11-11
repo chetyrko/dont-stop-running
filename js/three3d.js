@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=801243b';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=801243b';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=801243b';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=801243b';
-import { ENEMY } from './enemies.js?v=801243b';
-import * as art from './art.js?v=801243b';
-import { drawRigHero, rigReady } from './rig.js?v=801243b';
-import { recolor } from './pixels.js?v=801243b';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=801243b';
-import { EXITS } from './rooms.js?v=801243b';
-import { sfx } from './audio.js?v=801243b';
+import * as THREE from '../vendor/three.module.min.js?v=01919f2';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=01919f2';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=01919f2';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=01919f2';
+import { ENEMY } from './enemies.js?v=01919f2';
+import * as art from './art.js?v=01919f2';
+import { drawRigHero, rigReady } from './rig.js?v=01919f2';
+import { recolor } from './pixels.js?v=01919f2';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=01919f2';
+import { EXITS } from './rooms.js?v=01919f2';
+import { sfx } from './audio.js?v=01919f2';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -847,6 +847,19 @@ export class World3D {
       if (this.mode === 'leave') { this.poseH(h, { mode: 'run', t, run: this.modeT * 4 }); if (this.modeT > 0.95 && this.onLeft) { const f = this.onLeft; this.onLeft = null; f(); } }
       else this.poseH(h, { mode: 'lean', t });
       camPos = [0, 1.15, 2.6]; camLook = [0.12, 1.05, 0];
+    } else if (this.mode === 'viewer') {
+      // просмотр модели из админ-панели: герой в центре, поза и поворот — с панели
+      if (this.viewSpin) this.viewYaw = (this.viewYaw || 0) + dt * 0.8;
+      h.root.visible = true;
+      h.root.position.set(0, 0, 0);
+      h.root.rotation.set(0, this.viewYaw || 0, 0);
+      h.root.scale.set(this.look?.sx || 1, this.look?.sy || 1, this.look?.sx || 1);
+      const vp = this.viewPose || 'run';
+      if (vp === 'kick') this.poseH(h, { mode: 'run', t, rt: t, kick: 0.4 - (t % 1.2) / 3 });
+      else if (vp === 'idle') this.poseH(h, { mode: 'lean', t });
+      else this.poseH(h, { mode: vp, t, rt: t, vy: Math.sin(t * 2) * 7 });
+      const vd = this.viewDist || 3.2;
+      camPos = [0, 1.15, vd]; camLook = [0, 1.0, 0];
     } else if (this.mode === 'lobby') {
       this.dist += dt * 0.3;
       h.root.position.set(-0.75, 0, 0);

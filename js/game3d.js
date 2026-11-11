@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=801243b';
-import * as art from './art.js?v=801243b';
-import { sfx } from './audio.js?v=801243b';
-import { computeMods } from './artifacts.js?v=801243b';
-import { applyCharacter, applyUpgrades } from './characters.js?v=801243b';
-import { enemyWeights } from './rooms.js?v=801243b';
-import { ENEMY } from './enemies.js?v=801243b';
-import { demonReady, drawDemon } from './demon.js?v=801243b';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=01919f2';
+import * as art from './art.js?v=01919f2';
+import { sfx } from './audio.js?v=01919f2';
+import { computeMods } from './artifacts.js?v=01919f2';
+import { applyCharacter, applyUpgrades } from './characters.js?v=01919f2';
+import { enemyWeights } from './rooms.js?v=01919f2';
+import { ENEMY } from './enemies.js?v=01919f2';
+import { demonReady, drawDemon } from './demon.js?v=01919f2';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -529,6 +529,7 @@ export class Game3D {
   }
 
   hurt() {
+    if (this.god) return;   // бессмертие из админ-панели
     const p = this.p;
     if (this.shield > 0) { this.shield--; p.invuln = 1.0; this.toast('Щит принял удар'); sfx.kick(); return; }
     const caught = this.chase > 0;      // Тень уже бежит за спиной — второй удар, и она ловит

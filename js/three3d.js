@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=90c6ef7';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=90c6ef7';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=90c6ef7';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=90c6ef7';
-import { ENEMY } from './enemies.js?v=90c6ef7';
-import * as art from './art.js?v=90c6ef7';
-import { drawRigHero, rigReady } from './rig.js?v=90c6ef7';
-import { recolor } from './pixels.js?v=90c6ef7';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=90c6ef7';
-import { EXITS } from './rooms.js?v=90c6ef7';
-import { sfx } from './audio.js?v=90c6ef7';
+import * as THREE from '../vendor/three.module.min.js?v=df30514';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=df30514';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=df30514';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=df30514';
+import { ENEMY } from './enemies.js?v=df30514';
+import * as art from './art.js?v=df30514';
+import { drawRigHero, rigReady } from './rig.js?v=df30514';
+import { recolor } from './pixels.js?v=df30514';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=df30514';
+import { EXITS } from './rooms.js?v=df30514';
+import { sfx } from './audio.js?v=df30514';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -1329,11 +1329,11 @@ export class Run3D extends Game3D {
     if (this.lives < this.lastLives) this.pulse = 1;
     this.lastLives = this.lives; this.pulse = Math.max(0, this.pulse - dt * 3);
     // сердца по три в ряд: больше трёх — второй ряд ниже (не наезжают на Око)
-    const perRow = 3, hs = this.maxLives > 3 ? 44 : 52;
+    const perRow = this.maxLives > 6 ? 5 : 3, hs = this.maxLives > 6 ? 36 : this.maxLives > 3 ? 44 : 52;   // до 6 — по три в ряд, больше — по пять, мельче
     for (let i = 0; i < this.maxLives; i++) {
       const full = i < this.lives, s = hs * (i === this.lives ? 1 + this.pulse * 0.3 : 1);
       const col = i % perRow, rowN = Math.floor(i / perRow);
-      if (I.heart) ctx.drawImage(full ? I.heart : this.grayHeart, 26 + col * (hs + 6) + (hs - s) / 2, 48 + rowN * (hs + 2) - s / 2 + 18, s, s * I.heart.height / I.heart.width);
+      if (I.heart) ctx.drawImage(full ? I.heart : this.grayHeart, 26 + col * (hs + 6) + (hs - s) / 2, 44 + rowN * (hs + 2) - s / 2 + 18, s, s * I.heart.height / I.heart.width);
     }
     const heartRows = Math.ceil(this.maxLives / perRow);
     // Око — пауза

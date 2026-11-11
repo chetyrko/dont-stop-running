@@ -1,14 +1,14 @@
 // Логика забега: герой, препятствия, враги, босс, монеты, находки, отрисовка.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER_X, PLAYER, SCORE, PX_PER_METER, HERO_SCALE, DIFFICULTY, ECONOMY } from './config.js?v=90c6ef7';
-import { recolor } from './pixels.js?v=90c6ef7';
-import { demonReady, drawDemon } from './demon.js?v=90c6ef7';
-import * as art from './art.js?v=90c6ef7';
-import { sfx } from './audio.js?v=90c6ef7';
-import { rigReady, drawRigHero } from './rig.js?v=90c6ef7';
-import { computeMods } from './artifacts.js?v=90c6ef7';
-import { applyCharacter, applyUpgrades } from './characters.js?v=90c6ef7';
-import { ENEMY, drawTrapdoor } from './enemies.js?v=90c6ef7';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER_X, PLAYER, SCORE, PX_PER_METER, HERO_SCALE, DIFFICULTY, ECONOMY } from './config.js?v=df30514';
+import { recolor } from './pixels.js?v=df30514';
+import { demonReady, drawDemon } from './demon.js?v=df30514';
+import * as art from './art.js?v=df30514';
+import { sfx } from './audio.js?v=df30514';
+import { rigReady, drawRigHero } from './rig.js?v=df30514';
+import { computeMods } from './artifacts.js?v=df30514';
+import { applyCharacter, applyUpgrades } from './characters.js?v=df30514';
+import { ENEMY, drawTrapdoor } from './enemies.js?v=df30514';
 
 // Все виды врагов и препятствий — в enemies.js.
 const OBST = ENEMY;
@@ -76,7 +76,7 @@ export class Game {
     this.t = 0;
     this.camX = 0;
     this.speed = L.speed * M.speedMul;
-    this.maxLives = clamp(D.lives + M.lives, 1, 6);
+    this.maxLives = clamp(D.lives + M.lives, 1, 12);   // сердца с артефактов и прокачки — до 12
     this.lives = this.maxLives;
     this.shield = M.shield;
     this.revives = M.revive;

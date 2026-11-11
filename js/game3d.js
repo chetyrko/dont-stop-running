@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=91ab564';
-import * as art from './art.js?v=91ab564';
-import { sfx } from './audio.js?v=91ab564';
-import { computeMods } from './artifacts.js?v=91ab564';
-import { applyCharacter } from './characters.js?v=91ab564';
-import { ENEMY } from './enemies.js?v=91ab564';
-import { demonReady, drawDemon } from './demon.js?v=91ab564';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=bc1be35';
+import * as art from './art.js?v=bc1be35';
+import { sfx } from './audio.js?v=bc1be35';
+import { computeMods } from './artifacts.js?v=bc1be35';
+import { applyCharacter, applyUpgrades } from './characters.js?v=bc1be35';
+import { ENEMY } from './enemies.js?v=bc1be35';
+import { demonReady, drawDemon } from './demon.js?v=bc1be35';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -20,7 +20,7 @@ const FAR = 60;                // дальше — туман
 const NATIVE = 120;            // пикселей 2D-рисунка на единицу мира
 const HERO_H = 1.6, SLIDE_H = 0.6;
 const DYN = 1.3;
-export const FLOOR2 = 2.6;      // высота второго этажа (галереи)               // во сколько раз 3D-забег быстрее классики
+export const FLOOR2 = 3.8;      // высота второго этажа (галереи) — на уровне карниза над обоями               // во сколько раз 3D-забег быстрее классики
 
 // Как проходится каждый вид в 3D.
 //  low — прыгнуть, high — пригнуться, block — уйти на другую дорожку, foe — выстрел или уйти.
@@ -60,7 +60,7 @@ export class Game3D {
     this.level = level;
     this.skin = skin;
     this.opts = opts;
-    this.mods = applyCharacter(computeMods(opts.equipped || []), opts.character);
+    this.mods = applyUpgrades(applyCharacter(computeMods(opts.equipped || []), opts.character), opts.upgrades);
     const tt = level.palette?.wallTint;
     this.col = {
       light: tint('#e4d8c0', tt), dark: tint('#cbbd9f', tt), floor: tint('#776a5b', tt), floor2: tint('#6a5d4f', tt),
@@ -134,7 +134,7 @@ export class Game3D {
     else if (a === 'dash') {
       // рывок: короткий бросок вперёд сквозь призраков, решётки и туман
       if ((p.dashCd || 0) > 0) return;
-      p.dashT = 0.5 * (M.dashLen || 1); p.dashCd = 0.9; sfx.slide(); this.shake = Math.max(this.shake, 3);
+      p.dashT = 0.5 * (M.dashLen || 1); p.dashCd = 0.9 * (M.dashCdMul || 1); sfx.slide(); this.shake = Math.max(this.shake, 3);
     }
     else if (a === 'smash') {
       // пинок: мебель, доспехи и щит в своей дорожке, если они близко
@@ -163,7 +163,7 @@ export class Game3D {
       }
       p.shootCd = PLAYER.shootCooldown * M.reloadMul; p.flash = 0.12;
       const rifle = M.weapon === 'rifle';
-      this.bullets.push({ lane: Math.round(this.hx), z: Z_HERO + 0.5, pierce: rifle ? 99 : M.pierce, hit: [], rifle, dmg: rifle ? 3 : 1 });
+      this.bullets.push({ lane: Math.round(this.hx), z: Z_HERO + 0.5, pierce: rifle ? 99 : M.pierce, hit: [], rifle, dmg: (rifle ? 3 : 1) * (M.dmgMul || 1) });
       sfx.shoot(); this.shake = Math.max(this.shake, 3);
     }
   }
@@ -195,7 +195,7 @@ export class Game3D {
     this.magnetT = 14 * (this.mods.magnetMul || 1);
     this.toast('Магнит! Ищи лестницу наверх', 2.2); sfx.win();
     const lane = [-1, 0, 1][Math.floor(Math.random() * 3)];
-    const a = this.dist + 38, b = a + 9, c = b + 72;
+    const a = this.dist + 38, b = a + 13, c = b + 72;
     this.stairs = { lane, a, b, c };
     // убрать то, что уже стоит на лестнице и в зоне приземления
     this.objs = this.objs.filter(o => !this.reserved(o.lane, this.dist + o.z - Z_HERO));

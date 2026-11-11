@@ -27,6 +27,7 @@ const DEFAULT = {
   seenLore: [],        // какие сюжетные записки уже прочитаны
   bestiary: {},        // монстры: { вид: { first: комната первой встречи, runs: забегов с ним, kills: убито } }
   shop: { shift: 0, bought: [] },
+  upgrades: { magnet: 0, weapon: 0, hero: {} },   // прокачка: уровни 0..5, у персонажа — свой уровень у каждого
 };
 
 function merge(d) {
@@ -37,6 +38,7 @@ function merge(d) {
     records: { ...structuredClone(DEFAULT.records), ...(d.records || {}),
       endless: { ...DEFAULT.records.endless, ...(d.records?.endless || {}) } },
     shop: { ...DEFAULT.shop, ...(d.shop || {}) },
+    upgrades: { ...structuredClone(DEFAULT.upgrades), ...(d.upgrades || {}) },
   };
 }
 

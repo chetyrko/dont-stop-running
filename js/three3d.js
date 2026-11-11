@@ -6,19 +6,19 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=91ab564';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=91ab564';
-import { Hero3D } from './hero3d.js?v=91ab564';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=91ab564';
-import { ENEMY } from './enemies.js?v=91ab564';
-import * as art from './art.js?v=91ab564';
-import { drawRigHero, rigReady } from './rig.js?v=91ab564';
-import { recolor } from './pixels.js?v=91ab564';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=91ab564';
-import { EXITS } from './rooms.js?v=91ab564';
-import { sfx } from './audio.js?v=91ab564';
+import * as THREE from '../vendor/three.module.min.js?v=bc1be35';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=bc1be35';
+import { Hero3D } from './hero3d.js?v=bc1be35';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=bc1be35';
+import { ENEMY } from './enemies.js?v=bc1be35';
+import * as art from './art.js?v=bc1be35';
+import { drawRigHero, rigReady } from './rig.js?v=bc1be35';
+import { recolor } from './pixels.js?v=bc1be35';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=bc1be35';
+import { EXITS } from './rooms.js?v=bc1be35';
+import { sfx } from './audio.js?v=bc1be35';
 
-const WALL = 2.6, CEIL = 7.0, LEN = 120;
+const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
 const INK = 0x16120f;
 const OUTLINE = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
@@ -794,7 +794,7 @@ export class World3D {
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
         this.poseH(h, { mode, t, run: g.p.run, vy: g.vy, kick: g.p.kickT });
         // камера выше и дальше: враги видны поверх головы Флита
-        camPos = [hx * 0.5 + 0.4, 5.3 + g.base * 0.45, 8.8 - g.base * 0.6]; camLook = [hx * 0.5, 0.3 + g.base * 0.9, -12];   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
+        camPos = [hx * 0.5 + 0.4, 5.3 + g.base * 0.25, 8.8 - g.base * 0.9]; camLook = [hx * 0.5, 0.3 + g.base, -12];   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
         // «стал портретом»: поднимается к левой стене, вокруг возникает рама, портрет остаётся на стене
         // портрет вешается посередине между арками, чтобы колонна его не закрывала

@@ -1,14 +1,14 @@
 // Логика забега: герой, препятствия, враги, босс, монеты, находки, отрисовка.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER_X, PLAYER, SCORE, PX_PER_METER, HERO_SCALE, DIFFICULTY, ECONOMY } from './config.js?v=91ab564';
-import { recolor } from './pixels.js?v=91ab564';
-import { demonReady, drawDemon } from './demon.js?v=91ab564';
-import * as art from './art.js?v=91ab564';
-import { sfx } from './audio.js?v=91ab564';
-import { rigReady, drawRigHero } from './rig.js?v=91ab564';
-import { computeMods } from './artifacts.js?v=91ab564';
-import { applyCharacter } from './characters.js?v=91ab564';
-import { ENEMY, drawTrapdoor } from './enemies.js?v=91ab564';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER_X, PLAYER, SCORE, PX_PER_METER, HERO_SCALE, DIFFICULTY, ECONOMY } from './config.js?v=bc1be35';
+import { recolor } from './pixels.js?v=bc1be35';
+import { demonReady, drawDemon } from './demon.js?v=bc1be35';
+import * as art from './art.js?v=bc1be35';
+import { sfx } from './audio.js?v=bc1be35';
+import { rigReady, drawRigHero } from './rig.js?v=bc1be35';
+import { computeMods } from './artifacts.js?v=bc1be35';
+import { applyCharacter, applyUpgrades } from './characters.js?v=bc1be35';
+import { ENEMY, drawTrapdoor } from './enemies.js?v=bc1be35';
 
 // Все виды врагов и препятствий — в enemies.js.
 const OBST = ENEMY;
@@ -59,7 +59,7 @@ export class Game {
     this.level = level;
     this.skin = skin;
     this.opts = opts;
-    this.mods = applyCharacter(computeMods(opts.equipped || []), opts.character);
+    this.mods = applyUpgrades(applyCharacter(computeMods(opts.equipped || []), opts.character), opts.upgrades);
     this.buildPaper();
     const imgs = opts.images || {};
     this.wall = imgs.wall ? tileStrip(imgs.wall, FLOOR_TOP + 24, level.palette?.wallTint) : art.createWallLayer(level.palette, 11 + (level.room || 7));

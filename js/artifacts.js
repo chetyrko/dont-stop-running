@@ -76,7 +76,7 @@ function build() {
           id: id++, key: f.key, v, bonus: f.cursed ? b : 0, tier, name, desc, icon,
           cursed: !!f.cursed, passive: !!f.passive,
           rarity: RARITY[tier],
-          price: Math.round(RARITY[tier].price * (f.cursed ? 0.7 : 1) * (f.key === 'slots' ? 1.6 : 1)),
+          price: Math.round(RARITY[tier].price * 3 * (f.cursed ? 0.7 : 1) * (f.key === 'slots' ? 1.6 : 1)),
         });
       }
     }

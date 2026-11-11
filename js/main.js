@@ -1,26 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=91ab564';
-import { Game } from './game.js?v=91ab564';
-import { Game3D } from './game3d.js?v=91ab564';
-import { World3D, Run3D } from './three3d.js?v=91ab564';
-import { setupInput } from './input.js?v=91ab564';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=91ab564';
-import { getSave, save, resetSave } from './storage.js?v=91ab564';
-import { drawHero, makeRng, drawPit } from './art.js?v=91ab564';
-import { drawTrapdoor } from './enemies.js?v=91ab564';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=91ab564';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=91ab564';
-import { loadDemon } from './demon.js?v=91ab564';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=91ab564';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=91ab564';
-import { ComicPlayer } from './comic.js?v=91ab564';
-import { MINIGAMES } from './minigames.js?v=91ab564';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=91ab564';
-import { recolor } from './pixels.js?v=91ab564';
-import { ENEMY } from './enemies.js?v=91ab564';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=91ab564';
-import { GROUND_Y } from './config.js?v=91ab564';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=bc1be35';
+import { Game } from './game.js?v=bc1be35';
+import { Game3D } from './game3d.js?v=bc1be35';
+import { World3D, Run3D } from './three3d.js?v=bc1be35';
+import { setupInput } from './input.js?v=bc1be35';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=bc1be35';
+import { getSave, save, resetSave } from './storage.js?v=bc1be35';
+import { drawHero, makeRng, drawPit } from './art.js?v=bc1be35';
+import { drawTrapdoor } from './enemies.js?v=bc1be35';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=bc1be35';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=bc1be35';
+import { loadDemon } from './demon.js?v=bc1be35';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=bc1be35';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=bc1be35';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=bc1be35';
+import { ComicPlayer } from './comic.js?v=bc1be35';
+import { MINIGAMES } from './minigames.js?v=bc1be35';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=bc1be35';
+import { recolor } from './pixels.js?v=bc1be35';
+import { ENEMY } from './enemies.js?v=bc1be35';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=bc1be35';
+import { GROUND_Y } from './config.js?v=bc1be35';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -151,6 +152,7 @@ function startRun(level, extra = {}) {
     character: currentChar(),
     images,
     vibration: S.settings.vibration,
+    upgrades: upgradeLevels(),
     paperFx: S.settings.paper,
     equipped: S.equipped,
     seenHints: S.seenHints,
@@ -548,7 +550,7 @@ function shopSeed() { return Math.floor(S.records.roomsCleared / ECONOMY.shopRot
 function renderShop() {
   const tabs = $('#shop-tabs');
   tabs.innerHTML = '';
-  [['chars', 'Персонажи'], ['art', 'Артефакты'], ['skins', 'Облики']].forEach(([k, nm]) => {
+  [['chars', 'Персонажи'], ['upg', 'Прокачка'], ['art', 'Артефакты'], ['skins', 'Облики']].forEach(([k, nm]) => {
     const b = document.createElement('button');
     b.className = 'tab' + (shopTab === k ? ' on' : '');
     b.textContent = nm;
@@ -559,7 +561,41 @@ function renderShop() {
   $('#shop-reroll').classList.toggle('hidden', shopTab !== 'art');
   $('#skin-list').classList.toggle('hidden', shopTab !== 'skins');
   $('#char-shop').classList.toggle('hidden', shopTab !== 'chars');
-  if (shopTab === 'art') renderShopArt(); else if (shopTab === 'chars') renderChars(); else renderSkins();
+  $('#upg-shop').classList.toggle('hidden', shopTab !== 'upg');
+  if (shopTab === 'art') renderShopArt(); else if (shopTab === 'chars') renderChars(); else if (shopTab === 'upg') renderUpgrades(); else renderSkins();
+}
+
+// ---------- прокачка ----------
+function upgradeLevels() {
+  const U = S.upgrades || {};
+  return { magnet: U.magnet || 0, weapon: U.weapon || 0, hero: (U.hero || {})[S.char] || 0 };
+}
+function renderUpgrades() {
+  const box = $('#upg-shop');
+  box.innerHTML = '';
+  const lv = upgradeLevels();
+  for (const u of UPGRADES) {
+    const l = lv[u.id], max = l >= UPGRADE_PRICES.length, price = UPGRADE_PRICES[l];
+    const d = document.createElement('div');
+    d.className = 'upg';
+    const who = u.perChar ? ` · ${currentChar().name}` : '';
+    d.innerHTML = `<div class="ico">${u.ico}</div><div class="txt"><div class="nm">${u.name}${who}</div>` +
+      `<div class="pips">${UPGRADE_PRICES.map((_, i) => `<span class="${i < l ? 'on' : ''}"></span>`).join('')}</div>` +
+      `<div class="ds">${l ? 'Сейчас: ' + u.desc(l) : 'Не прокачано'}</div>` + (max ? '' : `<div class="ds next">Дальше: ${u.desc(l + 1)}</div>`) + `</div>`;
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = max ? 'Максимум' : `Улучшить · ${price}`;
+    b.disabled = max || S.gold < price;
+    b.onclick = () => {
+      if (max || S.gold < price) return;
+      S.gold -= price;
+      if (u.perChar) { S.upgrades.hero ||= {}; S.upgrades.hero[S.char] = l + 1; } else S.upgrades[u.id] = l + 1;
+      save(); sfx.coin(); renderUpgrades(); updateWallet();
+    };
+    d.appendChild(b);
+    box.appendChild(d);
+  }
+  box.insertAdjacentHTML('beforeend', '<div class="records">Персонаж прокачивается у каждого свой: выбери другого в «Персонажах», чтобы прокачать его.</div>');
 }
 
 function renderShopArt() {
@@ -694,9 +730,9 @@ function renderSkins() {
 // ---------- настройки ----------
 const DIFF_DESC = {
   easy: 'Медленнее, больше места между препятствиями, подсказки всегда. Оболы ×1.',
-  normal: 'Как задумано. Оболы ×1.3.',
-  hard: 'Быстрее, теснее, чаще сдвоенные препятствия. Оболы ×1.7.',
-  nightmare: 'Одно сердце. Всё быстрее и злее. Оболы ×2.5, артефакты находятся чаще.',
+  normal: 'Как задумано. Оболы ×1.15.',
+  hard: 'Быстрее, теснее, чаще сдвоенные препятствия. Оболы ×1.35.',
+  nightmare: 'Одно сердце. Всё быстрее и злее. Оболы ×1.7, артефакты находятся чаще.',
 };
 // стрелки и слова в подсказках, если пинок перенесён на свайп вправо
 function kickText(t) {

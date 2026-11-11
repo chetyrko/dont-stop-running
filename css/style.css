@@ -301,3 +301,16 @@ body.v3d #story { background: #050404; }
 .act-btn:active, .act-btn.cd { opacity: 0.5; transform: scale(0.94); }
 #act-btns.kick-left #act-kick, #act-btns.kick-right #act-dash { left: 30px; }
 #act-btns.kick-left #act-dash, #act-btns.kick-right #act-kick { right: 30px; }
+
+/* прокачка в лавке */
+.upg-shop { display: flex; flex-direction: column; gap: 14px; width: 640px; }
+.upg { display: grid; grid-template-columns: 70px 1fr 210px; align-items: center; gap: 12px; text-align: left;
+  background: rgba(232,220,196,0.08); border: 3px solid #4a3e36; border-radius: 14px; padding: 12px 14px; }
+.upg .ico { font-size: 54px; font-family: sans-serif; text-align: center; }
+.upg .nm { font-size: 44px; color: var(--paper); }
+.upg .ds { font-size: 28px; color: #b9b5ae; line-height: 1.05; }
+.upg .ds.next { color: #f0d27c; }
+.upg .pips { display: flex; gap: 6px; margin: 4px 0; }
+.upg .pips span { width: 30px; height: 12px; border-radius: 6px; background: #3a302a; border: 2px solid #6a5a4a; }
+.upg .pips span.on { background: #d6a93c; border-color: #f0d27c; }
+.upg .btn { min-width: 0; font-size: 32px; padding: 10px 8px; }

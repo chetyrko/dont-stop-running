@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=65506b1';
-import * as art from './art.js?v=65506b1';
-import { sfx } from './audio.js?v=65506b1';
-import { computeMods } from './artifacts.js?v=65506b1';
-import { applyCharacter, applyUpgrades } from './characters.js?v=65506b1';
-import { enemyWeights } from './rooms.js?v=65506b1';
-import { ENEMY } from './enemies.js?v=65506b1';
-import { demonReady, drawDemon } from './demon.js?v=65506b1';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=a498945';
+import * as art from './art.js?v=a498945';
+import { sfx } from './audio.js?v=a498945';
+import { computeMods } from './artifacts.js?v=a498945';
+import { applyCharacter, applyUpgrades } from './characters.js?v=a498945';
+import { enemyWeights } from './rooms.js?v=a498945';
+import { ENEMY } from './enemies.js?v=a498945';
+import { demonReady, drawDemon } from './demon.js?v=a498945';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -140,7 +140,7 @@ export class Game3D {
     else if (a === 'dash') {
       // рывок: короткий бросок вперёд сквозь призраков, решётки и туман
       if ((p.dashCd || 0) > 0) return;
-      p.dashT = 0.5 * (M.dashLen || 1); p.dashCd = 0.9 * (M.dashCdMul || 1); sfx.slide(); this.shake = Math.max(this.shake, 3);
+      p.dashT = 0.5 * (M.dashLen || 1); p.dashCd = 0.9 * (M.dashCdMul || 1) * (M.dashMul || 1);   // артефакт «рывок» — чаще sfx.slide(); this.shake = Math.max(this.shake, 3);
     }
     else if (a === 'smash') {
       // пинок: мебель, доспехи и щит в своей дорожке, если они близко
@@ -172,7 +172,7 @@ export class Game3D {
   // Пинок ломает всё «пинаемое» в своей дорожке впереди. Удар длится 0,4 с: если шкаф подъехал
   // уже после нажатия, он всё равно сломается — пинок не зависит от точного момента.
   kickHit() {
-    const reach = Z_HERO + 2.4 + this.speed * 0.12;
+    const reach = Z_HERO + 2.4 + this.speed * 0.12 + (this.mods.kickAdd || 0) / 60;   // артефакт «пинок» бьёт дальше
     for (const o of this.objs) {
       if (o.dead || o.hit || o.z > reach || o.z < Z_HERO - 0.6) continue;
       if (o.lane !== this.lane && o.lane !== Math.round(this.hx)) continue;
@@ -543,11 +543,13 @@ export class Game3D {
     if (this.god) return;   // бессмертие из админ-панели
     const p = this.p;
     if (this.shield > 0) { this.shield--; p.invuln = 1.0; this.toast('Щит принял удар'); sfx.kick(); return; }
-    const caught = this.chase > 0;      // Тень уже бежит за спиной — второй удар, и она ловит
-    this.lives--;
+    // Тень за спиной: удар во время погони — её когти, минус два сердца. Сердца с артефактов,
+    // щит, свеча и оберег спасают и от неё; поймает она, только когда сердца кончатся.
+    const chasing = this.chase > 0;
+    this.lives = Math.max(0, this.lives - (chasing ? 2 : 1));
     this.streak = 0; this.mult = 1;
-    if (caught) { this.lives = 0; this.deathKind = 'caught'; }
-    else if (this.lives > 0) { this.chase = 7; this.toast('Тень за спиной! Ещё удар — и поймает', 1.8); }
+    if (this.lives <= 0 && chasing) this.deathKind = 'caught';
+    if (this.lives > 0) { this.chase = 7; this.toast(chasing ? 'Тень зацепила! −2 сердца' : 'Тень за спиной! Удар сейчас — минус два сердца', 1.8); }
     p.invuln = PLAYER.invulnTime + this.mods.invulnAdd;
     p.hurtT = 0.4; this.shake = 14; this.flashRed = 1;
     sfx.hit();

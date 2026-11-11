@@ -815,3 +815,121 @@ export function drawRelic(ctx, x, y, t) {
   ctx.fillText('?', 0, 2);
   ctx.restore();
 }
+
+// ---------- выходы из комнат: дверь, лестницы, лифт, потайной шкаф ----------
+function exitSign(ctx, x, y, text) {
+  if (!text) return;
+  ctx.save();
+  ctx.font = 'bold 44px "Amatic SC", serif';
+  const w = Math.max(156, ctx.measureText(text).width + 40);
+  ctx.fillStyle = '#e8dcc4'; ctx.strokeStyle = INK; ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.rect(x - w / 2, y, w, 46); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#7a2f35'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 24);
+  ctx.restore();
+}
+
+function opening(ctx, l, top, w, h) {
+  ctx.fillStyle = '#3a2a1e'; ctx.strokeStyle = INK; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.rect(l - 16, top - 16, w + 32, h + 16); ctx.fill(); ctx.stroke();
+  const g = ctx.createLinearGradient(0, top, 0, top + h);
+  g.addColorStop(0, '#030202'); g.addColorStop(1, '#1b1410');
+  ctx.fillStyle = g; ctx.fillRect(l, top, w, h);
+}
+
+// kind: door | stairsUp | stairsDown | lift | secret; open: 0..1; img — книжный шкаф автора (для secret)
+export function drawExit(ctx, kind, x, open = 0, label = 'ВЫХОД', t = 0, img = null) {
+  if (kind === 'door' || !kind) { drawFinish(ctx, x, open, label); return; }
+  const y = FLOOR_TOP, w = 210, h = 310, l = x - w / 2, top = y - h;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  if (kind === 'stairsUp') {
+    opening(ctx, l, top, w, h);
+    // ступени уходят вверх-вправо и тонут в темноте
+    for (let i = 0; i < 9; i++) {
+      const sy = y - i * 34, sx = l + i * 16;
+      ctx.globalAlpha = Math.max(0.15, 1 - i * 0.1);
+      ctx.fillStyle = i % 2 ? '#5a4434' : '#4a3a2c';
+      ctx.fillRect(sx, sy - 34, l + w - sx, 34);
+      ctx.strokeStyle = '#1b130e'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(sx, sy - 34); ctx.lineTo(l + w, sy - 34); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#2a1f17'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(l + 8, y - 70); ctx.lineTo(l + w - 8, top + 30); ctx.stroke();
+    for (let i = 0; i < 6; i++) { const bx = l + 20 + i * 32; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(bx, y - 70 - (bx - l - 8) * (h - 100) / (w - 16) * 0.95); ctx.lineTo(bx, y - 10 - i * 34); ctx.stroke(); }
+    exitSign(ctx, x, top - 72, label + ' ↑');
+  } else if (kind === 'stairsDown') {
+    opening(ctx, l, top, w, h);
+    // проём в полу и ступени вниз
+    ctx.fillStyle = '#0a0706';
+    ctx.beginPath(); ctx.moveTo(l, y); ctx.lineTo(l + w, y); ctx.lineTo(l + w + 20, y + 70); ctx.lineTo(l - 20, y + 70); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 7; i++) {
+      const sy = top + 140 + i * 26, sx = l + 20 + i * 18;
+      ctx.globalAlpha = Math.max(0.1, 0.9 - i * 0.13);
+      ctx.fillStyle = '#4a3a2c'; ctx.fillRect(sx, sy, l + w - sx, 14);
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#2a1f17'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(l + 10, top + 120); ctx.lineTo(l + w - 10, y + 20); ctx.stroke();
+    exitSign(ctx, x, top - 72, label + ' ↓');
+  } else if (kind === 'lift') {
+    // латунная рама, шахта с тросами, кабина, раздвижная решётка
+    ctx.fillStyle = '#6b5a32'; ctx.strokeStyle = INK; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.rect(l - 18, top - 18, w + 36, h + 18); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#120d0b'; ctx.fillRect(l, top, w, h);
+    ctx.strokeStyle = '#3a3836'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x - 30, top); ctx.lineTo(x - 30, top + 60); ctx.moveTo(x + 30, top); ctx.lineTo(x + 30, top + 60); ctx.stroke();
+    ctx.fillStyle = '#2a201a'; ctx.fillRect(l + 6, top + 60, w - 12, h - 60);
+    const lamp = ctx.createRadialGradient(x, top + 80, 4, x, top + 80, 120);
+    lamp.addColorStop(0, 'rgba(242,193,78,0.5)'); lamp.addColorStop(1, 'rgba(242,193,78,0)');
+    ctx.fillStyle = lamp; ctx.fillRect(l, top + 60, w, h - 60);
+    ctx.fillStyle = '#c9a24a'; ctx.beginPath(); ctx.arc(x, top + 74, 7, 0, 7); ctx.fill();
+    drawLiftGrille(ctx, l, top, w, h, 1 - open);
+    // циферблат этажей
+    ctx.fillStyle = '#e8dcc4'; ctx.strokeStyle = INK; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, top - 18, 34, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#b3302c'; ctx.lineWidth = 3;
+    const a = Math.PI + 0.4 + Math.sin(t * 0.7) * 0.2 + open * 1.6;
+    ctx.beginPath(); ctx.moveTo(x, top - 18); ctx.lineTo(x + Math.cos(a) * 28, top - 18 + Math.sin(a) * 28); ctx.stroke();
+    exitSign(ctx, x, top - 112, label);
+  } else if (kind === 'secret') {
+    opening(ctx, l, top, w, h);
+    // в глубине тайного хода дрожит свеча
+    const c = ctx.createRadialGradient(x + 30, top + 150, 4, x + 30, top + 150, 90);
+    c.addColorStop(0, `rgba(242,193,78,${0.35 + Math.sin(t * 9) * 0.05})`); c.addColorStop(1, 'rgba(242,193,78,0)');
+    ctx.fillStyle = c; ctx.fillRect(l, top, w, h);
+    // шкаф поворачивается на петлях у левого края
+    ctx.save();
+    ctx.translate(l, 0); ctx.scale(Math.max(0.12, 1 - open * 0.88), 1); ctx.translate(-l, 0);
+    if (img) ctx.drawImage(img, l - 4, top - 16, w + 8, h + 16);
+    else drawFurniture(ctx, l, y, w, h, 2, makeRng(5));
+    ctx.fillStyle = `rgba(0,0,0,${open * 0.5})`; ctx.fillRect(l - 4, top - 16, w + 8, h + 16);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawLiftGrille(ctx, l, top, w, h, closed) {
+  if (closed <= 0.02) return;
+  const gw = w * closed, gx = l + w - gw;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(gx, top, gw, h); ctx.clip();
+  ctx.strokeStyle = '#8a7a4a'; ctx.lineWidth = 3;
+  const n = 8;
+  for (let i = 0; i <= n; i++) { const xx = gx + gw * i / n; ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, top + h); ctx.stroke(); }
+  for (let i = 0; i < n; i++) {
+    const x0 = gx + gw * i / n, x1 = gx + gw * (i + 1) / n;
+    for (let yy = top; yy < top + h; yy += 44) {
+      ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy + 22); ctx.lineTo(x0, yy + 44); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// Решётка лифта поверх героя, когда он уже вошёл (close: 0..1).
+export function drawExitFront(ctx, kind, x, close) {
+  if (kind !== 'lift' || close <= 0) return;
+  const w = 210, h = 310;
+  drawLiftGrille(ctx, x - w / 2, FLOOR_TOP - h, w, h, close);
+}

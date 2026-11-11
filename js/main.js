@@ -9,7 +9,7 @@ import { drawHero, makeRng } from './art.js';
 import { computeLayout, createFrame, windowPath, Hud } from './hud.js';
 import { loadHeroRig, rigReady, drawRigHero } from './rig.js';
 import { loadDemon } from './demon.js';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter } from './rooms.js';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js';
 import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js';
 import { ComicPlayer } from './comic.js';
 import { MINIGAMES } from './minigames.js';
@@ -170,7 +170,7 @@ function findRelic(bias) {
 
 function onGameEnd(won) {
   const g = game;
-  finishRoom(currentLevel, { won, coins: g.coins, coinMult: g.mods.coinMult, score: g.score, meters: g.meters, found: g.found });
+  finishRoom(currentLevel, { won, coins: g.coins, coinMult: g.mods.coinMult, score: g.score, meters: g.meters, found: g.found, met: g.met });
 }
 
 function finishRoom(lvl, g) {
@@ -233,8 +233,10 @@ function foundHtml(g) {
 function renderStory(lvl, g, earned, first) {
   game = null;
   startDemo();
-  const st = storyAfter(lvl.room);
-  $('#story-room').textContent = lvl.room < ROOMS_TOTAL ? `Комната ${lvl.room} → ${lvl.room + 1}` : 'Комната 400';
+  const st = storyAfter(lvl.room, g.met || new Set(), new Set(S.seenLore));
+  if (st.key && !S.seenLore.includes(st.key)) { S.seenLore.push(st.key); save(); }
+  const how = lvl.special ? '' : ' · ' + (EXITS[lvl.exit]?.phrase || 'через дверь');
+  $('#story-room').textContent = lvl.room < ROOMS_TOTAL ? `Комната ${lvl.room} → ${lvl.room + 1}${how}` : 'Комната 400';
   $('#story-label').textContent = st.label;
   const tx = $('#story-text');
   tx.textContent = st.kind === 'house' ? st.text : `«${st.text}»`;

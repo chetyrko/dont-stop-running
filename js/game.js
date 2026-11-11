@@ -106,6 +106,7 @@ export class Game {
     this.relicAt = (!this.opts.demo && L.kind === 'room' && !L.boss && Math.random() < L.findChance * M.luck)
       ? 2 + Math.floor(Math.random() * 4) : -1;
     this.relics = [];
+    this.met = new Set();     // какие враги попались на глаза в этом забеге
     this.boss = L.boss ? {
       name: L.boss.name, hp: L.boss.hp, max: L.boss.hp, enter: 0, attackT: 2.4, dead: 0, flash: 0, roar: 0,
     } : null;
@@ -314,6 +315,7 @@ export class Game {
       o.flash = Math.max(0, o.flash - dt);
       const dist = o.x - px;
       d.update?.(o, this, dt, dist);
+      if (o.x - this.camX < W - 40) this.met.add(o.type);
       // подсказка показана — тип запомнен
       if (!this.seen.has(o.type) && o.x + o.w < px) { this.seen.add(o.type); this.opts.onSeen?.(o.type); }
     }
@@ -636,7 +638,7 @@ export class Game {
       ctx.restore();
     }
     // дверь выхода
-    if (Number.isFinite(this.finishX) && sx(this.finishX) < W + 200) art.drawFinish(ctx, sx(this.finishX) + DOOR_AHEAD, this.doorOpen, L.doorLabel || 'ВЫХОД');
+    if (Number.isFinite(this.finishX) && sx(this.finishX) < W + 200) art.drawExit(ctx, L.exit || 'door', sx(this.finishX) + DOOR_AHEAD, this.doorOpen, L.doorLabel ?? 'ВЫХОД', t, imgs.furniture);
 
     // босс (позади всего, у правого края)
     if (this.boss && this.boss.dead < 1) {
@@ -702,9 +704,15 @@ export class Game {
         ctx.restore();
       }
       ctx.save();
-      ctx.globalAlpha = (1 - Math.max(0, (e - 0.45) / 0.55)) * (p.dashT > 0 ? 0.55 : 1);
-      ctx.translate(PLAYER_X, p.y + (FLOOR_TOP + 6 - GROUND_Y) * e);
-      ctx.scale(HERO_SCALE * (1 - 0.2 * e), HERO_SCALE * (1 - 0.2 * e));
+      // уход в выход: в глубину к стене, а дальше — по лестнице вверх, вниз или в кабину лифта
+      const kind = L.exit || 'door', deep = Math.min(1, e * 2), go = Math.max(0, e - 0.45) / 0.55;
+      let dx = 0, dy = (FLOOR_TOP + 6 - GROUND_Y) * (kind === 'door' || kind === 'secret' ? e : deep), fade = Math.max(0, (e - 0.45) / 0.55);
+      if (kind === 'stairsUp') { dx = go * 70; dy -= go * 190; fade = Math.max(0, (e - 0.6) / 0.4); }
+      if (kind === 'stairsDown') { dx = go * 60; dy += go * 110; fade = Math.max(0, (e - 0.5) / 0.4); }
+      if (kind === 'lift') fade = Math.max(0, (e - 0.8) / 0.2) * 0.6;
+      ctx.globalAlpha = (1 - Math.min(1, fade)) * (p.dashT > 0 ? 0.55 : 1);
+      ctx.translate(PLAYER_X + dx, p.y + dy);
+      ctx.scale(HERO_SCALE * (1 - 0.2 * deep), HERO_SCALE * (1 - 0.2 * deep));
       const ex = {
         kickT: 1 - p.kickT / PLAYER.kickTime, recoil: p.recoil, flash: p.flash,
         aim: p.shootCd > 0.05, hurt: p.hurtT > 0 || this.lives <= 0,
@@ -713,6 +721,8 @@ export class Game {
       if (rigReady()) drawRigHero(ctx, 0, 0, pose, animT, this.skin, ex);
       else art.drawHero(ctx, 0, 0, pose, animT, this.skin, R(1), ex);
       ctx.restore();
+      // решётка лифта закрывается за героем
+      if (L.exit === 'lift' && this.enter > 0.5) art.drawExitFront(ctx, 'lift', sx(this.finishX) + DOOR_AHEAD, Math.min(1, (this.enter - 0.5) / 0.35));
       // щит
       if (this.shield > 0 && this.status === 'running') {
         ctx.save();

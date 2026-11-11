@@ -4,6 +4,7 @@
 import { W, H, SCREEN_W, PLAYER, FRAME_WINDOW } from './config.js';
 import { recolor } from './pixels.js';
 import { BY_ID, drawArtifactIcon } from './artifacts.js';
+import { EXITS } from './rooms.js';
 import { makeRng, inkLine, inkShape, inkEllipse, hatch, INK } from './art.js';
 
 // Раскладка экрана под высоту телефона (в логических пикселях ширины 720).
@@ -366,7 +367,7 @@ export class Hud {
       const mx = x0 + (x1 - x0) * prog;
       inkShape(ctx, [[mx, py - 12], [mx + 9, py], [mx, py + 12], [mx - 9, py]], R(50), '#b3302c', 0.8, 2.5);
       ctx.fillStyle = '#8e8b87'; ctx.textAlign = 'left';
-      ctx.fillText(game.level?.doorLabel === 'ВХОД' ? 'вход' : 'выход', x1 + 14, py + 2);
+      ctx.fillText(game.level?.doorLabel === 'ВХОД' ? 'вход' : (EXITS[game.level?.exit]?.hud || 'выход'), x1 + 14, py + 2);
       ctx.textAlign = 'center';
       if (game.level?.room) ctx.fillText(`комната ${game.level.room} · ${game.level.place}`, L.SW / 2, py + 44);
     } else if (game.boss && !game.boss.dead) {

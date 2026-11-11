@@ -146,12 +146,19 @@ function startMini(lvl) {
   mini = new MINIGAMES[lvl.special](lvl, images, currentSkin(), (res) => {
     mini = null;
     if (res.quit) { startDemo(); show('menu'); return; }
+    if (res.skipped) {
+      // пропуск: комната засчитана, все оболы отданы Дому, награды нет
+      S.gold = 0; save();
+      finishRoom(lvl, { won: true, skipped: true, coins: 0, coinMult: 1, score: 0, meters: 0, found: [] });
+      return;
+    }
     const found = [];
     // награда: поиск — шанс артефакта, редкие головоломки — артефакт всегда
     if (res.won && (lvl.special !== 'search' || Math.random() < 0.5)) found.push(findRelic(lvl.special === 'search' ? 1 : 2));
     const coins = res.won ? (lvl.special === 'search' ? 20 : 35) + lvl.act * 8 : 0;
     finishRoom(lvl, { won: res.won, coins, coinMult: 1, score: coins * 10, meters: 0, found });
   });
+  mini.gold = S.gold;   // для кнопки «пропустить»
 }
 
 function startEndless() { startRun(endlessLevel(diff(), S.progress.maxRoom)); }
@@ -235,7 +242,7 @@ function finishRoom(lvl, g) {
   const first = lvl.room > S.progress.maxRoom;
   if (first) {
     S.progress.maxRoom = lvl.room;
-    earned += ECONOMY.firstClearBonus + lvl.act;
+    if (!g.skipped) earned += ECONOMY.firstClearBonus + lvl.act;   // за пропуск бонуса нет
   }
   R.roomsCleared++;
   if (lvl.boss) R.bosses++;

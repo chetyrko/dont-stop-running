@@ -29,6 +29,32 @@ function header(ctx, L, title, sub) {
 }
 const hitQuit = (x, y) => x < 170 && y < 90;
 
+// «Пропустить»: головоломка решается сама, цена — все оболы игрока. Нажать два раза.
+function drawSkip(ctx, L, g) {
+  if (g.endT > 0 || g.done) return;
+  const gold = g.gold || 0;
+  const text = g.skipArmed ? `точно? −${gold} обол.` : 'пропустить ›';
+  ctx.save();
+  ctx.font = font(38); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = g.skipArmed ? '#b3302c' : '#8e8b87';
+  ctx.fillText(text, L.SW - 26, 50);
+  ctx.font = font(26); ctx.fillStyle = '#6b6864';
+  ctx.fillText(g.skipArmed ? 'нажми ещё раз' : `цена — все оболы (${gold})`, L.SW - 26, 86);
+  ctx.restore();
+}
+// true — нажатие ушло в кнопку; при втором нажатии вызывает g.autoSolve()
+function tapSkip(g, x, y) {
+  const L = g.L;
+  if (!L || g.endT > 0 || g.done || x < L.SW - 300 || y > 110) {
+    if (g.skipArmed) g.skipArmed = false;
+    return false;
+  }
+  if (!g.skipArmed) { g.skipArmed = true; clearTimeout(g.skipTimer); g.skipTimer = setTimeout(() => { g.skipArmed = false; }, 3000); sfx.click(); return true; }
+  g.skipArmed = false; g.skipped = true;
+  g.autoSolve();
+  return true;
+}
+
 function drawWallScene(ctx, images, offset) {
   if (images.wall) {
     const wh = FLOOR_TOP + 24, ww = images.wall.width * wh / images.wall.height;
@@ -74,9 +100,15 @@ export class SearchGame {
 
   get left() { return this.items.filter(i => i.want && !i.found).length; }
 
+  autoSolve() {
+    for (const it of this.items) if (it.want) it.found = true;
+    this.endT = 1.4; sfx.win();
+  }
+
   tap(x, y) {
     if (this.done) return;
     if (hitQuit(x, y)) { this.done = true; this.onDone({ won: false, quit: true }); return; }
+    if (tapSkip(this, x, y)) return;
     const L = this.L;
     // кнопка подсказки
     if (this.hintBtn && x > this.hintBtn.x && x < this.hintBtn.x + this.hintBtn.w && y > this.hintBtn.y && y < this.hintBtn.y + this.hintBtn.h) {
@@ -110,7 +142,7 @@ export class SearchGame {
     this.hintT = Math.max(0, this.hintT - dt); this.hintCd = Math.max(0, this.hintCd - dt); this.shake = Math.max(0, this.shake - dt);
     for (const s of this.sparks) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; }
     this.sparks = this.sparks.filter(s => s.life > 0);
-    if (this.endT > 0 && !this.done) { this.endT -= dt; if (this.endT <= 0) { this.done = true; this.onDone({ won: true }); } }
+    if (this.endT > 0 && !this.done) { this.endT -= dt; if (this.endT <= 0) { this.done = true; this.onDone({ won: true, skipped: this.skipped }); } }
   }
 
   drawWorld(ctx) {
@@ -151,6 +183,7 @@ export class SearchGame {
   drawUI(ctx, L) {
     this.L = L;
     header(ctx, L, `Комната ${this.level.room}`, 'найди предметы из списка · стрелки — другая стена');
+    drawSkip(ctx, L, this);
     const y0 = L.win.y + L.win.h + 40;
     const wants = this.items.filter(i => i.want);
     ctx.font = font(44); ctx.textBaseline = 'middle';
@@ -207,9 +240,15 @@ export class Match3Game {
     return r >= 0 && r < N && c >= 0 && c < N ? [r, c] : null;
   }
 
+  autoSolve() {
+    for (const q of this.goals) q.got = Math.max(q.got, q.need);
+    this.endT = 1.4; this.result = true; sfx.win();
+  }
+
   tap(x, y) {
     if (this.done) return;
     if (hitQuit(x, y)) { this.done = true; this.onDone({ won: false, quit: true }); return; }
+    if (tapSkip(this, x, y)) return;
     if (this.busy > 0 || this.endT > 0 || !this.geo) return;
     const cell = this.cellAt(x, y);
     if (!cell) { this.sel = null; return; }
@@ -304,11 +343,13 @@ export class Match3Game {
     for (const p of this.pops) p.life -= dt;
     this.pops = this.pops.filter(p => p.life > 0);
     if (this.busy > 0) { this.busy -= dt; if (this.busy <= 0) { this.busy = 0; this.resolve(); } }
-    if (this.endT > 0 && !this.done) { this.endT -= dt; if (this.endT <= 0) { this.done = true; this.onDone({ won: this.result }); } }
+    if (this.endT > 0 && !this.done) { this.endT -= dt; if (this.endT <= 0) { this.done = true; this.onDone({ won: this.result, skipped: this.skipped }); } }
   }
 
   drawUI(ctx, L) {
+    this.L = L;
     header(ctx, L, `Комната ${this.level.room}`, 'странная комната: три в ряд');
+    drawSkip(ctx, L, this);
     const cs = Math.floor((L.SW - 60) / N), gx = (L.SW - cs * N) / 2, gy = 420;
     this.geo = { gx, gy, cs };
     // цели и ходы
@@ -400,9 +441,16 @@ export class SlidePuzzle {
     return true;
   }
 
+  autoSolve() {
+    this.tiles.forEach((v, i) => { if (v !== i) this.anim[v] = { from: i, t: 0 }; });
+    this.tiles = [...Array(9).keys()];
+    this.endT = 1.8; sfx.win();
+  }
+
   tap(x, y) {
     if (this.done) return;
     if (hitQuit(x, y)) { this.done = true; this.onDone({ won: false, quit: true }); return; }
+    if (tapSkip(this, x, y)) return;
     if (!this.geo || this.endT > 0) return;
     const { gx, gy, cs } = this.geo;
     const c = Math.floor((x - gx) / cs), r = Math.floor((y - gy) / cs);
@@ -420,11 +468,13 @@ export class SlidePuzzle {
   update(dt) {
     this.t += dt;
     for (const k in this.anim) { this.anim[k].t += dt * 7; if (this.anim[k].t >= 1) delete this.anim[k]; }
-    if (this.endT > 0 && !this.done) { this.endT -= dt; if (this.endT <= 0) { this.done = true; this.onDone({ won: true }); } }
+    if (this.endT > 0 && !this.done) { this.endT -= dt; if (this.endT <= 0) { this.done = true; this.onDone({ won: true, skipped: this.skipped }); } }
   }
 
   drawUI(ctx, L) {
+    this.L = L;
     header(ctx, L, `Комната ${this.level.room}`, 'странная комната: собери картину');
+    drawSkip(ctx, L, this);
     const cs = Math.floor((L.SW - 100) / 3), gx = (L.SW - cs * 3) / 2, gy = 300;
     this.geo = { gx, gy, cs };
     ctx.fillStyle = '#000'; ctx.fillRect(gx - 12, gy - 12, cs * 3 + 24, cs * 3 + 24);

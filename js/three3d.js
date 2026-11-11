@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=ade8ac0';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=ade8ac0';
-import { Hero3D } from './hero3d.js?v=ade8ac0';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=ade8ac0';
-import { ENEMY } from './enemies.js?v=ade8ac0';
-import * as art from './art.js?v=ade8ac0';
-import { drawRigHero, rigReady } from './rig.js?v=ade8ac0';
-import { recolor } from './pixels.js?v=ade8ac0';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=ade8ac0';
-import { EXITS } from './rooms.js?v=ade8ac0';
-import { sfx } from './audio.js?v=ade8ac0';
+import * as THREE from '../vendor/three.module.min.js?v=a081a5c';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=a081a5c';
+import { Hero3D } from './hero3d.js?v=a081a5c';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=a081a5c';
+import { ENEMY } from './enemies.js?v=a081a5c';
+import * as art from './art.js?v=a081a5c';
+import { drawRigHero, rigReady } from './rig.js?v=a081a5c';
+import { recolor } from './pixels.js?v=a081a5c';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=a081a5c';
+import { EXITS } from './rooms.js?v=a081a5c';
+import { sfx } from './audio.js?v=a081a5c';
 
 const WALL = 2.6, CEIL = 3.8, LEN = 120;
 const INK = 0x16120f;
@@ -497,7 +497,7 @@ export function portraitCanvas(look, label = 'Ф. ВЕЙН') {
   });
 }
 
-const RUN_YAW = -0.45;   // вид сзади вполоборота: виден и профиль, и спина
+const RUN_YAW = 0;   // бежит спиной к игроку
 const RUN_SCALE = 0.62;  // Флит в забеге — небольшой, как в конце смерти
 // камера в забеге высоко: фигуры откидываются к ней (как в Don't Starve), чтобы рисунок не сплющивался
 const lean = (cam, x, y, z) => -Math.atan2(cam.y - y, Math.max(0.5, cam.z - z)) * 0.85;   // верх фигуры откинут от камеры: её плоскость смотрит вверх, на камеру

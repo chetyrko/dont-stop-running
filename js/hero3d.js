@@ -6,8 +6,8 @@
 // Движение — по тем же 10 рисункам бега, что и во 2D: из rig.js берутся углы и длины костей
 // (rigPose), и каждая кость 3D-модели поворачивается так же, как на рисунке.
 
-import * as THREE from '../vendor/three.module.min.js?v=ade8ac0';
-import { rigPose, RIG } from './rig.js?v=ade8ac0';
+import * as THREE from '../vendor/three.module.min.js?v=a081a5c';
+import { rigPose, RIG } from './rig.js?v=a081a5c';
 
 const M = RIG.S * 0.0115;                  // пиксель рисунка 1280×1280 → метры (рост ≈ 1.9 м)
 const INK = 0x0d0a09;
@@ -148,9 +148,9 @@ export class Hero3D {
     const face = mesh(roundedBox(0.2, 0.34, 0.235, 0.06), skin); face.position.set(0, 0.24, -0.015); head.add(face);
     const jaw = mesh(roundedBox(0.19, 0.1, 0.2, 0.04), skin); jaw.position.set(0, 0.11, -0.04); head.add(jaw);
     const hairTop = mesh(roundedBox(0.215, 0.09, 0.245, 0.04), hairM); hairTop.position.set(0, 0.405, 0.0); head.add(hairTop);
-    const quiff = mesh(roundedBox(0.19, 0.08, 0.17, 0.04), hairM); quiff.position.set(0, 0.45, -0.1); quiff.rotation.x = 0.55; head.add(quiff);
-    const tip = mesh(new THREE.ConeGeometry(0.06, 0.16, 10), hairM); tip.position.set(0, 0.5, -0.18); tip.rotation.x = -1.1; tip.scale.set(1.5, 1, 0.6); head.add(tip);
-    const back = mesh(roundedBox(0.215, 0.2, 0.06, 0.03), hairM); back.position.set(0, 0.33, 0.105); head.add(back);
+    const quiff = mesh(roundedBox(0.19, 0.08, 0.17, 0.04), hairM); quiff.position.set(0, 0.425, -0.11); quiff.rotation.x = 0.35; head.add(quiff);
+    const tip = mesh(new THREE.ConeGeometry(0.06, 0.16, 10), hairM); tip.position.set(0, 0.45, -0.2); tip.rotation.x = -1.4; tip.scale.set(1.5, 1, 0.6); head.add(tip);
+    const back = mesh(roundedBox(0.215, 0.16, 0.05, 0.025), hairM); back.position.set(0, 0.35, 0.105); head.add(back);
     for (const s of [-1, 1]) {
       const burn = mesh(roundedBox(0.012, 0.09, 0.05, 0.005), hairM, false); burn.position.set(s * 0.101, 0.33, 0.06); head.add(burn);
       const ear = mesh(new THREE.SphereGeometry(0.045, 10, 8), skin); ear.scale.set(0.35, 1, 0.7); ear.position.set(s * 0.105, 0.25, 0.045); head.add(ear);

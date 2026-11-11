@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=a498945';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=a498945';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=a498945';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=a498945';
-import { ENEMY } from './enemies.js?v=a498945';
-import * as art from './art.js?v=a498945';
-import { drawRigHero, rigReady } from './rig.js?v=a498945';
-import { recolor } from './pixels.js?v=a498945';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=a498945';
-import { EXITS } from './rooms.js?v=a498945';
-import { sfx } from './audio.js?v=a498945';
+import * as THREE from '../vendor/three.module.min.js?v=c401377';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=c401377';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=c401377';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=c401377';
+import { ENEMY } from './enemies.js?v=c401377';
+import * as art from './art.js?v=c401377';
+import { drawRigHero, rigReady } from './rig.js?v=c401377';
+import { recolor } from './pixels.js?v=c401377';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=c401377';
+import { EXITS } from './rooms.js?v=c401377';
+import { sfx } from './audio.js?v=c401377';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -944,7 +944,7 @@ export class World3D {
     if (Math.abs(this.camera.fov - this.camFov) > 0.05) { this.camera.fov = this.camFov; this.camera.updateProjectionMatrix(); }
     this.camera.up.set(Math.sin(roll), Math.cos(roll), 0);
     this.camera.lookAt(this.camLook);
-    this.speedLines(dt, g);
+    try { this.speedLines(dt, g); } catch (e) { /* полосы скорости — украшение, кадр важнее */ }
     this.lamp.position.set(this.camPos.x * 0.5, 2.6, -1.5);
     // коридор едет навстречу
     const d = this.dist;
@@ -1013,6 +1013,7 @@ export class World3D {
         this.scene.add(l); this.lines.push(l);
       }
     }
+    if (!g) { for (const l of this.lines) { l.material.opacity = 0; l.visible = false; } return; }   // вне забега полос нет (раньше тут падало при выходе в меню)
     const on = g && g.status === 'running' ? clamp((g.speed - 10) / 5, 0, 1) * 0.55 + ((g.p.dashT || 0) > 0 ? 0.4 : 0) : 0;
     for (const l of this.lines) {
       l.material.opacity = lerp(l.material.opacity, on, Math.min(1, dt * 3));

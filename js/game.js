@@ -235,7 +235,7 @@ export class Game {
     if (Math.random() < ECONOMY.coinRowChance) {
       const sx = end + gap * 0.35;
       const high = Math.random() < 0.3;
-      for (let i = 0; i < 3; i++) this.addCoin(sx + i * 54, high ? GROUND_Y - 240 : coinY);
+      for (let i = 0; i < 3; i++) this.addCoin(sx + i * 54, high ? GROUND_Y - 320 : coinY);
     }
     // находка
     if (this.spawnCount === this.relicAt) this.relics.push({ x: end + gap * 0.5, y: GROUND_Y - 120, taken: false });
@@ -644,6 +644,8 @@ export class Game {
       const px = pt.wx - this.camX * 0.85;
       if (px > -120 && px < W + 120) this.drawOldPortrait(ctx, px, 210, pt);
     }
+    const dying = this.deathT !== undefined && this.lives <= 0;
+    if (dying && this.deathT >= 0.9) this.drawDeath(ctx, t);
     this.drawLayer(ctx, this.floor, 1, FLOOR_TOP - 8);
 
     const sx = (wx) => wx - this.camX;
@@ -717,7 +719,7 @@ export class Game {
     // герой
     const p = this.p;
     const blink = p.invuln > 0 && Math.floor(t * 16) % 2 === 0;
-    if (this.deathT !== undefined && this.lives <= 0) this.drawDeath(ctx, t);
+    if (dying) { if (this.deathT < 0.9) this.drawDeath(ctx, t); }   // пока лежит и взлетает — впереди
     else if (!blink) {
       let pose = 'run';
       if (this.status === 'dying' || this.status === 'over' && this.lives <= 0) pose = 'slide';

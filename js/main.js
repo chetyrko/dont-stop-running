@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=2680a1f';
-import { Game } from './game.js?v=2680a1f';
-import { Game3D } from './game3d.js?v=2680a1f';
-import { World3D, Run3D } from './three3d.js?v=2680a1f';
-import { setupInput } from './input.js?v=2680a1f';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=2680a1f';
-import { getSave, save, resetSave } from './storage.js?v=2680a1f';
-import { drawHero, makeRng, drawPit } from './art.js?v=2680a1f';
-import { drawTrapdoor } from './enemies.js?v=2680a1f';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=2680a1f';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=2680a1f';
-import { loadDemon } from './demon.js?v=2680a1f';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=2680a1f';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=2680a1f';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=2680a1f';
-import { ComicPlayer } from './comic.js?v=2680a1f';
-import { MINIGAMES } from './minigames.js?v=2680a1f';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=2680a1f';
-import { recolor } from './pixels.js?v=2680a1f';
-import { ENEMY } from './enemies.js?v=2680a1f';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=2680a1f';
-import { GROUND_Y } from './config.js?v=2680a1f';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=801243b';
+import { Game } from './game.js?v=801243b';
+import { Game3D } from './game3d.js?v=801243b';
+import { World3D, Run3D } from './three3d.js?v=801243b';
+import { setupInput } from './input.js?v=801243b';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=801243b';
+import { getSave, save, resetSave } from './storage.js?v=801243b';
+import { drawHero, makeRng, drawPit } from './art.js?v=801243b';
+import { drawTrapdoor } from './enemies.js?v=801243b';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=801243b';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=801243b';
+import { loadDemon } from './demon.js?v=801243b';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=801243b';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=801243b';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=801243b';
+import { ComicPlayer } from './comic.js?v=801243b';
+import { MINIGAMES } from './minigames.js?v=801243b';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=801243b';
+import { recolor } from './pixels.js?v=801243b';
+import { ENEMY } from './enemies.js?v=801243b';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=801243b';
+import { GROUND_Y } from './config.js?v=801243b';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -101,6 +101,7 @@ function show(name) {
   if (name === 'artifacts') renderOpis();
   if (name === 'shop') renderShop();
   if (name === 'settings') renderSettings();
+  if (name === 'menu') refreshHero();
   updateWallet();
 }
 
@@ -130,6 +131,12 @@ function iconCanvas(a, size) {
 }
 
 // ---------- запуск забегов ----------
+// сменили персонажа или облик — 3D-модель в меню меняется сразу
+function refreshHero() {
+  if (is3d() && world) world.setHero(currentSkin(), currentChar().weapon);
+  else if (demo) startDemo();
+}
+
 function startDemo() {
   game = null; comic = null; mini = null;
   applyView();
@@ -690,7 +697,7 @@ function renderChars() {
     if (!owned) { if (S.gold < sel.price) return; S.gold -= sel.price; S.ownedChars.push(sel.id); sfx.coin(); }
     else sfx.click();
     S.char = sel.id; save();
-    if (demo) startDemo();
+    refreshHero();
     renderChars(); updateWallet();
   };
   info.appendChild(b);
@@ -740,6 +747,7 @@ function renderSkins() {
       if (!owned) { if (S.gold < s.price) return; S.gold -= s.price; S.ownedSkins.push(s.id); sfx.coin(); }
       S.skin = s.id; save();
       if (demo) demo.skin = s;
+      refreshHero();
       renderShop(); updateWallet();
     };
     card.appendChild(b);

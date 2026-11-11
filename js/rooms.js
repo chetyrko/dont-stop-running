@@ -152,7 +152,7 @@ export function enemyWeights(room) {
 
 // Враги, которые впервые появляются в этой комнате (для надписи в начале).
 export function newEnemies(room) {
-  return Object.entries(ENEMY).filter(([, d]) => d.unlock === room).map(([, d]) => d.name);
+  return Object.entries(ENEMY).filter(([, d]) => d.unlock === room || d.unlock === room - 1).map(([, d]) => d.name);
 }
 
 // Параметры комнаты: чем дальше, тем быстрее, плотнее и разнообразнее.

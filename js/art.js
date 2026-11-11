@@ -706,6 +706,7 @@ export function drawHint(ctx, x, y, kind, t) {
   ctx.textBaseline = 'middle';
   const yy = y + Math.sin(t * 6) * 5;
   const w = ctx.measureText(text).width + 30;
+  x = Math.max(w / 2 + 10, Math.min(W - w / 2 - 10, x)); // табличка целиком в кадре
   ctx.fillStyle = 'rgba(232,220,196,0.92)';
   ctx.strokeStyle = INK; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.roundRect(x - w / 2, yy - 34, w, 68, 12); ctx.fill(); ctx.stroke();

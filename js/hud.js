@@ -324,21 +324,21 @@ export class Hud {
 
     // бледная подсказка жестов в нижней зоне — там удобно свайпать большим пальцем
     const w = L.win;
-    const gy = w.y + w.h + (L.SH - w.y - w.h) * 0.55;
+    const gy = w.y + w.h + (L.SH - w.y - w.h) * 0.66;
     ctx.save();
     ctx.globalAlpha = 0.62;
     ctx.fillStyle = '#ddd8d0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = 'bold 64px "Amatic SC", serif';
-    ctx.fillText('↑', L.SW / 2, gy - 120);
-    ctx.fillText('↓', L.SW / 2, gy + 120);
+    ctx.fillText('↑', L.SW / 2, gy - 96);
+    ctx.fillText('↓', L.SW / 2, gy + 96);
     ctx.fillText('←', L.SW / 2 - 150, gy);
     ctx.fillText('→', L.SW / 2 + 150, gy - 40);
     ctx.font = 'bold 36px "Amatic SC", serif';
     ctx.fillText('рывок', L.SW / 2 + 150, gy + 6);
-    ctx.fillText('прыжок', L.SW / 2, gy - 72);
-    ctx.fillText('подкат', L.SW / 2, gy + 72);
+    ctx.fillText('прыжок', L.SW / 2, gy - 52);
+    ctx.fillText('подкат', L.SW / 2, gy + 52);
     ctx.fillText('пинок', L.SW / 2 - 150, gy + 46);
-    ctx.fillText('тап — выстрел', L.SW / 2, gy + 200);
+    ctx.fillText('тап — выстрел', L.SW / 2, gy + 150);
     ctx.restore();
 
     // артефакты, взятые в забег — под прогрессом

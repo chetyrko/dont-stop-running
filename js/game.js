@@ -780,7 +780,7 @@ export class Game {
     if (this.status === 'running' && !this.opts.demo) {
       for (const o of this.obstacles) {
         if (o.dead || o.hit) continue;
-        if (!L.hintAll && this.seen.has(o.type)) continue;
+        if (!L.hintAll && !this.opts.showHint?.(o.type)) continue;
         const x = sx(o.x);
         if (x > PLAYER_X + 40 && x < W - 60) {
           const box = this.obstBox(o);

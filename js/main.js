@@ -112,7 +112,12 @@ function startRun(level, extra = {}) {
     paperFx: S.settings.paper,
     equipped: S.equipped,
     seenHints: S.seenHints,
-    onSeen: (type) => { if (!S.seenHints.includes(type)) { S.seenHints.push(type); save(); } },
+    // подсказка над врагом: пока ни разу не встречен, а потом — в комнате первой встречи и в следующей
+    showHint: (type) => {
+      const rec = S.bestiary[type];
+      if (!rec) return true;
+      return level.kind === 'room' && level.room <= rec.first + 1;
+    },
     onRelic: findRelic,
     onEnd: onGameEnd,
     startAt: extra.startAt || 0,

@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=01919f2';
-import * as art from './art.js?v=01919f2';
-import { sfx } from './audio.js?v=01919f2';
-import { computeMods } from './artifacts.js?v=01919f2';
-import { applyCharacter, applyUpgrades } from './characters.js?v=01919f2';
-import { enemyWeights } from './rooms.js?v=01919f2';
-import { ENEMY } from './enemies.js?v=01919f2';
-import { demonReady, drawDemon } from './demon.js?v=01919f2';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=e29dd00';
+import * as art from './art.js?v=e29dd00';
+import { sfx } from './audio.js?v=e29dd00';
+import { computeMods } from './artifacts.js?v=e29dd00';
+import { applyCharacter, applyUpgrades } from './characters.js?v=e29dd00';
+import { enemyWeights } from './rooms.js?v=e29dd00';
+import { ENEMY } from './enemies.js?v=e29dd00';
+import { demonReady, drawDemon } from './demon.js?v=e29dd00';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -144,14 +144,9 @@ export class Game3D {
     }
     else if (a === 'smash') {
       // пинок: мебель, доспехи и щит в своей дорожке, если они близко
-      if ((p.kickT || 0) > 0) return;
+      if ((p.kickT || 0) > 0.25) return;
       p.kickT = 0.4; sfx.kick();
-      for (const o of this.objs) {
-        if (o.dead || o.lane !== Math.round(this.hx) || o.z > Z_HERO + 3.2 || o.z < Z_HERO - 0.3) continue;
-        if (ENEMY[o.type]?.act !== 'kick') continue;
-        if (ENEMY[o.type].hp) { o.hp -= 2; o.flash = 0.14; if (o.hp <= 0) this.kill(o); }
-        else { o.dead = 0.01; this.bonus += 25; this.shake = Math.max(this.shake, 7); }
-      }
+      this.kickHit();
     }
     else if (a === 'slide') {
       if (this.y > 0.05) this.vy = Math.min(this.vy, -12);   // быстро вниз
@@ -171,6 +166,20 @@ export class Game3D {
       const rifle = M.weapon === 'rifle';
       this.bullets.push({ lane: Math.round(this.hx), z: Z_HERO + 0.5, pierce: rifle ? 99 : M.pierce, hit: [], rifle, dmg: (rifle ? 3 : 1) * (M.dmgMul || 1) });
       sfx.shoot(); this.shake = Math.max(this.shake, 3);
+    }
+  }
+
+  // Пинок ломает всё «пинаемое» в своей дорожке впереди. Удар длится 0,4 с: если шкаф подъехал
+  // уже после нажатия, он всё равно сломается — пинок не зависит от точного момента.
+  kickHit() {
+    const reach = Z_HERO + 2.4 + this.speed * 0.12;
+    for (const o of this.objs) {
+      if (o.dead || o.hit || o.z > reach || o.z < Z_HERO - 0.6) continue;
+      if (o.lane !== this.lane && o.lane !== Math.round(this.hx)) continue;
+      const d = ENEMY[o.type];
+      if (d?.act !== 'kick') continue;
+      if (d.hp && !d.kickKills) { o.hp -= 2; o.flash = 0.14; if (o.hp <= 0) this.kill(o); else o.z += 1.5; }
+      else { d.hp ? this.kill(o) : (o.dead = 0.01); this.bonus += 25; this.shake = Math.max(this.shake, 7); }
     }
   }
 
@@ -422,6 +431,8 @@ export class Game3D {
 
     if (this.boss) this.updateBoss(dt);
 
+    // пинок продолжает ломать, пока длится
+    if (this.status === 'running' && p.kickT > 0) this.kickHit();
     // столкновения
     if (this.status === 'running') {
       const myLane = Math.round(this.hx), inLane = (l) => Math.abs(this.hx - l) < 0.55;

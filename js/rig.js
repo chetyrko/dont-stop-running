@@ -220,6 +220,7 @@ function part(ctx, name, img, px, py, ang, len, tint) {
   ctx.translate(-b.pivot[0], -b.pivot[1]);
   const M = b.M;
   ctx.transform(M[0], M[3], M[1], M[4], M[2], M[5]);
+  ctx.__tag = name;
   ctx.drawImage(tint ? tinted(img, tint) : images[img], 0, 0);
   ctx.restore();
 }
@@ -253,6 +254,7 @@ function drawPose(ctx, p, skin, extra) {
     ctx.translate((w[0] - CX) * S, (w[1] - GROUND) * S);
     ctx.rotate(p.fFa - FIST.ang);
     ctx.scale(S, S);
+    ctx.__tag = 'fist';
     ctx.drawImage(images.fist, -FIST.pivot[0], -FIST.pivot[1]);
     ctx.restore();
     part(ctx, 'bSleeve', 'sleeve', sx, sy, p.fSa, p.fSl, tint);
@@ -271,6 +273,7 @@ function drawPose(ctx, p, skin, extra) {
   ctx.translate(-HEAD_TIP[0], -HEAD_TIP[1]);
   const M = INST.head.M;
   ctx.transform(M[0], M[3], M[1], M[4], M[2], M[5]);
+  ctx.__tag = 'head';
   ctx.drawImage(images.head, 0, 0);
   ctx.restore();
   part(ctx, 'torso', 'torso', p.x, p.y, p.tA, p.tL, tint);
@@ -353,3 +356,27 @@ export function drawRigHero(ctx, x, y, pose, t, skin = {}, extra = {}) {
 export function drawRunKey(ctx, x, y, i, skin = {}) {
   ctx.save(); ctx.translate(x, y); drawPose(ctx, RUN[i], skin, {}); ctx.restore();
 }
+
+// ---------- для 3D: где оказалась бы каждая деталь ----------
+// Возвращает [{ tag, img, m: [a, b, c, d, e, f] }] — та же поза, что рисуется в 2D,
+// в виде матриц «пиксели картинки детали → единицы героя (y вниз, ступни в 0)».
+class CaptureCtx {
+  constructor() { this.m = new DOMMatrix(); this.stack = []; this.out = []; this.__tag = ''; }
+  save() { this.stack.push(this.m); }
+  restore() { this.m = this.stack.pop() || new DOMMatrix(); }
+  translate(x, y) { this.m = this.m.translate(x, y); }
+  rotate(a) { this.m = this.m.rotate(a * 180 / Math.PI); }
+  scale(x, y) { this.m = this.m.scale(x, y); }
+  transform(a, b, c, d, e, f) { this.m = this.m.multiply(new DOMMatrix([a, b, c, d, e, f])); }
+  drawImage(img, x = 0, y = 0) { const m = this.m.translate(x, y); this.out.push({ tag: this.__tag, m: [m.a, m.b, m.c, m.d, m.e, m.f] }); }
+}
+const NOOP = () => {};
+export function captureRigPose(pose, t, skin = {}, extra = {}) {
+  if (!images) return null;
+  const c = new CaptureCtx();
+  const proxy = new Proxy(c, { get: (o, k) => (k in o ? (typeof o[k] === 'function' ? o[k].bind(o) : o[k]) : NOOP), set: (o, k, v) => { o[k] = v; return true; } });
+  drawRigHero(proxy, 0, 0, pose, t, { ...skin, tint: '', hat: 'none' }, { ...extra, flash: 0 });
+  return c.out;
+}
+export const RIG_PARTS = HERO_REST.map(b => ({ name: b.name, img: b.img }));
+export function rigImages() { return images; }

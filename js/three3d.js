@@ -7,6 +7,7 @@
 // «СТАРТ» по центру; run — забег, камера сзади.
 
 import * as THREE from '../vendor/three.module.min.js';
+import { HeroCut, cutoutMesh, liveCutout } from './cutout3d.js';
 import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js';
 import { ENEMY } from './enemies.js';
 import * as art from './art.js';
@@ -238,6 +239,15 @@ function enemyCanvas(type, extra = {}) {
   });
 }
 
+// обрезать прозрачные поля холста
+function trimCanvas(c) {
+  const x = c.getContext('2d'), d = x.getImageData(0, 0, c.width, c.height).data;
+  let l = c.width, r = 0, t = c.height, b = 0;
+  for (let y = 0; y < c.height; y++) for (let i = 0; i < c.width; i++) if (d[(y * c.width + i) * 4 + 3] > 20) { if (i < l) l = i; if (i > r) r = i; if (y < t) t = y; if (y > b) b = y; }
+  if (r <= l || b <= t) return c;
+  return makeCanvas(r - l + 1, b - t + 1, (o) => o.drawImage(c, -l, -t));
+}
+
 function texturedBox(canvas, w, h, d, side = 0x3a2a1e) {
   const t = canvasTex(canvas);
   const sideM = mat(side), front = new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.3 });
@@ -257,11 +267,42 @@ function billboard(canvas, w, h) {
   return g;
 }
 
+// Живой рисунок врага: тот же рисунок, что во 2D-режиме (рисунки автора и enemies.js),
+// перерисовывается ~15 раз в секунду на холст и стоит в коридоре объёмной «картонкой».
+const PX = 1 / 125;            // метров в пикселе 2D-сцены (пол — 490, потолок — 0)
+const DRAWN = new Set(['monster', 'hopper', 'brute', 'puppet', 'shielded', 'ghost', 'flyer', 'lowcrow', 'swoop', 'flock', 'spider',
+  'portrait', 'rats', 'hands', 'chandelier', 'skullroll', 'spikes', 'candelabrum']);
+function makeDrawn(type) {
+  const d = ENEMY[type], w = d.w || 150;
+  const pad = 70, top = type === 'spider' || type === 'portrait' || type === 'swoop' ? 0 : Math.max(0, GROUND_Y - (d.h || 200) - 200);
+  const c = document.createElement('canvas'); c.width = w + pad * 2; c.height = GROUND_Y + 16 - top;
+  const x = c.getContext('2d');
+  const g = liveCutout(c, PX);
+  g.children.forEach(m => { m.position.y += (top === 0 ? 0 : 0) - 16 * PX; });
+  const fake = { t: 0, shake: 0, drawPips() {}, puff() {}, hx: 0 };
+  let last = -1;
+  const draw = (o, t) => {
+    const f = Math.floor(t * 15);
+    if (f === last) return;
+    last = f;
+    x.clearRect(0, 0, c.width, c.height);
+    x.save(); x.translate(pad, -top);
+    fake.t = t;
+    const oo = { ...o, x: 0, dead: 0, rise: type === 'hands' ? clamp((Z_HERO + 9 - o.z) / 4, 0.05, 1) : o.rise,
+      y: type === 'swoop' ? lerp(GROUND_Y - 170, 90, clamp((o.z - Z_HERO - 3) / 14, 0, 1)) : o.y };
+    try { d.draw?.(x, oo, 0, fake, t, (s) => art.makeRng(s)); } catch (e) { /* рисунок не удался — пропустим кадр */ }
+    x.restore();
+    g.userData.tex.needsUpdate = true;
+  };
+  return { g, anim: (o, t) => draw(o, t), face: true };
+}
+
 const furnitureCache = {};
 function makeEnemy(type, images, look) {
   const d = ENEMY[type];
   let g = new THREE.Group(), anim = null;
   const add = (x) => (g.add(x), x);
+  if (DRAWN.has(type) && d.draw) return makeDrawn(type);
   switch (type) {
     case 'monster': return makeDemon();
     case 'hopper': { const m = makeDemon(0xa8c890, 0.65); return { g: m.g, anim: (o, t) => { m.anim(o, t); m.g.position.y += o.hop / 120; } }; }
@@ -279,6 +320,13 @@ function makeEnemy(type, images, look) {
       return m;
     }
     case 'mirror': {
+      const cut = new HeroCut({ tint: { mul: [0.7, 0.75, 0.85] } });
+      if (cut.ok) {
+        cut.root.rotation.y = Math.PI / 2 + 0.6;   // бежит навстречу, зеркально
+        cut.parts.forEach(p => { p.mesh.material.color.setRGB(0.62, 0.68, 0.8); });
+        const gg = new THREE.Group(); gg.add(cut.root);
+        return { g: gg, anim: (o, t) => cut.pose('run', t + o.id * 0.1, {}) };
+      }
       const h = makeHero({ shirt: '#9aa2aa' }, 'pistol', 0.75);
       h.root.rotation.y = Math.PI;
       return { g: h.root, anim: (o, t) => poseHero(h, { mode: 'run', t, run: t * 3.5 }) };
@@ -406,14 +454,14 @@ function makeEnemy(type, images, look) {
     }
     case 'furniture': case 'wardrobe': case 'clock': {
       const key = type;
-      const c = furnitureCache[key] ||= (type === 'furniture' && images.furniture ? images.furniture : enemyCanvas(type));
-      const h = type === 'clock' ? 2.6 : 2.4, w = type === 'clock' ? 0.95 : 1.15;
-      g.add(texturedBox(c, w, h, 0.55, type === 'clock' ? 0x3a2a1e : 0x4a3424));
+      const c = furnitureCache[key] ||= (type === 'furniture' && images.furniture ? images.furniture : trimCanvas(enemyCanvas(type)));
+      const h = type === 'clock' ? 2.6 : 2.4;
+      g.add(cutoutMesh(c, h / c.height, type === 'clock' ? 0.5 : 0.6));
       break;
     }
     case 'armor': {
-      const c = furnitureCache.armor ||= enemyCanvas('armor');
-      g.add(billboard(c, 1.0, 2.4));
+      const c = furnitureCache.armor ||= trimCanvas(enemyCanvas('armor'));
+      g.add(cutoutMesh(c, 2.4 / c.height, 0.45));
       break;
     }
     default: {
@@ -446,6 +494,8 @@ export function portraitCanvas(look, label = 'Ф. ВЕЙН') {
     x.fillText(label, cx, 315);
   });
 }
+
+const RUN_YAW = -1.0;   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
 
 // ---------- мир ----------
 export class World3D {
@@ -547,7 +597,12 @@ export class World3D {
     if (key === this.heroKey) return;
     this.heroKey = key;
     if (this.hero) this.scene.remove(this.hero.root);
-    this.hero = makeHero(look, weapon);
+    // Флит из деталей автора (объёмные вырезки), если рисунки загрузились; иначе — простая модель
+    const cut = new HeroCut({ ...look, noGun: weapon === 'fists' });
+    if (cut.ok && cut.parts.size > 5) {
+      const root = new THREE.Group(); root.add(cut.root);
+      this.hero = { root, cut, st: {} };
+    } else this.hero = makeHero(look, weapon);
     this.look = look;
     this.scene.add(this.hero.root);
   }
@@ -622,15 +677,16 @@ export class World3D {
       const k = this.mode === 'leave' ? ease(this.modeT / 0.9) : 0;
       h.root.visible = true;
       h.root.position.set(lerp(0.38, 0, k), 0, lerp(0, -5, k));
-      h.root.rotation.y = lerp(Math.PI - 0.35, 0, ease(this.modeT / 0.25) * (this.mode === 'leave' ? 1 : 0));
-      if (this.mode === 'leave') { poseHero(h, { mode: 'run', t, run: this.modeT * 4 }); if (this.modeT > 0.95 && this.onLeft) { const f = this.onLeft; this.onLeft = null; f(); } }
-      else poseHero(h, { mode: 'lean', t });
+      h.root.rotation.y = h.cut ? lerp(Math.PI / 2, -0.15, ease(this.modeT / 0.3) * (this.mode === 'leave' ? 1 : 0))
+        : lerp(Math.PI - 0.35, 0, ease(this.modeT / 0.25) * (this.mode === 'leave' ? 1 : 0));
+      if (this.mode === 'leave') { this.poseH(h, { mode: 'run', t, run: this.modeT * 4 }); if (this.modeT > 0.95 && this.onLeft) { const f = this.onLeft; this.onLeft = null; f(); } }
+      else this.poseH(h, { mode: 'lean', t });
       camPos = [0, 1.15, 2.6]; camLook = [0.12, 1.05, 0];
     } else if (this.mode === 'lobby') {
       this.dist += dt * 0.3;
       h.root.position.set(-0.75, 0, 0);
-      h.root.rotation.y = Math.PI - 0.55;
-      poseHero(h, { mode: 'warmup', t });
+      h.root.rotation.y = h.cut ? -Math.PI / 2 + 0.35 : Math.PI - 0.55;
+      this.poseH(h, { mode: 'warmup', t });
       camPos = [0.2, 1.5, 4.6]; camLook = [0.1, 1.05, -1.5];
     } else if (this.mode === 'run' && this.game) {
       const g = this.game;
@@ -641,21 +697,22 @@ export class World3D {
       if (!dying) {
         h.root.visible = !(g.p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running');
         h.root.position.set(lerp(-0.75, hx, intro), g.y, 0);
-        h.root.rotation.set(0, lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
+        h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 + 0.35, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
         h.root.scale.set(h.root.scale.x, h.root.scale.y, h.root.scale.z);
         if (g.status === 'won') { h.root.position.z = -ease(g.enter) * 3; h.root.visible = g.enter < 0.85; }
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
-        poseHero(h, { mode, t, run: g.p.run });
-        camPos = [hx * 0.55, 3.0, 5.4]; camLook = [hx * 0.55, 1.0, -7];
+        this.poseH(h, { mode, t, run: g.p.run, vy: g.vy });
+        // камера выше и дальше: враги видны поверх головы Флита
+        camPos = [hx * 0.5 + 0.3, 3.25, 5.9]; camLook = [hx * 0.5, 0.55, -12];
       } else {
         // «стал портретом»: поднимается к левой стене, вокруг возникает рама, портрет остаётся на стене
         // портрет вешается посередине между арками, чтобы колонна его не закрывала
         if (this.deathZ === undefined) { const base = this.dist % 8; let best = -3.5, bd = 99; for (let i = 0; i < 4; i++) { const m = 8 + base - (i + 1) * 8 - 4; if (Math.abs(m + 3.5) < bd) { bd = Math.abs(m + 3.5); best = m; } } this.deathZ = best; }
         const T = g.deathT || 0, P = new THREE.Vector3(-WALL + 0.04, 1.9, this.deathZ);
         const k = ease((T - 0.15) / 1.0);
-        poseHero(h, { mode: 'frozen', t });
+        this.poseH(h, { mode: 'frozen', t });
         h.root.position.set(lerp(hx, P.x + 0.4, k), lerp(0, P.y - 0.9, k), lerp(0, P.z, k));
-        h.root.rotation.set(0, lerp(0, Math.PI / 2, k), 0);
+        h.root.rotation.set(0, h.cut ? lerp(RUN_YAW, 0, k) : lerp(0, Math.PI / 2, k), 0);
         const s = lerp(1, 0.55, k); h.root.scale.set(s * (this.look?.sx || 1), s * (this.look?.sy || 1), s * (this.look?.sx || 1));
         h.root.visible = T < 1.45;
         if (!this.deathPortrait && T > 0.95) {
@@ -664,7 +721,7 @@ export class World3D {
           this.scene.add(this.deathPortrait);
         }
         if (this.deathPortrait) { const q = ease((T - 0.95) / 0.6); this.deathPortrait.scale.set(q, q, 1); }
-        camPos = [lerp(hx * 0.4, 0.9, k), lerp(3.0, 1.95, k), lerp(5.4, P.z + 3.4, k)]; camLook = [lerp(hx * 0.55, P.x, k), lerp(1.0, P.y, k), lerp(-7, P.z, k)];
+        camPos = [lerp(hx * 0.5 + 0.35, 0.9, k), lerp(3.25, 1.95, k), lerp(5.9, P.z + 3.4, k)]; camLook = [lerp(hx * 0.5, P.x, k), lerp(0.5, P.y, k), lerp(-12, P.z, k)];
       }
       this.syncRun(g, t);
     } else {
@@ -692,6 +749,24 @@ export class World3D {
     this.renderer.render(this.scene, this.camera);
   }
 
+  // Поза героя: вырезки из рисунков берут позу из 2D-анимации (rig.js), простая модель — свою.
+  poseH(h, s) {
+    if (!h.cut) return poseHero(h, s);
+    const ex = { state: h.st };
+    let pose = 'run', tt = s.t;
+    switch (s.mode) {
+      case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; if (s.kick > 0) { pose = 'kick'; ex.kickT = 1 - s.kick / 0.35; } break;
+      case 'jump': pose = 'jump'; ex.vy = -(s.vy || 0) * 140; break;
+      case 'slide': pose = 'slide'; break;
+      case 'warmup': { const ph = (s.t * 0.55) % 2; pose = ph < 1 ? 'idle' : 'kick'; ex.kickT = (ph - 1) * 0.66; break; }
+      case 'lean': case 'frozen': pose = 'idle'; break;
+    }
+    if (s.aim) { ex.aim = 1; }
+    h.cut.pose(pose, tt, ex);
+    // лёгкое дыхание в стойке
+    h.cut.root.position.y = pose === 'idle' ? Math.sin(s.t * 2.2) * 0.008 : 0;
+  }
+
   // Модели препятствий, оболов, находок, пуль — по состоянию забега.
   syncRun(g, t) {
     const seen = new Set();
@@ -706,6 +781,7 @@ export class World3D {
       const gone = g.deathT !== undefined ? clamp(1 - g.deathT * 2, 0, 1) : 1;   // при смерти всё растворяется
       put('o' + o.id, () => makeEnemy(o.type, this.images, this.look), o.lane * LANE, 0, -(o.z - Z_HERO), (v) => {
         v.anim?.(o, t);
+        if (v.face) v.g.rotation.y = Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8;
         const k = (o.dead ? 1 - o.dead : 1) * gone;
         v.g.scale.setScalar(Math.max(0.01, k));
         v.g.visible = k > 0.02;
@@ -737,9 +813,10 @@ export class World3D {
     // хранитель в глубине
     if (g.boss && g.boss.dead < 1) {
       const B = g.boss;
-      put('boss', () => makeDemon(0xd05040, 2.3), Math.sin(t * 0.8) * 0.8, 0, -(19 + (1 - B.enter) * 25 - Z_HERO), (v) => {
-        v.anim({ id: 1, flash: B.flash }, t * 0.6);
-        v.g.scale.setScalar(2.3 * (1 - B.dead));
+      put('boss', () => makeDrawn('brute'), Math.sin(t * 0.8) * 0.8, 0, -(19 + (1 - B.enter) * 25 - Z_HERO), (v) => {
+        v.anim({ id: 1, flash: B.flash, w: ENEMY.brute.w, h: ENEMY.brute.h, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 }, t * 0.6);
+        v.g.rotation.y = Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8;
+        v.g.scale.setScalar(1.8 * (1 - B.dead));
       });
     }
     for (const [k, v] of this.meshes) if (!seen.has(k)) { this.scene.remove(v.g); this.meshes.delete(k); }

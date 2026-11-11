@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=0ff1c6a';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=0ff1c6a';
-import { Hero3D } from './hero3d.js?v=0ff1c6a';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=0ff1c6a';
-import { ENEMY } from './enemies.js?v=0ff1c6a';
-import * as art from './art.js?v=0ff1c6a';
-import { drawRigHero, rigReady } from './rig.js?v=0ff1c6a';
-import { recolor } from './pixels.js?v=0ff1c6a';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=0ff1c6a';
-import { EXITS } from './rooms.js?v=0ff1c6a';
-import { sfx } from './audio.js?v=0ff1c6a';
+import * as THREE from '../vendor/three.module.min.js?v=8dedea1';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=8dedea1';
+import { Hero3D } from './hero3d.js?v=8dedea1';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=8dedea1';
+import { ENEMY } from './enemies.js?v=8dedea1';
+import * as art from './art.js?v=8dedea1';
+import { drawRigHero, rigReady } from './rig.js?v=8dedea1';
+import { recolor } from './pixels.js?v=8dedea1';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=8dedea1';
+import { EXITS } from './rooms.js?v=8dedea1';
+import { sfx } from './audio.js?v=8dedea1';
 
 const WALL = 2.6, CEIL = 7.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -504,6 +504,50 @@ const RUN_SCALE = 0.62;  // Флит в забеге — небольшой, к�
 const lean = (cam, x, y, z) => -Math.atan2(cam.y - y, Math.max(0.5, cam.z - z)) * 0.85;   // верх фигуры откинут от камеры: её плоскость смотрит вверх, на камеру
 const h0 = (w) => (w.hero?.root.scale.y || 1);   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
 
+// рука из пола держит подкову-магнит
+function makeMagnetHand() {
+  const g = new THREE.Group(), r = new THREE.Group(); g.add(r);
+  const red = 0xc0282c, steel = 0xd8d8de, skin = 0xefe6d4;
+  const arc = piece(new THREE.TorusGeometry(0.2, 0.065, 10, 20, Math.PI), red, [0, 0.12, 0]); arc.rotation.z = Math.PI; r.add(arc);
+  for (const x of [-0.2, 0.2]) { r.add(cyl(0.066, 0.066, 0.16, red, [x, 0.2, 0])); r.add(cyl(0.067, 0.067, 0.07, steel, [x, 0.31, 0])); }
+  r.add(ball(0.11, skin, [0, -0.12, 0]));
+  for (let i = 0; i < 4; i++) { const f = cyl(0.026, 0.024, 0.13, skin, [-0.075 + i * 0.05, -0.04, 0.07]); f.rotation.x = -0.6; r.add(f); }
+  r.add(cyl(0.06, 0.07, 0.6, skin, [0, -0.45, 0]));
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), new THREE.MeshBasicMaterial({ color: 0xff6a5a, transparent: true, opacity: 0.2, depthWrite: false }));
+  r.add(glow);
+  return { g };
+}
+
+// лестница (в дорожке S.lane) и галерея на высоте второго этажа; z = 0 — начало лестницы
+function makeGallery(S) {
+  const g = new THREE.Group(); g.userData.fade = [];
+  const ramp = S.b - S.a, deck = S.c - S.b, H = FLOOR2, x = S.lane * LANE;
+  const wood = 0x5a3f2a, dark = 0x2e2018;
+  // ступени
+  const n = 14;
+  for (let i = 0; i < n; i++) {
+    const y = H * (i + 1) / n, z = -ramp * (i + 0.5) / n;
+    g.add(box(LANE * 0.92, y, ramp / n + 0.02, i % 2 ? wood : 0x654631, [x, y / 2, z], { outline: 0.01 }));
+  }
+  for (const s of [-1, 1]) {
+    const rail = box(0.06, 0.06, Math.hypot(ramp, H), dark, [x + s * LANE * 0.47, H / 2 + 0.9, -ramp / 2], { noOutline: true });
+    rail.rotation.x = Math.atan2(H, ramp); g.add(rail);
+  }
+  // пол галереи во всю ширину коридора, полупрозрачный, пока Флит внизу
+  const planks = canvasTex(makeCanvas(128, 256, (c) => {
+    c.fillStyle = '#6a4a33'; c.fillRect(0, 0, 128, 256);
+    for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#5e412c' : '#714f37'; c.fillRect(i * 32, 0, 32, 256); c.fillStyle = 'rgba(20,12,8,0.7)'; c.fillRect(i * 32, 0, 2, 256); }
+  }), [1, deck / 3]);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(WALL * 2 - 0.1, 0.22, deck), new THREE.MeshLambertMaterial({ map: planks, transparent: true, opacity: 1 }));
+  top.position.set(0, H - 0.11, -ramp - deck / 2); g.add(top); g.userData.fade.push(top);
+  // край в конце галереи и балки-опоры у стен
+  g.add(box(WALL * 2 - 0.1, 0.3, 0.12, dark, [0, H - 0.15, -ramp - deck], { noOutline: true }));
+  for (let z = 0; z <= deck; z += 8) for (const s of [-1, 1]) g.add(box(0.18, H, 0.18, dark, [s * (WALL - 0.2), H / 2, -ramp - z], { noOutline: true }));
+  // перила вдоль стен
+  for (const s of [-1, 1]) g.add(box(0.05, 0.05, deck, dark, [s * (WALL - 0.15), H + 0.85, -ramp - deck / 2], { noOutline: true }));
+  return g;
+}
+
 // ---------- мир ----------
 export class World3D {
   constructor(canvas, images) {
@@ -742,7 +786,7 @@ export class World3D {
       const intro = ease(this.modeT / 0.6);
       if (!dying) {
         h.root.visible = !(g.p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running');
-        h.root.position.set(lerp(-0.75, hx, intro), g.y, 0);
+        h.root.position.set(lerp(-0.75, hx, intro), g.base + g.y, 0);
         h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
         const rs = lerp(1, RUN_SCALE, intro);
         h.root.scale.set(rs * (this.look?.sx || 1), rs * (this.look?.sy || 1), rs * (this.look?.sx || 1));
@@ -750,7 +794,7 @@ export class World3D {
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
         this.poseH(h, { mode, t, run: g.p.run, vy: g.vy, kick: g.p.kickT });
         // камера выше и дальше: враги видны поверх головы Флита
-        camPos = [hx * 0.5 + 0.4, 5.3, 8.8]; camLook = [hx * 0.5, 0.3, -12];   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
+        camPos = [hx * 0.5 + 0.4, 5.3 + g.base * 0.45, 8.8 - g.base * 0.6]; camLook = [hx * 0.5, 0.3 + g.base * 0.9, -12];   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
         // «стал портретом»: поднимается к левой стене, вокруг возникает рама, портрет остаётся на стене
         // портрет вешается посередине между арками, чтобы колонна его не закрывала
@@ -821,6 +865,23 @@ export class World3D {
       p.visible = z < 14 && z > -60;
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // лестница в одной дорожке и галерея второго этажа во всю ширину коридора
+  syncGallery(g, t) {
+    const S = g.stairs;
+    if (!S) { if (this.gallery) this.gallery.visible = false; return; }
+    if (!this.gallery || this.galleryFor !== S) {
+      if (this.gallery) this.scene.remove(this.gallery);
+      this.gallery = makeGallery(S);
+      this.galleryFor = S;
+      this.scene.add(this.gallery);
+    }
+    this.gallery.visible = true;
+    this.gallery.position.z = -(S.a - g.dist);
+    // пока Флит внизу, пол галереи полупрозрачный — видно, что под ней
+    const below = g.base < 0.3;
+    for (const m of this.gallery.userData.fade) { m.material.opacity = lerp(m.material.opacity, below ? 0.32 : 1, 0.15); m.material.depthWrite = !below; }
   }
 
   // полосы скорости вдоль стен и потолка
@@ -997,7 +1058,7 @@ export class World3D {
         m.rotation.x = Math.PI / 2;
         const gg = new THREE.Group(); gg.add(m);
         return { g: gg };
-      }, c.lane * LANE, c.y, -(c.z - Z_HERO), (v) => { v.g.rotation.y = t * 4 + c.id; });
+      }, (c.lx ?? c.lane) * LANE, c.y, -(c.z - Z_HERO), (v) => { v.g.rotation.y = t * 4 + c.id; });
     }
     for (const r of g.relics) {
       const key = 'r' + (r.key ||= Math.random());
@@ -1014,6 +1075,10 @@ export class World3D {
       const key = 'b' + (b.key ||= Math.random());
       put(key, () => ({ g: ball(b.rifle ? 0.08 : 0.06, 0x2a2522, [0, 0, 0], { noOutline: true }) }), b.lane * LANE, 1.25, -(b.z - Z_HERO));
     }
+    for (const m of g.magnets) {
+      put('m' + m.id, () => makeMagnetHand(), m.lane * LANE, 0, -(m.z - Z_HERO), (v) => { v.g.children[0].rotation.y = t * 2.5; v.g.children[0].position.y = 1.0 + Math.sin(t * 3) * 0.1; });
+    }
+    this.syncGallery(g, t);
     // тень-преследователь: после удара бежит за спиной Флита
     if (g.chase > 0 && g.status === 'running') {
       const k = Math.min(1, (7 - g.chase) / 0.6) * Math.min(1, g.chase / 0.8);
@@ -1092,6 +1157,17 @@ export class Run3D extends Game3D {
     outlined(String(Math.min(999, this.coins)).padStart(3, '0'), W - 70, 72, '#f0d27c');
     ctx.fillStyle = '#d6a93c'; ctx.strokeStyle = '#120d0b'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(W - 40, 72, 18, 0, 7); ctx.fill(); ctx.stroke();
+    // магнит
+    if (this.magnetT > 0) { ctx.font = font(40); ctx.textAlign = 'left'; outlined(`🧲 ${Math.ceil(this.magnetT)}`, 26, 118, '#f2a0a0'); }
+    // подсказка над лестницей
+    if (this.stairs && this.base < 0.3 && rect) {
+      const S = this.stairs, ahead = S.a - this.dist;
+      if (ahead > 2 && ahead < 40) {
+        const q = this.world.toStage(S.lane * LANE, FLOOR2 + 0.6, -(ahead), L, rect);
+        if (q.front) { ctx.font = font(44); ctx.textAlign = 'center'; const tx = '↑ наверх', w = ctx.measureText(tx).width + 30, x = clamp(q.x, w / 2 + 10, W - w / 2 - 10), y = clamp(q.y, 230, L.SH * 0.6);
+          ctx.fillStyle = 'rgba(240,210,124,0.95)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 30, w, 60, 12); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#16120f'; ctx.fillText(tx, x, y + 2); }
+      }
+    }
     // множитель серии
     if (this.mult > 1) { ctx.font = font(46); ctx.textAlign = 'right'; outlined(`×${this.mult}`, W - 30, 118, ['', '', '#e8dcc4', '#f0d27c', '#f2a33a', '#e0573c'][this.mult]); }
     // прогресс до выхода
@@ -1113,7 +1189,7 @@ export class Run3D extends Game3D {
       ctx.textAlign = 'center'; outlined(`${this.meters} м · счёт ${this.score}`, W / 2, 150, '#b9b5ae', 5);
     }
     // подсказка над новым врагом
-    if (this.status === 'running' && rect) {
+    if (this.status === 'running' && rect && this.base < 0.3) {
       const o = this.objs.filter(o => !o.dead && !o.hit && o.z > Z_HERO + 3 && o.z < 26 && (this.level.hintAll || this.opts.showHint?.(o.type))).sort((a, b) => a.z - b.z)[0];
       if (o) {
         const q = this.world.toStage(o.lane * LANE, 2.6, -(o.z - Z_HERO), L, rect);

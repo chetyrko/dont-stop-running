@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=101040f';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=101040f';
-import { Hero3D } from './hero3d.js?v=101040f';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=101040f';
-import { ENEMY } from './enemies.js?v=101040f';
-import * as art from './art.js?v=101040f';
-import { drawRigHero, rigReady } from './rig.js?v=101040f';
-import { recolor } from './pixels.js?v=101040f';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=101040f';
-import { EXITS } from './rooms.js?v=101040f';
-import { sfx } from './audio.js?v=101040f';
+import * as THREE from '../vendor/three.module.min.js?v=67230c4';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=67230c4';
+import { Hero3D } from './hero3d.js?v=67230c4';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=67230c4';
+import { ENEMY } from './enemies.js?v=67230c4';
+import * as art from './art.js?v=67230c4';
+import { drawRigHero, rigReady } from './rig.js?v=67230c4';
+import { recolor } from './pixels.js?v=67230c4';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=67230c4';
+import { EXITS } from './rooms.js?v=67230c4';
+import { sfx } from './audio.js?v=67230c4';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -519,18 +519,6 @@ function signTex(kind) {
   }));
 }
 
-// Высокое препятствие читается по форме: две стойки и латунная перекладина с бахромой над дорожкой —
-// под ней проскальзывают подкатом. Низкие лежат на полу — их перепрыгивают.
-const HIGH_BAR = new Set(['flyer', 'spider', 'portrait', 'flock']);
-function makeHighBar() {
-  const g = new THREE.Group(), w = LANE * 0.92, h = 0.78;   // чуть ниже летучих, но выше подката
-  for (const s of [-1, 1]) g.add(cyl(0.045, 0.06, h + 0.55, 0x3a2a1e, [s * w / 2, (h + 0.55) / 2, 0]));
-  const bar = cyl(0.05, 0.05, w, 0xc9a24a, [0, h, 0], { outline: 0.02 }); bar.rotation.z = Math.PI / 2; g.add(bar);
-  // бахрома снизу — чтобы перекладину было видно издалека
-  for (let i = 0; i < 9; i++) g.add(box(0.07, 0.12, 0.03, i % 2 ? 0x8a2a2a : 0xd8c8a0, [-w / 2 + 0.1 + i * (w - 0.2) / 8, h - 0.1, 0], { noOutline: true }));
-  return { g };
-}
-
 // бонусы, кроме магнита: перья, пара оболов, саван
 function makePickup(kind) {
   if (kind === 'magnet') return makeMagnetHand();
@@ -841,7 +829,9 @@ export class World3D {
         h.root.scale.set(rs * (this.look?.sx || 1), rs * (this.look?.sy || 1), rs * (this.look?.sx || 1));
         if (g.status === 'won') { h.root.position.z = -ease(g.enter) * 3; h.root.visible = g.enter < 0.85; }
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
-        this.poseH(h, { mode, t, run: g.p.run, vy: g.vy, kick: g.p.kickT, land: (g.p.landT || 0) / 0.2, steer: g.lane - g.hx });
+        // шаги — с живой частотой (1,3–1,6 цикла в секунду), не привязанной к скорости, иначе на разгоне ноги дрожат
+        this.runPh = (this.runPh || 0) + dt * (0.9 + Math.min(g.speed, 16) * 0.02);
+        this.poseH(h, { mode, t, rt: this.runPh, vy: g.vy, kick: g.p.kickT, land: (g.p.landT || 0) / 0.2, steer: g.lane - g.hx });
         // камера выше и дальше: враги видны поверх головы Флита
         camPos = [hx * 0.8, 2.35 + g.base * 0.95, 4.4]; camLook = [hx * 0.7, 1.0 + g.base, -12];   // камера низко за спиной: видно, что над полом, а что под потолком   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
@@ -891,7 +881,7 @@ export class World3D {
       this.camera.position.x += (Math.random() - 0.5) * sh; this.camera.position.y += (Math.random() - 0.5) * sh;
       fov = 62 + clamp((g.speed - 9) * 1.0, 0, 12) + ((g.p.dashT || 0) > 0 ? 7 : 0);
       roll = (g.lane - g.hx) * 0.05;
-      this.camera.position.y += Math.abs(Math.sin(g.p.run * 1.7)) * 0.03;
+      this.camera.position.y += Math.abs(Math.sin((this.runPh || 0) / 0.72 * Math.PI * 2)) * 0.015;
     }
     this.camFov = lerp(this.camFov || 68, fov, Math.min(1, dt * 4));
     if (Math.abs(this.camera.fov - this.camFov) > 0.05) { this.camera.fov = this.camFov; this.camera.updateProjectionMatrix(); }
@@ -1088,7 +1078,7 @@ export class World3D {
     const ex = { state: h.st, tau: 0.05 };   // позы меняются почти сразу за жестом
     let pose = 'run', tt = s.t;
     switch (s.mode) {
-      case 'run': tt = s.run !== undefined ? s.run / 3.6 : s.t; if (s.kick > 0) { pose = 'kick'; ex.kickT = 1 - s.kick / 0.4; ex.tau = 0.04; } break;
+      case 'run': tt = s.rt ?? (s.run !== undefined ? s.run / 3.6 : s.t); if (s.kick > 0) { pose = 'kick'; ex.kickT = 1 - s.kick / 0.4; ex.tau = 0.04; } break;
       case 'jump': pose = 'jump'; ex.vy = -(s.vy || 0) * 140; ex.tau = 0.03; break;
       case 'slide': pose = 'slide'; ex.tau = 0.03; break;
       case 'warmup': pose = 'idle'; ex.blend = { pose: 'kick', k: 0.5 - 0.5 * Math.cos(s.t * 2.4) }; ex.tau = 0.15; break;
@@ -1116,7 +1106,6 @@ export class World3D {
     for (const o of g.objs) {
       const gone = g.deathT !== undefined ? clamp(1 - g.deathT * 2, 0, 1) : 1;   // при смерти всё растворяется
       if (gone > 0.5) this.floorSign(o, t, put);
-      if (HIGH_BAR.has(o.type) && !o.dead) put('f' + o.id, () => makeHighBar(), o.lane * LANE, 0, -(o.z - Z_HERO), (v) => v.g.scale.setScalar(Math.max(0.01, gone)));
       put('o' + o.id, () => makeEnemy(o.type, this.images, this.look), o.lane * LANE, 0, -(o.z - Z_HERO), (v) => {
         v.anim?.(o, t);
         if (v.face) v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * (g.deathT !== undefined ? 0 : 1), Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8, 0);
@@ -1156,10 +1145,10 @@ export class World3D {
     if (g.chase > 0 && g.status === 'running') {
       const k = Math.min(1, (7 - g.chase) / 0.6) * Math.min(1, g.chase / 0.8);
       const side = g.hx > 0.3 ? -1 : 1;   // сбоку и сзади, чтобы не закрывать Флита
-      put('chaser', () => makeDrawn('monster'), g.hx * LANE + side * 1.0 + Math.sin(t * 3) * 0.15, 0, lerp(6, 2.2, k), (v) => {
+      put('chaser', () => makeDrawn('monster'), g.hx * LANE + side * 1.25 + Math.sin(t * 3) * 0.12, 0, lerp(5, 1.4, k), (v) => {
         v.anim({ id: 7, flash: 0, w: 160, h: 300, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 }, t * 1.6);
         v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * 0.5, Math.PI * 0, 0);
-        v.g.scale.setScalar(0.85);
+        v.g.scale.setScalar(0.6);
       });
     }
     // хранитель в глубине

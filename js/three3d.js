@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=26bdc8e';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=26bdc8e';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=26bdc8e';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=26bdc8e';
-import { ENEMY } from './enemies.js?v=26bdc8e';
-import * as art from './art.js?v=26bdc8e';
-import { drawRigHero, rigReady } from './rig.js?v=26bdc8e';
-import { recolor } from './pixels.js?v=26bdc8e';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=26bdc8e';
-import { EXITS } from './rooms.js?v=26bdc8e';
-import { sfx } from './audio.js?v=26bdc8e';
+import * as THREE from '../vendor/three.module.min.js?v=b63ad4c';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=b63ad4c';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=b63ad4c';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=b63ad4c';
+import { ENEMY } from './enemies.js?v=b63ad4c';
+import * as art from './art.js?v=b63ad4c';
+import { drawRigHero, rigReady } from './rig.js?v=b63ad4c';
+import { recolor } from './pixels.js?v=b63ad4c';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=b63ad4c';
+import { EXITS } from './rooms.js?v=b63ad4c';
+import { sfx } from './audio.js?v=b63ad4c';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -434,7 +434,7 @@ function makeEnemy(type, images, look) {
         const lid = new THREE.Group(); lid.position.set(-w / 2, 0.02, -len / 2); g.add(lid);
         lid.add(box(0.06, w * 0.95, len * 0.95, 0x5a4434, [0, w * 0.47, 0]));
         // люк: вдали закрыт (крышка лежит на полу), вблизи проваливается вниз в яму — над полом ничего не торчит
-        anim = (o) => { const k = clamp((Z_HERO + 12 - o.z) / 3, 0, 1); lid.rotation.z = -Math.PI / 2 + k * Math.PI; lid.visible = k < 0.98; };
+        anim = (o) => { const k = clamp((Z_HERO + 12 - o.z) / 3, 0, 1); lid.rotation.z = -Math.PI / 2 - k * Math.PI / 2; lid.visible = k < 0.98; };   // крышка уходит вниз, в яму
       }
       break;
     }

@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=26bdc8e';
-import * as art from './art.js?v=26bdc8e';
-import { sfx } from './audio.js?v=26bdc8e';
-import { computeMods } from './artifacts.js?v=26bdc8e';
-import { applyCharacter, applyUpgrades } from './characters.js?v=26bdc8e';
-import { enemyWeights } from './rooms.js?v=26bdc8e';
-import { ENEMY } from './enemies.js?v=26bdc8e';
-import { demonReady, drawDemon } from './demon.js?v=26bdc8e';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=b63ad4c';
+import * as art from './art.js?v=b63ad4c';
+import { sfx } from './audio.js?v=b63ad4c';
+import { computeMods } from './artifacts.js?v=b63ad4c';
+import { applyCharacter, applyUpgrades } from './characters.js?v=b63ad4c';
+import { enemyWeights } from './rooms.js?v=b63ad4c';
+import { ENEMY } from './enemies.js?v=b63ad4c';
+import { demonReady, drawDemon } from './demon.js?v=b63ad4c';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -209,7 +209,7 @@ export class Game3D {
     const S = this.stairs;
     if (!S) return false;
     if (lane === S.lane && d > S.a - 14 && d < S.b + 3) return true;
-    return d > S.c - 5 && d < S.c + 24;
+    return d > S.c - 5 && d < S.c + 45;   // зона приземления длиннее: бегущие навстречу враги не успевают в неё забежать
   }
 
   // ---------- бонусы ----------

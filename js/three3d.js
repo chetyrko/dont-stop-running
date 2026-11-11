@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=23f1669';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=23f1669';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=23f1669';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=23f1669';
-import { ENEMY } from './enemies.js?v=23f1669';
-import * as art from './art.js?v=23f1669';
-import { drawRigHero, rigReady } from './rig.js?v=23f1669';
-import { recolor } from './pixels.js?v=23f1669';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=23f1669';
-import { EXITS } from './rooms.js?v=23f1669';
-import { sfx } from './audio.js?v=23f1669';
+import * as THREE from '../vendor/three.module.min.js?v=2680a1f';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=2680a1f';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=2680a1f';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=2680a1f';
+import { ENEMY } from './enemies.js?v=2680a1f';
+import * as art from './art.js?v=2680a1f';
+import { drawRigHero, rigReady } from './rig.js?v=2680a1f';
+import { recolor } from './pixels.js?v=2680a1f';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=2680a1f';
+import { EXITS } from './rooms.js?v=2680a1f';
+import { sfx } from './audio.js?v=2680a1f';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -874,7 +874,7 @@ export class World3D {
         this.runPh = (this.runPh || 0) + dt * (0.9 + Math.min(g.speed, 16) * 0.02);
         this.poseH(h, { mode, t, rt: this.runPh, vy: g.vy, kick: g.p.kickT, land: (g.p.landT || 0) / 0.2, steer: g.lane - g.hx });
         // камера выше и дальше: враги видны поверх головы Флита
-        camPos = [hx * 0.8, 2.35 + g.base * 0.95, 4.4]; camLook = [hx * 0.7, 1.0 + g.base, -12];   // камера низко за спиной: видно, что над полом, а что под потолком   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
+        camPos = [0, 2.9 + g.base * 0.9, 6.8]; camLook = [0, 0.9 + g.base, -12];   // камера неподвижна по бокам: смена дорожки не качает   // камера низко за спиной: видно, что над полом, а что под потолком   // на галерее камера чуть выше, но под потолком   // Флит ≈ десятая часть высоты экрана, внизу   // Флит ≈ десятая часть высоты экрана
       } else {
         // «стал портретом»: поднимается к левой стене, вокруг возникает рама, портрет остаётся на стене
         // портрет вешается посередине между арками, чтобы колонна его не закрывала
@@ -883,7 +883,7 @@ export class World3D {
         if (g.deathKind === 'caught') {
           const k = ease((T - 1.55) / 0.75);   // камера смотрит на поимку и туман, к стене — после «пшика»
           this.deathCaught(g, h, T, t, hx, P);
-          camPos = [lerp(hx * 0.8, 0.9, k), lerp(2.35, 1.95, k), lerp(4.4, P.z + 3.6, k)]; camLook = [lerp(hx * 0.7, P.x, k), lerp(1.0, P.y, k), lerp(-12, P.z, k)];
+          camPos = [lerp(0, 0.9, k), lerp(2.9, 1.95, k), lerp(6.8, P.z + 3.6, k)]; camLook = [lerp(0, P.x, k), lerp(0.9, P.y, k), lerp(-12, P.z, k)];
         } else {
         // смерть: чёрные руки хватают Флита и тащат к стене → чёрный туман → «пшик» → «вшик» — портрет на стене
         const k = ease((T - 0.15) / 1.0);                 // камера поворачивает к стене
@@ -908,7 +908,7 @@ export class World3D {
           this.deathPortrait.rotation.set(0, Math.PI / 2, (1 - q) * Math.PI * 2.2);
           this.deathPortrait.position.set(P.x + (1 - q) * 0.6, P.y, P.z);
         }
-        camPos = [lerp(hx * 0.8, 0.9, k), lerp(2.35, 1.95, k), lerp(4.4, P.z + 3.4, k)]; camLook = [lerp(hx * 0.7, P.x, k), lerp(1.0, P.y, k), lerp(-12, P.z, k)];
+        camPos = [lerp(0, 0.9, k), lerp(2.9, 1.95, k), lerp(6.8, P.z + 3.4, k)]; camLook = [lerp(0, P.x, k), lerp(0.9, P.y, k), lerp(-12, P.z, k)];
         }
       }
       this.syncRun(g, t);
@@ -924,11 +924,8 @@ export class World3D {
     const g = this.mode === 'run' ? this.game : null;
     let fov = 68, roll = 0;
     if (g && g.status === 'running') {
-      const sh = (g.shake || 0) * 0.012;
-      this.camera.position.x += (Math.random() - 0.5) * sh; this.camera.position.y += (Math.random() - 0.5) * sh;
-      fov = 62 + clamp((g.speed - 9) * 1.0, 0, 12) + ((g.p.dashT || 0) > 0 ? 7 : 0);
-      roll = (g.lane - g.hx) * 0.05;
-      this.camera.position.y += Math.abs(Math.sin((this.runPh || 0) / 0.72 * Math.PI * 2)) * 0.015;
+      // без тряски, крена и покачивания — чтобы не укачивало; обзор чуть шире на скорости
+      fov = 64 + clamp((g.speed - 9) * 0.5, 0, 6);
     }
     this.camFov = lerp(this.camFov || 68, fov, Math.min(1, dt * 4));
     if (Math.abs(this.camera.fov - this.camFov) > 0.05) { this.camera.fov = this.camFov; this.camera.updateProjectionMatrix(); }

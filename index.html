@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#16120f">
+  <title>Don't stop running</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <!-- Главное меню -->
+    <section id="menu" class="screen">
+      <div class="menu-top">
+        <h1 class="title">Don't stop<br>running</h1>
+        <p class="subtitle">беги. не оглядывайся.</p>
+      </div>
+      <div class="buttons menu-bottom">
+        <button data-go="levels" class="btn big">Старт</button>
+        <button data-go="artifacts" class="btn">Артефакты</button>
+        <button data-go="shop" class="btn">Лавка</button>
+        <button data-go="settings" class="btn">Настройки</button>
+      </div>
+      <div class="wallet"><span class="coin-ico"></span><span class="gold-total">0</span></div>
+    </section>
+
+    <!-- Поместье: бесконечный забег и комнаты -->
+    <section id="levels" class="screen scroll hidden">
+      <h2>Поместье<br>«Паноптикум»</h2>
+      <div id="records" class="records"></div>
+      <div class="buttons">
+        <button id="btn-endless" class="btn big"></button>
+        <button id="btn-continue" class="btn big"></button>
+      </div>
+      <div id="loadout" class="loadout"></div>
+      <div id="act-tabs" class="tabs"></div>
+      <div id="act-title" class="act-title"></div>
+      <div id="room-grid" class="room-grid"></div>
+      <button data-go="menu" class="btn small">Назад</button>
+    </section>
+
+    <!-- Артефакты -->
+    <section id="artifacts" class="screen scroll hidden">
+      <h2>Артефакты</h2>
+      <div id="art-count" class="records"></div>
+      <div class="hint-line">В забег можно взять не больше, чем мест в ряду ниже. Найденное в забеге начнёт действовать со следующего забега.</div>
+      <div id="slots" class="slots"></div>
+      <div id="art-detail" class="art-detail hidden"></div>
+      <div id="art-tabs" class="tabs"></div>
+      <div id="art-grid" class="art-grid"></div>
+      <button data-go="menu" class="btn small">Назад</button>
+    </section>
+
+    <!-- Лавка -->
+    <section id="shop" class="screen scroll hidden">
+      <h2>Лавка старьёвщика</h2>
+      <div class="wallet"><span class="coin-ico"></span><span class="gold-total">0</span></div>
+      <div id="shop-tabs" class="tabs"></div>
+      <div id="shop-art" class="shop-art"></div>
+      <button id="shop-reroll" class="btn small"></button>
+      <div id="skin-list"></div>
+      <button data-go="menu" class="btn small">Назад</button>
+    </section>
+
+    <!-- Настройки -->
+    <section id="settings" class="screen hidden">
+      <h2>Настройки</h2>
+      <div class="buttons">
+        <button id="set-diff" class="btn big">Сложность</button>
+        <div id="diff-desc" class="hint-line"></div>
+        <button id="set-sound" class="btn toggle">Звук: вкл</button>
+        <button id="set-vibration" class="btn toggle">Вибрация: вкл</button>
+        <button id="set-paper" class="btn toggle">Эффект бумаги: вкл</button>
+        <button id="set-reset" class="btn small danger">Сбросить прогресс</button>
+      </div>
+      <p class="help">Свайп ↑ — прыжок (ямы, руки, низкие вороны, обломки люстр), свайп ↓ — подкат под вороной,
+        свайп ← — пинок мебели, свайп → — рывок сквозь призрачную решётку, тап — выстрел в тень.</p>
+      <button data-go="menu" class="btn small">Назад</button>
+    </section>
+
+    <!-- Пауза -->
+    <section id="pause" class="screen dim hidden">
+      <h2>Пауза</h2>
+      <div class="buttons">
+        <button id="btn-resume" class="btn big">Продолжить</button>
+        <button class="btn btn-restart">Заново</button>
+        <button class="btn btn-tomenu">В меню</button>
+      </div>
+    </section>
+
+    <!-- Поражение / конец бесконечного забега -->
+    <section id="over" class="screen dim hidden">
+      <h2 id="over-title">Ты стал портретом</h2>
+      <div class="result" id="over-result"></div>
+      <div class="buttons">
+        <button class="btn big btn-restart">Ещё раз</button>
+        <button class="btn btn-tomenu">В меню</button>
+      </div>
+    </section>
+
+    <!-- Сюжетная карточка между комнатами -->
+    <section id="story" class="screen story hidden">
+      <div id="story-room" class="story-room"></div>
+      <div id="story-label" class="story-label"></div>
+      <div id="story-text" class="story-text"></div>
+      <div id="story-gain" class="story-gain"></div>
+      <div class="buttons">
+        <button id="btn-next" class="btn big">Дальше</button>
+        <button class="btn small btn-tomenu">В меню</button>
+      </div>
+    </section>
+
+  </div>
+  <div id="rotate">Поверни телефон вертикально ⟳</div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

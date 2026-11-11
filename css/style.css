@@ -1,0 +1,189 @@
+@font-face {
+  font-family: 'Amatic SC';
+  font-weight: 700;
+  src: url('../fonts/amatic-sc-cyrillic-700-normal.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Amatic SC';
+  font-weight: 700;
+  src: url('../fonts/amatic-sc-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191-2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #16120f;
+  --paper: #e8dcc4;
+  --paper-dark: #d6c6a8;
+  --blood: #7a2f35;
+  --gold: #d6a93c;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+html, body { margin: 0; height: 100%; background: #050404; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+body { font-family: 'Amatic SC', 'Georgia', serif; font-weight: 700; color: var(--ink); }
+
+/* Сцена 720 × (под телефон); размеры и масштаб выставляет main.js */
+#stage { position: absolute; left: 50%; top: 50%; transform-origin: 0 0; width: 720px; height: 1560px; overflow: hidden; }
+#game { position: absolute; left: 0; top: 0; display: block; }
+
+.hidden { display: none !important; }
+
+/* ---------- экраны ---------- */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  text-align: center; padding: 30px;
+}
+.screen.dim, #levels, #shop, #settings { background: rgba(5, 4, 4, 0.78); }
+
+/* Главное меню: заголовок над окном, кнопки под окном */
+#menu { padding: 0; }
+.menu-top {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--win-top);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.menu-bottom { position: absolute; left: 0; right: 0; top: calc(var(--win-bottom) + 60px); }
+
+.title {
+  margin: 0; font-size: 116px; line-height: 0.82; letter-spacing: 2px;
+  color: var(--paper);
+  text-shadow: 4px 5px 0 var(--blood);
+  transform: rotate(-2deg);
+}
+.subtitle { margin: 14px 0 0; font-size: 38px; color: #8e8b87; transform: rotate(1deg); }
+h2 { margin: 0 0 6px; font-size: 84px; line-height: 0.95; color: var(--paper); text-shadow: 4px 4px 0 var(--blood); }
+
+.buttons { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+
+.btn {
+  font-family: inherit; font-weight: 700; font-size: 50px; line-height: 1;
+  min-width: 380px; padding: 12px 34px 14px;
+  color: var(--ink); background: #a3a09c;
+  border: 5px solid #000;
+  border-radius: 14px 6px 16px 8px / 8px 16px 6px 14px;
+  box-shadow: 0 0 0 3px #4a4744, 6px 7px 0 3px #000;
+  background-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.07) 0 2px, transparent 2px 7px);
+  cursor: pointer;
+  transition: transform 0.06s;
+}
+.btn:nth-child(2n) { transform: rotate(1deg); }
+.btn:nth-child(2n+1) { transform: rotate(-1deg); }
+.btn:active { transform: translate(4px, 5px); box-shadow: 0 0 0 3px #4a4744, 1px 1px 0 3px #000; }
+.btn.big { font-size: 64px; min-width: 420px; background-color: #c9c2b4; color: #000; }
+.btn.small { font-size: 38px; min-width: 240px; padding: 8px 22px 10px; }
+.btn.danger { color: #7a1d1b; }
+.btn:disabled { opacity: 0.45; }
+
+.wallet {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 50px; color: var(--paper);
+}
+#menu .wallet { position: absolute; right: 30px; top: 24px; }
+.coin-ico {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #f0d27c, var(--gold) 55%, #a87f24);
+  border: 3px solid #000;
+  display: inline-block;
+}
+
+.help { max-width: 600px; font-size: 34px; color: #b9b5ae; line-height: 1.1; }
+
+/* ---------- главы ---------- */
+#level-list .btn { min-width: 560px; font-size: 48px; }
+#level-list .btn .sub { display: block; font-size: 28px; color: #4a2220; margin-top: 4px; }
+
+/* ---------- магазин ---------- */
+#skin-list { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.skin {
+  width: 300px; padding: 12px; background: #a3a09c;
+  border: 5px solid #000; border-radius: 10px 18px 8px 16px;
+  box-shadow: 0 0 0 3px #4a4744, 6px 7px 0 3px #000;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.skin canvas { width: 220px; height: 230px; border: 4px solid #000; border-radius: 40px 40px 12px 12px; }
+.skin .name { font-size: 40px; }
+.skin .btn { min-width: 240px; font-size: 36px; padding: 6px 12px 8px; box-shadow: 3px 4px 0 #000; }
+.skin.equipped { background: #c9c2b4; }
+
+/* ---------- результаты ---------- */
+.result { font-size: 54px; color: var(--paper); line-height: 1.1; margin-bottom: 10px; }
+.result b { color: #f0d27c; }
+
+/* ---------- ориентация ---------- */
+#rotate {
+  display: none; position: fixed; inset: 0; z-index: 10;
+  background: #050404; color: var(--paper); font-size: 42px;
+  align-items: center; justify-content: center; text-align: center; padding: 30px;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  #rotate { display: flex; }
+}
+
+/* ---------- прокручиваемые экраны ---------- */
+.screen.scroll { justify-content: flex-start; overflow-y: auto; touch-action: pan-y; padding-top: 60px; padding-bottom: 80px; }
+.screen.scroll > * { flex-shrink: 0; }
+.records, .hint-line { font-size: 32px; color: #b9b5ae; line-height: 1.1; max-width: 640px; }
+.records b { color: #f0d27c; }
+.btn .sub { display: block; font-size: 28px; color: #4a2220; margin-top: 4px; }
+
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.tab {
+  font-family: inherit; font-weight: 700; font-size: 36px; padding: 4px 18px 6px;
+  background: #4a4744; color: #e8dcc4; border: 4px solid #000; border-radius: 10px;
+}
+.tab.on { background: #c9c2b4; color: #000; }
+.tab:disabled { opacity: 0.35; }
+.act-title { font-size: 40px; color: #e8dcc4; }
+
+/* сетка комнат */
+.room-grid { display: grid; grid-template-columns: repeat(10, 58px); gap: 6px; }
+.room {
+  font-family: inherit; font-weight: 700; font-size: 26px; height: 52px; padding: 0;
+  background: #2a2826; color: #6b6864; border: 3px solid #000; border-radius: 8px;
+}
+.room.done { background: #8f8a82; color: #16120f; }
+.room.next { background: #f2d27a; color: #000; box-shadow: 0 0 0 3px #b3302c; }
+.room.boss { border-color: #b3302c; }
+
+/* артефакты */
+.loadout { display: flex; gap: 10px; align-items: center; font-size: 32px; color: #b9b5ae; }
+.loadout canvas { width: 56px; height: 56px; }
+.slots { display: flex; gap: 14px; }
+.slot { width: 96px; height: 96px; border: 4px dashed #6b6864; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.slot canvas { width: 88px; height: 88px; }
+.art-grid { display: grid; grid-template-columns: repeat(6, 92px); gap: 10px; }
+.art-cell { width: 92px; height: 92px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: #1b1918; border: 3px solid #2f2c2a; font-size: 40px; color: #3d3a37; }
+.art-cell canvas { width: 88px; height: 88px; }
+.art-cell.on { box-shadow: 0 0 0 4px #f2d27a; }
+.art-detail {
+  width: 620px; padding: 18px 22px; background: #c9c2b4; border: 5px solid #000; border-radius: 14px;
+  box-shadow: 6px 7px 0 #000; display: flex; flex-direction: column; gap: 8px; align-items: center;
+}
+.art-detail .nm { font-size: 48px; line-height: 1; }
+.art-detail .rr { font-size: 30px; }
+.art-detail .ds { font-size: 34px; line-height: 1.05; color: #2a2522; }
+.art-detail .btn { min-width: 300px; font-size: 40px; }
+
+.shop-art { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.offer {
+  width: 300px; padding: 12px; background: #a3a09c; border: 5px solid #000; border-radius: 12px;
+  box-shadow: 5px 6px 0 #000; display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.offer canvas { width: 100px; height: 100px; }
+.offer .nm { font-size: 34px; line-height: 1; }
+.offer .ds { font-size: 26px; line-height: 1; color: #2a2522; min-height: 54px; }
+.offer .btn { min-width: 200px; font-size: 32px; padding: 6px 10px 8px; box-shadow: 3px 4px 0 #000; }
+.offer.cursed { background: #8a6a66; }
+
+/* сюжетная карточка */
+.screen.story { background: #0b0908; padding: 50px; }
+.story-room { font-size: 40px; color: #6b6864; }
+.story-label { font-size: 46px; color: #b3302c; }
+.story-text { font-size: 54px; line-height: 1.12; color: #e8dcc4; max-width: 620px; margin: 10px 0 24px; }
+.story-text.house { font-size: 58px; color: #d9a0a0; letter-spacing: 1px; }
+.story-gain { font-size: 36px; color: #b9b5ae; line-height: 1.15; margin-bottom: 20px; }
+.story-gain b { color: #f0d27c; }

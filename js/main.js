@@ -1,0 +1,531 @@
+// Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
+
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js';
+import { Game } from './game.js';
+import { setupInput } from './input.js';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js';
+import { getSave, save, resetSave } from './storage.js';
+import { drawHero, makeRng } from './art.js';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js';
+import { loadDemon } from './demon.js';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter } from './rooms.js';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js';
+import { ComicPlayer } from './comic.js';
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+const stage = $('#stage');
+const cvs = $('#game');
+const ctx = cvs.getContext('2d');
+
+let S = getSave();
+let game = null;          // текущий забег
+let demo = null;          // фон для меню
+let comic = null;         // показываемый комикс
+let paused = false;
+let currentLevel = null;
+let images = {};
+let L = null, frameImg = null, hud = null;
+let scale = 1;
+let viewAct = 1;          // какой акт открыт в сетке комнат
+let artFilter = 'all';
+let artSelected = null;
+let shopTab = 'art';
+
+// ---------- раскладка под экран ----------
+function resize() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  L = computeLayout(SCREEN_W * vh / vw, !!images.frame);
+  scale = Math.min(vw / L.SW, vh / L.SH);
+  stage.style.width = L.SW + 'px';
+  stage.style.height = L.SH + 'px';
+  stage.style.transform = `scale(${scale}) translate(-50%, -50%)`;
+  stage.style.setProperty('--win-top', L.win.y + 'px');
+  stage.style.setProperty('--win-bottom', (L.win.y + L.win.h) + 'px');
+  cvs.style.width = L.SW + 'px';
+  cvs.style.height = L.SH + 'px';
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cvs.width = Math.round(L.SW * scale * dpr);
+  cvs.height = Math.round(L.SH * scale * dpr);
+  frameImg = createFrame(L, images.frame);
+  hud = new Hud(L, images);
+  if (comic) comic.L = L;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function loadImages() {
+  return Promise.all(Object.entries(CUSTOM_ART).map(([k, src]) => new Promise((res) => {
+    const img = new Image();
+    img.onload = () => { images[k] = img; res(); };
+    img.onerror = () => { console.warn('Не загрузилась картинка', src); res(); };
+    img.src = src;
+  })));
+}
+
+// ---------- экраны ----------
+const SCREENS = ['menu', 'levels', 'artifacts', 'shop', 'settings', 'pause', 'over', 'story'];
+function show(name) {
+  SCREENS.forEach(s => $('#' + s).classList.toggle('hidden', s !== name));
+  if (name === 'levels') { viewAct = Math.floor(Math.min(ROOMS_TOTAL - 1, S.progress.maxRoom) / 100) + 1; renderLevels(); }
+  if (name === 'artifacts') renderArtifacts();
+  if (name === 'shop') renderShop();
+  if (name === 'settings') renderSettings();
+  updateWallet();
+}
+
+function updateWallet() { $$('.gold-total').forEach(el => el.textContent = S.gold); }
+function currentSkin() { return SKINS.find(s => s.id === S.skin) || SKINS[0]; }
+const diff = () => S.settings.difficulty || 'normal';
+
+function iconCanvas(a, size) {
+  const c = document.createElement('canvas');
+  c.width = size * 2; c.height = size * 2;
+  drawArtifactIcon(c.getContext('2d'), a, size, size, size * 2);
+  return c;
+}
+
+// ---------- запуск забегов ----------
+function startDemo() {
+  game = null; comic = null;
+  demo = new Game(demoLevel(), currentSkin(), { demo: true, paperFx: S.settings.paper, images });
+}
+
+function startRun(level) {
+  currentLevel = level;
+  demo = null; comic = null;
+  paused = false;
+  game = new Game(level, currentSkin(), {
+    images,
+    vibration: S.settings.vibration,
+    paperFx: S.settings.paper,
+    equipped: S.equipped,
+    seenHints: S.seenHints,
+    onSeen: (type) => { if (!S.seenHints.includes(type)) { S.seenHints.push(type); save(); } },
+    onRelic: findRelic,
+    onEnd: onGameEnd,
+  });
+  hud = new Hud(L, images);
+  show(null);
+}
+
+function startRoom(n) {
+  n = Math.max(1, Math.min(ROOMS_TOTAL, n));
+  // перед самой первой комнатой — пролог
+  if (n === 1 && !S.seenComics.includes('prologue')) {
+    playComic('prologue', () => startRoom(1));
+    return;
+  }
+  startRun(roomLevel(n, diff()));
+}
+
+function startEndless() { startRun(endlessLevel(diff())); }
+
+function playComic(id, then) {
+  game = null; demo = null;
+  show(null);
+  comic = new ComicPlayer(id, L, images, currentSkin(), () => {
+    comic = null;
+    if (!S.seenComics.includes(id)) { S.seenComics.push(id); save(); }
+    then?.();
+  });
+}
+
+// Находка в забеге: новый артефакт — в инвентарь; повтор — превращается в оболы.
+function findRelic(bias) {
+  const a = rollArtifact(Math.random, bias);
+  if (S.inventory.includes(a.id)) {
+    const coins = Math.round(a.price / 4);
+    S.gold += coins; save();
+    return { art: a, dup: true, coins, text: `${a.name} — уже есть: +${coins} оболов` };
+  }
+  S.inventory.push(a.id); save();
+  return { art: a, dup: false, text: `Найден артефакт: ${a.name}` };
+}
+
+function onGameEnd(won) {
+  const g = game, lvl = currentLevel, D = DIFFICULTY[lvl.diff] || DIFFICULTY.normal;
+  let earned = Math.round(g.coins * D.coin * g.mods.coinMult);
+  const score = g.score;
+  const R = S.records;
+
+  if (lvl.kind === 'endless') {
+    if (score > (R.endless[lvl.diff] || 0)) R.endless[lvl.diff] = score;
+    R.endlessMeters = Math.max(R.endlessMeters || 0, g.meters);
+    S.gold += earned; save();
+    $('#over-title').textContent = 'Сквозняк стих';
+    $('#over-result').innerHTML = `<div>Пробежал: <b>${g.meters} м</b></div><div>Счёт: <b>${score}</b></div>` +
+      `<div>Оболы: <b>+${earned}</b></div><div>Рекорд (${D.name.toLowerCase()}): <b>${R.endless[lvl.diff]}</b></div>` + foundHtml(g);
+    show('over');
+    return;
+  }
+
+  if (!won) {
+    R.deaths++;
+    S.gold += earned; save();
+    $('#over-title').textContent = 'Ты стал портретом';
+    $('#over-result').innerHTML = `<div>${lvl.name} · ${lvl.place}</div><div>Оболы: <b>+${earned}</b></div>` + foundHtml(g);
+    show('over');
+    return;
+  }
+
+  // комната пройдена
+  const first = lvl.room > S.progress.maxRoom;
+  if (first) {
+    S.progress.maxRoom = lvl.room;
+    earned += ECONOMY.firstClearBonus + lvl.act;
+  }
+  R.roomsCleared++;
+  if (lvl.boss) R.bosses++;
+  R.bestRoomScore[lvl.room] = Math.max(R.bestRoomScore[lvl.room] || 0, score);
+  S.gold += earned; save();
+
+  const showStory = () => renderStory(lvl, g, earned, first);
+  const comicId = lvl.boss ? 'act' + lvl.act : null;
+  if (comicId && !S.seenComics.includes(comicId)) playComic(comicId, showStory);
+  else showStory();
+}
+
+function foundHtml(g) {
+  if (!g.found.length) return '';
+  return '<div class="found">' + g.found.map(f => `<div>${f.dup ? '' : '★ '}${f.text}</div>`).join('') + '</div>';
+}
+
+function renderStory(lvl, g, earned, first) {
+  game = null;
+  startDemo();
+  const st = storyAfter(lvl.room);
+  $('#story-room').textContent = lvl.room < ROOMS_TOTAL ? `Комната ${lvl.room} → ${lvl.room + 1}` : 'Комната 400';
+  $('#story-label').textContent = st.label;
+  const tx = $('#story-text');
+  tx.textContent = st.kind === 'house' ? st.text : `«${st.text}»`;
+  tx.className = 'story-text' + (st.kind === 'house' ? ' house' : '');
+  $('#story-gain').innerHTML = `Оболы: <b>+${earned}</b>${first ? ' (первое прохождение)' : ''} · счёт <b>${g.score}</b>` + foundHtml(g);
+  const next = lvl.room + 1;
+  $('#btn-next').textContent = next <= ROOMS_TOTAL ? `Комната ${next}` : 'Коридор Вечного Сквозняка';
+  $('#btn-next').onclick = () => { sfx.click(); next <= ROOMS_TOTAL ? startRoom(next) : startEndless(); };
+  show('story');
+}
+
+// ---------- поместье ----------
+function renderLevels() {
+  const R = S.records, D = DIFFICULTY[diff()];
+  const next = Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1);
+  $('#records').innerHTML = `Сложность: <b>${D.name}</b> · пройдено комнат: <b>${S.progress.maxRoom}</b> / ${ROOMS_TOTAL}<br>` +
+    `Рекорд сквозняка: <b>${R.endless[diff()] || 0}</b> · дальше всех: <b>${R.endlessMeters || 0} м</b> · хранителей: <b>${R.bosses}</b>`;
+  $('#btn-endless').innerHTML = `Коридор Вечного Сквозняка<span class="sub">бесконечный забег</span>`;
+  $('#btn-endless').onclick = () => { sfx.click(); startEndless(); };
+  $('#btn-continue').innerHTML = `${S.progress.maxRoom ? 'Продолжить' : 'Начать'}: комната ${next}<span class="sub">${ACTS[Math.floor((next - 1) / 100)].title}</span>`;
+  $('#btn-continue').onclick = () => { sfx.click(); startRoom(next); };
+
+  // что берём в забег
+  const lo = $('#loadout');
+  lo.innerHTML = '';
+  const label = document.createElement('span');
+  label.textContent = S.equipped.length ? 'В забег:' : 'Артефактов в забеге нет';
+  lo.appendChild(label);
+  S.equipped.forEach(id => lo.appendChild(iconCanvas(BY_ID[id], 28)));
+  lo.onclick = () => { sfx.click(); show('artifacts'); };
+
+  // вкладки актов
+  viewAct = Math.min(viewAct, Math.floor((next - 1) / 100) + 1);
+  const tabs = $('#act-tabs');
+  tabs.innerHTML = '';
+  ACTS.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (a.n === viewAct ? ' on' : '');
+    b.textContent = 'Акт ' + ['I', 'II', 'III', 'IV'][a.n - 1];
+    b.disabled = (a.n - 1) * 100 + 1 > next;
+    b.onclick = () => { sfx.click(); viewAct = a.n; renderLevels(); };
+    tabs.appendChild(b);
+  });
+  $('#act-title').textContent = ACTS[viewAct - 1].title;
+  const grid = $('#room-grid');
+  grid.innerHTML = '';
+  for (let r = (viewAct - 1) * 100 + 1; r <= viewAct * 100; r++) {
+    const b = document.createElement('button');
+    const done = r <= S.progress.maxRoom;
+    b.className = 'room' + (done ? ' done' : '') + (r === next && !done ? ' next' : '') + (r % 100 === 0 ? ' boss' : '');
+    b.textContent = r % 100 === 0 ? '☠' : r;
+    b.disabled = r > next;
+    b.onclick = () => { sfx.click(); startRoom(r); };
+    grid.appendChild(b);
+  }
+}
+
+// ---------- артефакты ----------
+function renderArtifacts() {
+  const slots = slotCount(S.inventory);
+  S.equipped = S.equipped.filter(id => S.inventory.includes(id) && !BY_ID[id]?.passive).slice(0, slots);
+  $('#art-count').innerHTML = `Найдено: <b>${S.inventory.length}</b> / ${ARTIFACTS.length} · мест в забеге: <b>${slots}</b>`;
+  const sl = $('#slots');
+  sl.innerHTML = '';
+  for (let i = 0; i < slots; i++) {
+    const d = document.createElement('div');
+    d.className = 'slot';
+    const id = S.equipped[i];
+    if (id) {
+      d.appendChild(iconCanvas(BY_ID[id], 44));
+      d.onclick = () => { sfx.click(); artSelected = id; renderArtifacts(); };
+    }
+    sl.appendChild(d);
+  }
+  // карточка выбранного
+  const det = $('#art-detail');
+  const a = artSelected && BY_ID[artSelected];
+  det.classList.toggle('hidden', !a);
+  if (a) {
+    const on = S.equipped.includes(a.id);
+    det.innerHTML = '';
+    det.appendChild(iconCanvas(a, 50));
+    det.insertAdjacentHTML('beforeend', `<div class="nm">${a.name}</div><div class="rr" style="color:${a.cursed ? '#7a1d1b' : '#2a2522'}">${a.cursed ? 'проклятый · ' : ''}${a.rarity.name}</div><div class="ds">${a.desc}</div>`);
+    const b = document.createElement('button');
+    b.className = 'btn';
+    if (a.passive) { b.textContent = 'Действует всегда'; b.disabled = true; }
+    else if (on) b.textContent = 'Снять';
+    else if (S.equipped.length >= slots) { b.textContent = 'Все места заняты'; b.disabled = true; }
+    else b.textContent = 'Взять в забег';
+    b.onclick = () => {
+      sfx.click();
+      if (on) S.equipped = S.equipped.filter(x => x !== a.id); else S.equipped.push(a.id);
+      save(); renderArtifacts();
+    };
+    det.appendChild(b);
+  }
+  // фильтр
+  const tabs = $('#art-tabs');
+  tabs.innerHTML = '';
+  [['all', 'Все'], ['good', 'Полезные'], ['cursed', 'Проклятые'], ['mine', 'Мои']].forEach(([k, nm]) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (artFilter === k ? ' on' : '');
+    b.textContent = nm;
+    b.onclick = () => { sfx.click(); artFilter = k; renderArtifacts(); };
+    tabs.appendChild(b);
+  });
+  const grid = $('#art-grid');
+  grid.innerHTML = '';
+  for (const x of ARTIFACTS) {
+    const owned = S.inventory.includes(x.id);
+    if (artFilter === 'good' && x.cursed) continue;
+    if (artFilter === 'cursed' && !x.cursed) continue;
+    if (artFilter === 'mine' && !owned) continue;
+    const c = document.createElement('div');
+    c.className = 'art-cell' + (S.equipped.includes(x.id) ? ' on' : '');
+    if (owned) {
+      c.appendChild(iconCanvas(x, 44));
+      c.onclick = () => { sfx.click(); artSelected = x.id; renderArtifacts(); $('#artifacts').scrollTop = 0; };
+    } else c.textContent = '?';
+    grid.appendChild(c);
+  }
+}
+
+// ---------- лавка ----------
+function shopSeed() { return Math.floor(S.records.roomsCleared / ECONOMY.shopRotateRooms) * 31 + S.shop.shift * 7 + 1; }
+
+function renderShop() {
+  const tabs = $('#shop-tabs');
+  tabs.innerHTML = '';
+  [['art', 'Артефакты'], ['skins', 'Облики']].forEach(([k, nm]) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (shopTab === k ? ' on' : '');
+    b.textContent = nm;
+    b.onclick = () => { sfx.click(); shopTab = k; renderShop(); };
+    tabs.appendChild(b);
+  });
+  $('#shop-art').classList.toggle('hidden', shopTab !== 'art');
+  $('#shop-reroll').classList.toggle('hidden', shopTab !== 'art');
+  $('#skin-list').classList.toggle('hidden', shopTab !== 'skins');
+  if (shopTab === 'art') renderShopArt(); else renderSkins();
+}
+
+function renderShopArt() {
+  const box = $('#shop-art');
+  box.innerHTML = '';
+  const offers = shopOffers(shopSeed(), ECONOMY.shopSize, S.inventory);
+  if (!offers.length) box.innerHTML = '<div class="records">Прилавок пуст. Загляни после пары комнат.</div>';
+  for (const a of offers) {
+    const d = document.createElement('div');
+    d.className = 'offer' + (a.cursed ? ' cursed' : '');
+    d.appendChild(iconCanvas(a, 50));
+    d.insertAdjacentHTML('beforeend', `<div class="nm">${a.name}</div><div class="ds">${a.desc}</div>`);
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = `Купить · ${a.price}`;
+    b.disabled = S.gold < a.price;
+    b.onclick = () => {
+      if (S.gold < a.price) return;
+      sfx.coin();
+      S.gold -= a.price; S.inventory.push(a.id); save();
+      renderShop(); updateWallet();
+    };
+    d.appendChild(b);
+    box.appendChild(d);
+  }
+  const rr = $('#shop-reroll');
+  rr.textContent = `Другой товар · ${ECONOMY.shopRerollPrice}`;
+  rr.disabled = S.gold < ECONOMY.shopRerollPrice;
+  rr.onclick = () => {
+    if (S.gold < ECONOMY.shopRerollPrice) return;
+    sfx.click();
+    S.gold -= ECONOMY.shopRerollPrice; S.shop.shift++; save();
+    renderShop(); updateWallet();
+  };
+}
+
+function renderSkins() {
+  const list = $('#skin-list');
+  list.innerHTML = '';
+  for (const s of SKINS) {
+    const owned = S.ownedSkins.includes(s.id);
+    const equipped = S.skin === s.id;
+    const card = document.createElement('div');
+    card.className = 'skin' + (equipped ? ' equipped' : '');
+    const c = document.createElement('canvas');
+    c.width = 220; c.height = 230;
+    const cx = c.getContext('2d');
+    for (let x = 0; x < 220; x += 36) { cx.fillStyle = (x / 36) % 2 ? '#cbbd9f' : '#e4d8c0'; cx.fillRect(x, 0, 36, 230); }
+    cx.fillStyle = '#776a5b'; cx.fillRect(0, 200, 220, 30);
+    cx.save(); cx.translate(106, 208); cx.scale(0.98, 0.98);
+    if (rigReady()) drawRigHero(cx, 0, 0, 'idle', 0, s);
+    else drawHero(cx, 0, 0, 'idle', 0, s, makeRng(3));
+    cx.restore();
+    card.appendChild(c);
+    card.insertAdjacentHTML('beforeend', `<div class="name">${s.name}</div>`);
+    const b = document.createElement('button');
+    b.className = 'btn';
+    if (equipped) { b.textContent = 'Надето'; b.disabled = true; }
+    else if (owned) b.textContent = 'Надеть';
+    else { b.textContent = `Купить · ${s.price}`; b.disabled = S.gold < s.price; }
+    b.onclick = () => {
+      sfx.click();
+      if (!owned) { if (S.gold < s.price) return; S.gold -= s.price; S.ownedSkins.push(s.id); sfx.coin(); }
+      S.skin = s.id; save();
+      if (demo) demo.skin = s;
+      renderShop(); updateWallet();
+    };
+    card.appendChild(b);
+    list.appendChild(card);
+  }
+}
+
+// ---------- настройки ----------
+const DIFF_DESC = {
+  easy: 'Медленнее, больше места между препятствиями, подсказки всегда. Оболы ×1.',
+  normal: 'Как задумано. Оболы ×1.3.',
+  hard: 'Быстрее, теснее, чаще сдвоенные препятствия. Оболы ×1.7.',
+  nightmare: 'Одно сердце. Всё быстрее и злее. Оболы ×2.5, артефакты находятся чаще.',
+};
+function renderSettings() {
+  const st = S.settings;
+  $('#set-diff').textContent = 'Сложность: ' + DIFFICULTY[diff()].name;
+  $('#diff-desc').textContent = DIFF_DESC[diff()];
+  $('#set-sound').textContent = 'Звук: ' + (st.sound ? 'вкл' : 'выкл');
+  $('#set-vibration').textContent = 'Вибрация: ' + (st.vibration ? 'вкл' : 'выкл');
+  $('#set-paper').textContent = 'Эффект бумаги: ' + (st.paper ? 'вкл' : 'выкл');
+}
+function toggleSetting(key) {
+  S.settings[key] = !S.settings[key];
+  save();
+  setSoundEnabled(S.settings.sound);
+  if (demo) demo.opts.paperFx = S.settings.paper;
+  sfx.click();
+  renderSettings();
+}
+$('#set-diff').onclick = () => {
+  const i = DIFF_ORDER.indexOf(diff());
+  S.settings.difficulty = DIFF_ORDER[(i + 1) % DIFF_ORDER.length];
+  save(); sfx.click(); renderSettings();
+};
+$('#set-sound').onclick = () => toggleSetting('sound');
+$('#set-vibration').onclick = () => toggleSetting('vibration');
+$('#set-paper').onclick = () => toggleSetting('paper');
+let resetArmed = false;
+$('#set-reset').onclick = () => {
+  const b = $('#set-reset');
+  if (!resetArmed) {
+    resetArmed = true;
+    b.textContent = 'Точно? Нажми ещё раз';
+    setTimeout(() => { resetArmed = false; b.textContent = 'Сбросить прогресс'; }, 3000);
+    return;
+  }
+  resetArmed = false;
+  S = resetSave();
+  setSoundEnabled(S.settings.sound);
+  b.textContent = 'Прогресс сброшен';
+  renderSettings();
+};
+
+$$('[data-go]').forEach(b => b.addEventListener('click', () => { sfx.click(); show(b.dataset.go); }));
+
+// ---------- пауза ----------
+function pause() {
+  if (!game || game.status !== 'running' || paused) return;
+  paused = true;
+  sfx.click();
+  show('pause');
+}
+function resume() { paused = false; show(null); }
+$('#btn-resume').onclick = () => { sfx.click(); resume(); };
+$$('.btn-restart').forEach(b => b.onclick = () => { sfx.click(); startRun(currentLevel.kind === 'room' ? roomLevel(currentLevel.room, diff()) : endlessLevel(diff())); });
+$$('.btn-tomenu').forEach(b => b.onclick = () => { sfx.click(); startDemo(); show('menu'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+
+// ---------- управление ----------
+setupInput(cvs, (a, e) => {
+  unlockAudio();
+  const r = cvs.getBoundingClientRect();
+  const x = e ? (e.clientX - r.left) * L.SW / r.width : 0, y = e ? (e.clientY - r.top) * L.SH / r.height : 0;
+  if (comic) { if (a !== 'pause') comic.tap(x, y); return; }
+  if (a === 'pause') { paused ? resume() : pause(); return; }
+  if (a === 'shoot' && e && hud && hud.hitEye(x, y)) { pause(); return; }
+  if (game && !paused) game.action(a);
+});
+document.addEventListener('pointerdown', unlockAudio, { once: true });
+
+// ---------- цикл ----------
+let last = performance.now();
+let time = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  time += dt;
+  const k = cvs.width / L.SW;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.fillStyle = '#050404';
+  ctx.fillRect(0, 0, L.SW, L.SH);
+  if (comic) {
+    comic.draw(ctx, time, dt);
+  } else {
+    const g = game || demo;
+    if (g) {
+      if (!(game && paused)) g.update(dt);
+      ctx.save();
+      if (L.framed) { ctx.beginPath(); ctx.rect(L.win.x, L.win.y, L.win.w, L.win.h); }
+      else windowPath(ctx, L.win);
+      ctx.clip();
+      ctx.translate(L.win.x, L.win.y);
+      ctx.scale(L.win.s, L.win.s);
+      g.draw(ctx);
+      ctx.restore();
+    }
+    ctx.drawImage(frameImg, 0, 0, L.SW, L.SH);
+    if (game) hud.draw(ctx, game, time, paused ? 0 : dt);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- старт ----------
+setSoundEnabled(S.settings.sound);
+Promise.all([loadImages(), loadHeroRig(), loadDemon()]).then(() => resize()).then(() => document.fonts?.load('bold 40px "Amatic SC"', 'АБВ abc 0123')).then(() => {
+  startDemo();
+  show('menu');
+  requestAnimationFrame(frame);
+});
+
+// для отладки из консоли
+window.__dsr = {
+  get game() { return game; }, get comic() { return comic; }, get save() { return S; },
+  startRoom, startEndless, startRun, playComic, roomLevel, endlessLevel, computeMods,
+};

@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=c696fe3';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=c696fe3';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=c696fe3';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=c696fe3';
-import { ENEMY } from './enemies.js?v=c696fe3';
-import * as art from './art.js?v=c696fe3';
-import { drawRigHero, rigReady } from './rig.js?v=c696fe3';
-import { recolor } from './pixels.js?v=c696fe3';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=c696fe3';
-import { EXITS } from './rooms.js?v=c696fe3';
-import { sfx } from './audio.js?v=c696fe3';
+import * as THREE from '../vendor/three.module.min.js?v=23f1669';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=23f1669';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=23f1669';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=23f1669';
+import { ENEMY } from './enemies.js?v=23f1669';
+import * as art from './art.js?v=23f1669';
+import { drawRigHero, rigReady } from './rig.js?v=23f1669';
+import { recolor } from './pixels.js?v=23f1669';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=23f1669';
+import { EXITS } from './rooms.js?v=23f1669';
+import { sfx } from './audio.js?v=23f1669';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -779,6 +779,9 @@ export class World3D {
   leaveTitle(done) { this.mode = 'leave'; this.modeT = 0; this.onLeft = done; }
 
   startRun(game) {
+    // откуда Флит начинает разбег (из меню, из лобби или после комикса) — чтобы переход был плавным
+    const r = this.hero?.root;
+    this.introFrom = r && this.mode !== 'run' ? { x: r.position.x, z: r.position.z, yaw: r.rotation.y } : { x: -0.75, z: 0, yaw: -Math.PI / 2 - 0.55 };
     this.clearRun();
     this.mode = 'run'; this.modeT = 0;
     this.game = game;
@@ -856,11 +859,12 @@ export class World3D {
       this.dist = g.dist;
       const hx = g.hx * LANE;
       const dying = g.status === 'dying' || (g.status === 'over' && g.deathT !== undefined);
-      const intro = ease(this.modeT / 0.6);
+      const intro = ease(this.modeT / 0.9);
       if (!dying) {
         h.root.visible = !(g.p.invuln > 0 && g.cloakT <= 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running') && !(g.cloakT > 0 && g.cloakT < 1.5 && Math.floor(t * 10) % 2 === 0);
-        h.root.position.set(lerp(-0.75, hx, intro), g.base + g.y, 0);
-        h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), h.cut ? 0 : (g.lane - g.hx) * 0.25);
+        const F = this.introFrom || { x: -0.75, z: 0, yaw: 0 };
+        h.root.position.set(lerp(F.x, hx, intro), g.base + g.y, lerp(F.z, 0, intro));
+        h.root.rotation.set(0, h.cut ? lerp(F.yaw, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), h.cut ? 0 : (g.lane - g.hx) * 0.25);
         const rs = lerp(1, RUN_SCALE, intro);
         h.root.scale.set(rs * (this.look?.sx || 1), rs * (this.look?.sy || 1), rs * (this.look?.sx || 1));
         // финиш: сначала к двери по центру, потом внутрь (из боковой дорожки — не в стену)
@@ -912,7 +916,7 @@ export class World3D {
       camPos = [0, 1.5, 4]; camLook = [0, 1, -2];
     }
     // камера плавно догоняет цель
-    const sp = Math.min(1, dt * (this.mode === 'run' ? 6 : 3));
+    const sp = Math.min(1, dt * (this.mode === 'run' ? (this.modeT < 1.2 ? 2.8 : 6) : 3));   // на старте камера облетает Флита плавно
     this.camPos.lerp(new THREE.Vector3(...camPos), this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp);
     this.camLook.lerp(new THREE.Vector3(...camLook), this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp);
     this.camera.position.copy(this.camPos);
@@ -1348,7 +1352,9 @@ export class Run3D extends Game3D {
     if (Lv.name && T < 2.6) {
       ctx.globalAlpha = Math.min(1, T * 3, (2.6 - T) * 2);
       ctx.textAlign = 'center';
-      ctx.font = font(56); outlined(`${Lv.name} · ${Lv.place}`, W / 2, yb, '#e8dcc4', 8);
+      const ttl = `${Lv.name} · ${Lv.place}`; let fs = 56; ctx.font = font(fs);
+      while (fs > 30 && ctx.measureText(ttl).width > W - 40) { fs -= 2; ctx.font = font(fs); }
+      outlined(ttl, W / 2, yb, '#e8dcc4', 8);
       yb += 50;
       if (Lv.fresh?.length) { ctx.font = font(36); outlined('Новый враг: ' + Lv.fresh.join(', '), W / 2, yb, '#f2d27a', 6); yb += 46; }
       ctx.globalAlpha = 1;

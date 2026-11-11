@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=c696fe3';
-import { Game } from './game.js?v=c696fe3';
-import { Game3D } from './game3d.js?v=c696fe3';
-import { World3D, Run3D } from './three3d.js?v=c696fe3';
-import { setupInput } from './input.js?v=c696fe3';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=c696fe3';
-import { getSave, save, resetSave } from './storage.js?v=c696fe3';
-import { drawHero, makeRng, drawPit } from './art.js?v=c696fe3';
-import { drawTrapdoor } from './enemies.js?v=c696fe3';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=c696fe3';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=c696fe3';
-import { loadDemon } from './demon.js?v=c696fe3';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=c696fe3';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=c696fe3';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=c696fe3';
-import { ComicPlayer } from './comic.js?v=c696fe3';
-import { MINIGAMES } from './minigames.js?v=c696fe3';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=c696fe3';
-import { recolor } from './pixels.js?v=c696fe3';
-import { ENEMY } from './enemies.js?v=c696fe3';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=c696fe3';
-import { GROUND_Y } from './config.js?v=c696fe3';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=23f1669';
+import { Game } from './game.js?v=23f1669';
+import { Game3D } from './game3d.js?v=23f1669';
+import { World3D, Run3D } from './three3d.js?v=23f1669';
+import { setupInput } from './input.js?v=23f1669';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=23f1669';
+import { getSave, save, resetSave } from './storage.js?v=23f1669';
+import { drawHero, makeRng, drawPit } from './art.js?v=23f1669';
+import { drawTrapdoor } from './enemies.js?v=23f1669';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=23f1669';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=23f1669';
+import { loadDemon } from './demon.js?v=23f1669';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=23f1669';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=23f1669';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=23f1669';
+import { ComicPlayer } from './comic.js?v=23f1669';
+import { MINIGAMES } from './minigames.js?v=23f1669';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=23f1669';
+import { recolor } from './pixels.js?v=23f1669';
+import { ENEMY } from './enemies.js?v=23f1669';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=23f1669';
+import { GROUND_Y } from './config.js?v=23f1669';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -183,19 +183,17 @@ function toLobby() {
   if (!world) return;
   sfx.click();
   show(null);
-  world.leaveTitle(() => {
-    fade(true);
-    setTimeout(() => {
-      // «Старт» в меню — сразу забег, без ещё одного подтверждения в лобби
-      if (!S.seenComics.includes('prologue')) { fade(false); playComic('prologue', startMain); }
-      else startMain();
-    }, 380);
-  });
+  // первый запуск: Флит убегает, затемнение, пролог-комикс, потом забег
+  if (!S.seenComics.includes('prologue')) {
+    world.leaveTitle(() => { fade(true); setTimeout(() => { fade(false); playComic('prologue', startMain); }, 380); });
+    return;
+  }
+  // дальше — без чёрного экрана: Флит прямо из меню разворачивается и бежит, камера облетает его за спину
+  startMain();
 }
 function startMain() {
   world.setHero(currentSkin(), currentChar().weapon);
   if (S.settings.endless) startEndless(); else startRoom(Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1));
-  setTimeout(() => fade(false), 60);
 }
 function enterLobby() {
   game = null; demo = null; comic = null; mini = null;

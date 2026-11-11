@@ -14,6 +14,7 @@ const OBST = ENEMY;
 const isPit = (o) => OBST[o.type].pitLike && (o.open ?? 1) > 0.6;
 
 const rand = (a, b) => a + Math.random() * (b - a);
+const smooth01 = (v) => { const x = Math.max(0, Math.min(1, v)); return x * x * (3 - 2 * x); };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 function pickWeighted(weights) {
@@ -434,6 +435,17 @@ export class Game {
       sfx.win();
     }
 
+    // смерть: чернильные струйки поднимают героя к стене
+    if (this.deathT !== undefined && this.lives <= 0) {
+      this.deathT += dt;
+      const k = Math.min(1, Math.max(0, (this.deathT - 0.5) / 1.0));
+      if (this.deathT > 0.45 && this.deathT < 1.7 && Math.random() < 0.7) {
+        const f = this.deathFoot();
+        this.particles.push({ kind: 'dust', x: this.camX + f.x + rand(-50, 50), y: f.y - rand(0, 150 * (1 - k * 0.5)),
+          vx: rand(-30, 30), vy: rand(-220, -120), life: rand(0.5, 0.9), max: 0.9, rot: 0, size: rand(4, 9), color: '#16120f', g: -60 });
+      }
+    }
+
     // частицы и надписи
     for (const q of this.particles) {
       q.life -= dt;
@@ -540,7 +552,8 @@ export class Game {
     }
     if (this.lives <= 0) {
       this.status = 'dying';
-      this.endTimer = 1.4;
+      this.endTimer = 2.5;
+      this.deathT = 0;      // анимация «стал портретом»
       sfx.lose();
     }
   }
@@ -688,7 +701,8 @@ export class Game {
     // герой
     const p = this.p;
     const blink = p.invuln > 0 && Math.floor(t * 16) % 2 === 0;
-    if (!blink) {
+    if (this.deathT !== undefined && this.lives <= 0) this.drawDeath(ctx, t);
+    else if (!blink) {
       let pose = 'run';
       if (this.status === 'dying' || this.status === 'over' && this.lives <= 0) pose = 'slide';
       else if (p.slideT > 0) pose = 'slide';
@@ -840,6 +854,82 @@ export class Game {
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(this.overlay, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // ---------- «Ты стал портретом» ----------
+  // Где портрет висит на стене и где сейчас ступни героя (в координатах кадра).
+  deathFrame() { return { x: PLAYER_X + 80, y: 245, rx: 74, ry: 98 }; }
+  deathFoot() {
+    const F = this.deathFrame();
+    const k = smooth01((this.deathT - 0.5) / 1.0);
+    return { x: PLAYER_X + (F.x - PLAYER_X) * k, y: GROUND_Y + (F.y + F.ry + 62 - GROUND_Y) * k, k };
+  }
+
+  drawDeath(ctx, t) {
+    const T = this.deathT, F = this.deathFrame();
+    const foot = this.deathFoot();
+    const k2 = Math.min(1, Math.max(0, (T - 1.0) / 0.8));     // рама прорисовывается
+    const k3 = Math.min(1, Math.max(0, (T - 1.7) / 0.6));     // краски выцветают
+    const oval = () => { ctx.beginPath(); ctx.ellipse(F.x, F.y, F.rx, F.ry, 0, 0, Math.PI * 2); };
+    // фон холста
+    if (k2 > 0) {
+      ctx.save(); oval(); ctx.globalAlpha = k2;
+      const g = ctx.createRadialGradient(F.x, F.y - 20, 10, F.x, F.y, F.ry);
+      g.addColorStop(0, '#6a5a48'); g.addColorStop(1, '#2a2119');
+      ctx.fillStyle = g; ctx.fill(); ctx.restore();
+    }
+    // сам Флит: лежит → поднимается к стене → застывает в раме
+    ctx.save();
+    if (foot.k > 0.7) { oval(); ctx.clip(); }
+    const sway = k3 >= 1 ? Math.sin(t * 1.2) * 0.012 : 0;
+    ctx.translate(foot.x, foot.y);
+    ctx.rotate(sway);
+    const sc = HERO_SCALE * (1 - 0.22 * foot.k);
+    ctx.scale(sc, sc);
+    const pose = foot.k < 0.08 ? 'slide' : 'idle';
+    if (rigReady()) drawRigHero(ctx, 0, 0, pose, foot.k > 0.95 ? 0 : t, this.skin, { hurt: true });
+    else art.drawHero(ctx, 0, 0, pose, t, this.skin, art.makeRng(1), { hurt: true });
+    ctx.restore();
+    // выцветание в сепию
+    if (k3 > 0) {
+      ctx.save(); oval(); ctx.clip();
+      ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = `rgba(128,128,128,${k3})`; ctx.fillRect(F.x - F.rx, F.y - F.ry, F.rx * 2, F.ry * 2);
+      ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgba(214,184,140,${0.7 * k3})`; ctx.fillRect(F.x - F.rx, F.y - F.ry, F.rx * 2, F.ry * 2);
+      ctx.globalCompositeOperation = 'source-over';
+      const v = ctx.createRadialGradient(F.x, F.y, F.ry * 0.4, F.x, F.y, F.ry);
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(20,14,10,${0.6 * k3})`);
+      ctx.fillStyle = v; ctx.fillRect(F.x - F.rx, F.y - F.ry, F.rx * 2, F.ry * 2);
+      ctx.restore();
+    }
+    // рама рисуется по кругу, как будто её выводит невидимое перо
+    if (k2 > 0) {
+      ctx.save();
+      const a0 = -Math.PI / 2, a1 = a0 + Math.PI * 2 * k2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#16120f'; ctx.lineWidth = 24;
+      ctx.beginPath(); ctx.ellipse(F.x, F.y, F.rx + 10, F.ry + 10, 0, a0, a1); ctx.stroke();
+      ctx.strokeStyle = '#7a5a36'; ctx.lineWidth = 16;
+      ctx.beginPath(); ctx.ellipse(F.x, F.y, F.rx + 10, F.ry + 10, 0, a0, a1); ctx.stroke();
+      ctx.strokeStyle = '#c9a24a'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(F.x, F.y, F.rx + 4, F.ry + 4, 0, a0, a1); ctx.stroke();
+      ctx.restore();
+    }
+    // латунная табличка с именем
+    if (k3 > 0) {
+      ctx.save(); ctx.globalAlpha = k3;
+      ctx.fillStyle = '#c9a24a'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(F.x - 62, F.y + F.ry + 22, 124, 34, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#16120f'; ctx.font = 'bold 28px "Amatic SC", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Ф. ВЕЙН', F.x, F.y + F.ry + 40);
+      ctx.restore();
+    }
+    // гвоздь и шнур
+    if (k3 > 0) {
+      ctx.save(); ctx.globalAlpha = k3; ctx.strokeStyle = '#2a2119'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(F.x - 40, F.y - F.ry - 4); ctx.lineTo(F.x, F.y - F.ry - 44); ctx.lineTo(F.x + 40, F.y - F.ry - 4); ctx.stroke();
+      ctx.fillStyle = '#16120f'; ctx.beginPath(); ctx.arc(F.x, F.y - F.ry - 44, 4, 0, 7); ctx.fill();
       ctx.restore();
     }
   }

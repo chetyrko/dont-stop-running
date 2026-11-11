@@ -216,3 +216,9 @@ h2 { margin: 0 0 6px; font-size: 84px; line-height: 0.95; color: var(--paper); t
 .ctl .g { font-size: 46px; color: #f2d27a; text-align: center; font-family: sans-serif; }
 .ctl .a { font-size: 38px; color: #e8dcc4; }
 .ctl .w { font-size: 28px; color: #b9b5ae; line-height: 1.05; }
+
+/* поражение: надпись и кнопки под окном, окно с портретом видно */
+#over { justify-content: flex-start; padding-top: calc(var(--win-bottom) + 30px);
+  background: linear-gradient(to bottom, rgba(5,4,4,0.15) 0, rgba(5,4,4,0.15) var(--win-bottom), rgba(5,4,4,0.92) calc(var(--win-bottom) + 10px)); }
+#over h2 { font-size: 72px; }
+#over .result { font-size: 44px; }

@@ -90,6 +90,10 @@ export const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
 export const UPGRADE_PRICES = [800, 2000, 4500, 9000, 16000];
 export const UPGRADES = [
   { id: 'magnet', name: 'Магнит', ico: '🧲', desc: (l) => `Магнит действует ${Math.round(14 * (1 + 0.25 * l))} с` },
+  { id: 'wings', name: 'Вороньи крылья', ico: '🪶', desc: (l) => `Высокие прыжки ${Math.round(10 * (1 + 0.25 * l))} с` },
+  { id: 'double', name: 'Пара оболов', ico: '🪙', desc: (l) => `Оболы вдвойне ${Math.round(12 * (1 + 0.25 * l))} с` },
+  { id: 'cloak', name: 'Саван', ico: '👻', desc: (l) => `Неуязвимость ${Math.round(6 * (1 + 0.25 * l) * 10) / 10} с` },
+  { id: 'fame', name: 'Слава поместья', ico: '⭐', desc: (l) => `Множитель очков ×${1 + l} с самого старта` },
   { id: 'weapon', name: 'Оружие', ico: '🎯', desc: (l) => `Перезарядка −${l * 8}%` + (l >= 3 ? ', пуля пробивает ещё одного' : '') + (l >= 5 ? ', двойной урон' : '') },
   { id: 'hero', name: 'Персонаж', ico: '🎩', perChar: true,
     desc: (l) => [`Неуязвимость после удара +${(l * 0.15).toFixed(2)} с`, `рывок чаще на ${l * 10}%`, l >= 2 ? 'щит на забег' : '', l >= 4 ? 'свеча: встать после смерти' : ''].filter(Boolean).join(', ') },
@@ -98,6 +102,7 @@ export const UPGRADES = [
 export function applyUpgrades(m, up = {}) {
   const mg = up.magnet || 0, wp = up.weapon || 0, hr = up.hero || 0;
   m.magnetMul = 1 + 0.25 * mg;
+  m.scoreMult += up.fame || 0;
   m.reloadMul *= 1 - 0.08 * wp;
   if (wp >= 3) m.pierce += 1;
   if (wp >= 5) m.dmgMul = 2;

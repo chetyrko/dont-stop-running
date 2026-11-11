@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=5c8dde1';
-import { Game } from './game.js?v=5c8dde1';
-import { Game3D } from './game3d.js?v=5c8dde1';
-import { World3D, Run3D } from './three3d.js?v=5c8dde1';
-import { setupInput } from './input.js?v=5c8dde1';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=5c8dde1';
-import { getSave, save, resetSave } from './storage.js?v=5c8dde1';
-import { drawHero, makeRng, drawPit } from './art.js?v=5c8dde1';
-import { drawTrapdoor } from './enemies.js?v=5c8dde1';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=5c8dde1';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=5c8dde1';
-import { loadDemon } from './demon.js?v=5c8dde1';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=5c8dde1';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=5c8dde1';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=5c8dde1';
-import { ComicPlayer } from './comic.js?v=5c8dde1';
-import { MINIGAMES } from './minigames.js?v=5c8dde1';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=5c8dde1';
-import { recolor } from './pixels.js?v=5c8dde1';
-import { ENEMY } from './enemies.js?v=5c8dde1';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=5c8dde1';
-import { GROUND_Y } from './config.js?v=5c8dde1';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=101040f';
+import { Game } from './game.js?v=101040f';
+import { Game3D } from './game3d.js?v=101040f';
+import { World3D, Run3D } from './three3d.js?v=101040f';
+import { setupInput } from './input.js?v=101040f';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=101040f';
+import { getSave, save, resetSave } from './storage.js?v=101040f';
+import { drawHero, makeRng, drawPit } from './art.js?v=101040f';
+import { drawTrapdoor } from './enemies.js?v=101040f';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=101040f';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=101040f';
+import { loadDemon } from './demon.js?v=101040f';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=101040f';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=101040f';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=101040f';
+import { ComicPlayer } from './comic.js?v=101040f';
+import { MINIGAMES } from './minigames.js?v=101040f';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=101040f';
+import { recolor } from './pixels.js?v=101040f';
+import { ENEMY } from './enemies.js?v=101040f';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=101040f';
+import { GROUND_Y } from './config.js?v=101040f';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -154,6 +154,8 @@ function startRun(level, extra = {}) {
     vibration: S.settings.vibration,
     upgrades: upgradeLevels(),
     floorSigns: !!S.settings.signs,
+    charms: S.charms || 0,
+    onCharm: () => { S.charms = Math.max(0, (S.charms || 0) - 1); save(); },
     paperFx: S.settings.paper,
     equipped: S.equipped,
     seenHints: S.seenHints,
@@ -569,7 +571,7 @@ function renderShop() {
 // ---------- прокачка ----------
 function upgradeLevels() {
   const U = S.upgrades || {};
-  return { magnet: U.magnet || 0, weapon: U.weapon || 0, hero: (U.hero || {})[S.char] || 0 };
+  return { magnet: U.magnet || 0, wings: U.wings || 0, double: U.double || 0, cloak: U.cloak || 0, fame: U.fame || 0, weapon: U.weapon || 0, hero: (U.hero || {})[S.char] || 0 };
 }
 function renderUpgrades() {
   const box = $('#upg-shop');
@@ -596,6 +598,14 @@ function renderUpgrades() {
     d.appendChild(b);
     box.appendChild(d);
   }
+  // оберег — расходуемая вторая жизнь
+  const ch = document.createElement('div');
+  ch.className = 'upg';
+  const CP = 600;
+  ch.innerHTML = `<div class="ico">🕯️</div><div class="txt"><div class="nm">Оберег · есть ${S.charms || 0}</div><div class="ds">Сгорает, когда ты должен стать портретом, — и ты бежишь дальше. Тратится сам.</div></div>`;
+  const cb = document.createElement('button'); cb.className = 'btn'; cb.textContent = `Купить · ${CP}`; cb.disabled = S.gold < CP;
+  cb.onclick = () => { if (S.gold < CP) return; S.gold -= CP; S.charms = (S.charms || 0) + 1; save(); sfx.coin(); renderUpgrades(); updateWallet(); };
+  ch.appendChild(cb); box.appendChild(ch);
   box.insertAdjacentHTML('beforeend', '<div class="records">Персонаж прокачивается у каждого свой: выбери другого в «Персонажах», чтобы прокачать его.</div>');
 }
 

@@ -27,7 +27,8 @@ const DEFAULT = {
   seenLore: [],        // какие сюжетные записки уже прочитаны
   bestiary: {},        // монстры: { вид: { first: комната первой встречи, runs: забегов с ним, kills: убито } }
   shop: { shift: 0, bought: [] },
-  upgrades: { magnet: 0, weapon: 0, hero: {} },   // прокачка: уровни 0..5, у персонажа — свой уровень у каждого
+  upgrades: { magnet: 0, wings: 0, double: 0, cloak: 0, fame: 0, weapon: 0, hero: {} },
+  charms: 0,          // обереги — вторые жизни
 };
 
 function merge(d) {

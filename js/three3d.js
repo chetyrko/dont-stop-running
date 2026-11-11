@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=5c8dde1';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=5c8dde1';
-import { Hero3D } from './hero3d.js?v=5c8dde1';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=5c8dde1';
-import { ENEMY } from './enemies.js?v=5c8dde1';
-import * as art from './art.js?v=5c8dde1';
-import { drawRigHero, rigReady } from './rig.js?v=5c8dde1';
-import { recolor } from './pixels.js?v=5c8dde1';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=5c8dde1';
-import { EXITS } from './rooms.js?v=5c8dde1';
-import { sfx } from './audio.js?v=5c8dde1';
+import * as THREE from '../vendor/three.module.min.js?v=101040f';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=101040f';
+import { Hero3D } from './hero3d.js?v=101040f';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=101040f';
+import { ENEMY } from './enemies.js?v=101040f';
+import * as art from './art.js?v=101040f';
+import { drawRigHero, rigReady } from './rig.js?v=101040f';
+import { recolor } from './pixels.js?v=101040f';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=101040f';
+import { EXITS } from './rooms.js?v=101040f';
+import { sfx } from './audio.js?v=101040f';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -531,6 +531,28 @@ function makeHighBar() {
   return { g };
 }
 
+// бонусы, кроме магнита: перья, пара оболов, саван
+function makePickup(kind) {
+  if (kind === 'magnet') return makeMagnetHand();
+  const g = new THREE.Group(), r = new THREE.Group(); g.add(r);
+  const glowC = { wings: 0x9fb7ff, double: 0xffd27a, cloak: 0xd8e0ff }[kind];
+  if (kind === 'wings') {
+    for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const f = piece(new THREE.ConeGeometry(0.06, 0.55 - i * 0.08, 6), 0x15121a, [s * (0.1 + i * 0.07), 0.05 + i * 0.04, 0]);
+      f.rotation.z = s * (0.9 + i * 0.25); r.add(f);
+    }
+  } else if (kind === 'double') {
+    for (const x of [-0.13, 0.13]) { const c = piece(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 20), 0xd6a93c, [x, 0, x * 0.3], { emissive: 0x3a2400 }); c.rotation.x = Math.PI / 2; r.add(c); }
+  } else if (kind === 'cloak') {
+    const c = piece(new THREE.ConeGeometry(0.32, 0.8, 14, 1, true), 0xeef0ff, [0, 0, 0], { opacity: 0.75 }); r.add(c);
+    r.add(ball(0.16, 0xeef0ff, [0, 0.4, 0], { opacity: 0.8 }));
+    for (const x of [-0.06, 0.06]) r.add(ball(0.025, 0x111111, [x, 0.42, 0.14], { noOutline: true }));
+  }
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), new THREE.MeshBasicMaterial({ color: glowC, transparent: true, opacity: 0.22, depthWrite: false }));
+  r.add(glow);
+  return { g };
+}
+
 // рука из пола держит подкову-магнит
 function makeMagnetHand() {
   const g = new THREE.Group(), r = new THREE.Group(); g.add(r);
@@ -812,7 +834,7 @@ export class World3D {
       const dying = g.status === 'dying' || (g.status === 'over' && g.deathT !== undefined);
       const intro = ease(this.modeT / 0.6);
       if (!dying) {
-        h.root.visible = !(g.p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running');
+        h.root.visible = !(g.p.invuln > 0 && g.cloakT <= 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running') && !(g.cloakT > 0 && g.cloakT < 1.5 && Math.floor(t * 10) % 2 === 0);
         h.root.position.set(lerp(-0.75, hx, intro), g.base + g.y, 0);
         h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 - 0.55, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), h.cut ? 0 : (g.lane - g.hx) * 0.25);
         const rs = lerp(1, RUN_SCALE, intro);
@@ -1127,7 +1149,7 @@ export class World3D {
       put(key, () => ({ g: ball(b.rifle ? 0.08 : 0.06, 0x2a2522, [0, 0, 0], { noOutline: true }) }), b.lane * LANE, 1.25, -(b.z - Z_HERO));
     }
     for (const m of g.magnets) {
-      put('m' + m.id, () => makeMagnetHand(), m.lane * LANE, 0, -(m.z - Z_HERO), (v) => { v.g.children[0].rotation.y = t * 2.5; v.g.children[0].position.y = 1.0 + Math.sin(t * 3) * 0.1; });
+      put('m' + m.id, () => makePickup(m.kind || 'magnet'), m.lane * LANE, 0, -(m.z - Z_HERO), (v) => { v.g.children[0].rotation.y = t * 2.5; v.g.children[0].position.y = 1.0 + Math.sin(t * 3) * 0.1; });
     }
     this.syncGallery(g, t);
     // тень-преследователь: после удара бежит за спиной Флита
@@ -1209,7 +1231,11 @@ export class Run3D extends Game3D {
     ctx.fillStyle = '#d6a93c'; ctx.strokeStyle = '#120d0b'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(W - 40, 72, 18, 0, 7); ctx.fill(); ctx.stroke();
     // магнит
-    if (this.magnetT > 0) { ctx.font = font(40); ctx.textAlign = 'left'; outlined(`🧲 ${Math.ceil(this.magnetT)}`, 26, 118, '#f2a0a0'); }
+    {
+      const act = [['🧲', this.magnetT, '#f2a0a0'], ['🪶', this.wingsT, '#b8c8ff'], ['🪙', this.doubleT, '#f0d27c'], ['👻', this.cloakT, '#e8ecff']].filter(x => x[1] > 0);
+      ctx.font = font(38); ctx.textAlign = 'left';
+      act.forEach(([ic, tm, col], i) => outlined(`${ic} ${Math.ceil(tm)}`, 22 + i * 92, 118, col));
+    }
     // подсказка над лестницей
     if (this.stairs && this.base < 0.3 && rect) {
       const S = this.stairs, ahead = S.a - this.dist;

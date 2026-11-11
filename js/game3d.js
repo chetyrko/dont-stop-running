@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=5c8dde1';
-import * as art from './art.js?v=5c8dde1';
-import { sfx } from './audio.js?v=5c8dde1';
-import { computeMods } from './artifacts.js?v=5c8dde1';
-import { applyCharacter, applyUpgrades } from './characters.js?v=5c8dde1';
-import { ENEMY } from './enemies.js?v=5c8dde1';
-import { demonReady, drawDemon } from './demon.js?v=5c8dde1';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=101040f';
+import * as art from './art.js?v=101040f';
+import { sfx } from './audio.js?v=101040f';
+import { computeMods } from './artifacts.js?v=101040f';
+import { applyCharacter, applyUpgrades } from './characters.js?v=101040f';
+import { ENEMY } from './enemies.js?v=101040f';
+import { demonReady, drawDemon } from './demon.js?v=101040f';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -98,6 +98,7 @@ export class Game3D {
     this.y = 0; this.vy = 0;             // высота прыжка
     this.p = { slideT: 0, shootCd: 0, invuln: 0, hurtT: 0, flash: 0, run: 0 };
     this.enter = 0; this.deathT = undefined;
+    this.wingsT = 0; this.doubleT = 0; this.cloakT = 0; this.charms = this.opts.charms || 0;
     this.base = 0; this.magnetT = 0; this.magnets = []; this.stairs = null; this.nextMagnet = this.dist + 140 + Math.random() * 80;
     this.runT = 0; this.streak = 0; this.mult = 1; this.chase = 0; this.tier = 0; this.coinChain = 0; this.coinChainT = 0;
   }
@@ -130,7 +131,7 @@ export class Game3D {
     else if (a === 'right') this.lane = Math.min(1, this.lane + 1);
     else if (a === 'jump') {
       if (this.y > 0.001 && !(M.doubleJump && !p.dj)) { p.jumpBuf = 0.18; return; }
-      if (this.y <= 0.001) { this.vy = 7.3 * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
+      if (this.y <= 0.001) { this.vy = (this.wingsT > 0 ? 11.5 : 7.3) * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
       else if (M.doubleJump && !p.dj) { p.dj = true; this.vy = 6.8 * Math.sqrt(M.jumpMul); sfx.jump(); }
     }
     else if (a === 'dash') {
@@ -190,6 +191,16 @@ export class Game3D {
     if (!S) return false;
     if (lane === S.lane && d > S.a - 14 && d < S.b + 3) return true;
     return d > S.c - 5 && d < S.c + 24;
+  }
+
+  // ---------- бонусы ----------
+  // вороньи крылья — высокие прыжки над всем; пара оболов — каждый обол за два; саван — сквозь всё
+  takePower(kind) {
+    const up = this.opts.upgrades || {}, k = (l) => 1 + 0.25 * (l || 0);
+    if (kind === 'wings') { this.wingsT = 10 * k(up.wings); this.toast('Вороньи крылья! Прыгай выше всех', 1.8); }
+    if (kind === 'double') { this.doubleT = 12 * k(up.double); this.toast('Пара оболов: каждый за два', 1.8); }
+    if (kind === 'cloak') { this.cloakT = 6 * k(up.cloak); this.toast('Саван: ты призрак, тебя не задеть', 1.8); }
+    sfx.win();
   }
 
   // ---------- магнит, лестница и галерея ----------
@@ -311,8 +322,9 @@ export class Game3D {
       this.dist + FAR - 10 > this.nextMagnet && this.finish - this.nextMagnet > 200) {
       const zz = Z_HERO + this.nextMagnet - this.dist;
       const free = [-1, 0, 1].filter(l => !this.objs.some(o => o.lane === l && Math.abs(o.z - zz) < 4));
-      if (free.length) this.magnets.push({ lane: free[Math.floor(Math.random() * free.length)], z: zz, id: this.nextId++ });
-      this.nextMagnet += 300 + Math.random() * 200;
+      const r = Math.random(), kind = r < 0.35 ? 'magnet' : r < 0.6 ? 'wings' : r < 0.8 ? 'double' : 'cloak';
+      if (free.length) this.magnets.push({ lane: free[Math.floor(Math.random() * free.length)], z: zz, id: this.nextId++, kind });
+      this.nextMagnet += 220 + Math.random() * 160;
     }
     if (this.relicAt > 0 && this.dist + FAR - 10 > this.relicAt) {
       this.relics.push({ lane: [-1, 0, 1][Math.floor(Math.random() * 3)], z: Z_HERO + this.relicAt - this.dist, bias: 1 });
@@ -359,6 +371,7 @@ export class Game3D {
     for (const r of this.relics) r.z -= step;
     for (const m of this.magnets) m.z -= step;
     this.magnetT = Math.max(0, this.magnetT - dt);
+    this.wingsT = Math.max(0, this.wingsT - dt); this.doubleT = Math.max(0, this.doubleT - dt); this.cloakT = Math.max(0, this.cloakT - dt);
     // лестница → галерея → прыжок вниз
     const S = this.stairs;
     if (S && this.status === 'running') {
@@ -408,7 +421,7 @@ export class Game3D {
         if (o.z > Z_HERO + 0.35 || o.z + len < Z_HERO - 0.35) continue;
         if (!inLane(o.lane)) continue;
         const k = o.kind;
-        const safe = (k === 'low' && this.y > 0.55) || (k === 'high' && p.slideT > 0) || (p.dashT > 0 && ENEMY[o.type]?.act === 'dash');
+        const safe = this.cloakT > 0 || this.y > 2.2 || (k === 'low' && this.y > 0.55) || (k === 'high' && p.slideT > 0) || (p.dashT > 0 && ENEMY[o.type]?.act === 'dash');
         if (safe) continue;
         o.hit = true;
         if (p.invuln > 0) continue;
@@ -438,11 +451,11 @@ export class Game3D {
         const cl = c.lx ?? c.lane;
         const near = Math.abs(this.hx - cl) < 0.55 || (M.magnet && Math.abs(this.hx - cl) < 1.6);
         const top = hy + (p.slideT > 0 ? SLIDE_H : HERO_H) + 0.2;
-        if (near && c.y >= hy - 0.3 && c.y <= top) { c.taken = true; this.coins++; this.bonus += 2 * this.mult; this.coinChain++; this.coinChainT = 0.6; sfx.coinN ? sfx.coinN(this.coinChain) : sfx.coin(); }
+        if (near && c.y >= hy - 0.3 && c.y <= top) { c.taken = true; this.coins += this.doubleT > 0 ? 2 : 1; this.bonus += 2 * this.mult; this.coinChain++; this.coinChainT = 0.6; sfx.coinN ? sfx.coinN(this.coinChain) : sfx.coin(); }
       }
       for (const m of this.magnets) {
         if (m.taken || Math.abs(m.z - Z_HERO) > 0.8 || Math.abs(this.hx - m.lane) > 0.6 || this.base > 0.3) continue;
-        m.taken = true; this.takeMagnet();
+        m.taken = true; (m.kind || 'magnet') === 'magnet' ? this.takeMagnet() : this.takePower(m.kind);
       }
       this.magnets = this.magnets.filter(m => !m.taken && m.z > -5);
       for (const r of this.relics) {
@@ -515,6 +528,12 @@ export class Game3D {
     sfx.hit();
     if (this.opts.vibration && navigator.vibrate) navigator.vibrate(120);
     if (this.lives <= 0 && this.revives > 0) { this.revives--; this.lives = 1; p.invuln = 2.5; this.toast('Свеча догорела — ты встал'); return; }
+    if (this.lives <= 0 && this.charms > 0) {
+      // оберег из лавки: сгорает и спасает, вокруг расчищается место
+      this.charms--; this.opts.onCharm?.(); this.lives = 1; p.invuln = 3; this.cloakT = Math.max(this.cloakT, 2);
+      this.objs = this.objs.filter(o => o.z > Z_HERO + 14 || o.z < Z_HERO - 1);
+      this.toast('Оберег сгорел — ты жив', 2.2); sfx.win(); return;
+    }
     if (this.lives <= 0) { this.status = 'dying'; this.deathT = 0; sfx.lose(); }
   }
 

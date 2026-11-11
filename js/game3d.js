@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=b289d5d';
-import * as art from './art.js?v=b289d5d';
-import { sfx } from './audio.js?v=b289d5d';
-import { computeMods } from './artifacts.js?v=b289d5d';
-import { applyCharacter, applyUpgrades } from './characters.js?v=b289d5d';
-import { ENEMY } from './enemies.js?v=b289d5d';
-import { demonReady, drawDemon } from './demon.js?v=b289d5d';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=7047215';
+import * as art from './art.js?v=7047215';
+import { sfx } from './audio.js?v=7047215';
+import { computeMods } from './artifacts.js?v=7047215';
+import { applyCharacter, applyUpgrades } from './characters.js?v=7047215';
+import { ENEMY } from './enemies.js?v=7047215';
+import { demonReady, drawDemon } from './demon.js?v=7047215';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -520,9 +520,11 @@ export class Game3D {
   hurt() {
     const p = this.p;
     if (this.shield > 0) { this.shield--; p.invuln = 1.0; this.toast('Щит принял удар'); sfx.kick(); return; }
+    const caught = this.chase > 0;      // Тень уже бежит за спиной — второй удар, и она ловит
     this.lives--;
     this.streak = 0; this.mult = 1;
-    if (this.lives > 0) { this.chase = 7; this.toast('Тень за спиной!', 1.4); }
+    if (caught) { this.lives = 0; this.deathKind = 'caught'; }
+    else if (this.lives > 0) { this.chase = 7; this.toast('Тень за спиной! Ещё удар — и поймает', 1.8); }
     p.invuln = PLAYER.invulnTime + this.mods.invulnAdd;
     p.hurtT = 0.4; this.shake = 14; this.flashRed = 1;
     sfx.hit();
@@ -530,7 +532,7 @@ export class Game3D {
     if (this.lives <= 0 && this.revives > 0) { this.revives--; this.lives = 1; p.invuln = 2.5; this.toast('Свеча догорела — ты встал'); return; }
     if (this.lives <= 0 && this.charms > 0) {
       // оберег из лавки: сгорает и спасает, вокруг расчищается место
-      this.charms--; this.opts.onCharm?.(); this.lives = 1; p.invuln = 3; this.cloakT = Math.max(this.cloakT, 2);
+      this.charms--; this.opts.onCharm?.(); this.lives = 1; this.chase = 0; this.deathKind = undefined; p.invuln = 3; this.cloakT = Math.max(this.cloakT, 2);
       this.objs = this.objs.filter(o => o.z > Z_HERO + 14 || o.z < Z_HERO - 1);
       this.toast('Оберег сгорел — ты жив', 2.2); sfx.win(); return;
     }

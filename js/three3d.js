@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=b289d5d';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=b289d5d';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=b289d5d';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=b289d5d';
-import { ENEMY } from './enemies.js?v=b289d5d';
-import * as art from './art.js?v=b289d5d';
-import { drawRigHero, rigReady } from './rig.js?v=b289d5d';
-import { recolor } from './pixels.js?v=b289d5d';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=b289d5d';
-import { EXITS } from './rooms.js?v=b289d5d';
-import { sfx } from './audio.js?v=b289d5d';
+import * as THREE from '../vendor/three.module.min.js?v=7047215';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=7047215';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=7047215';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=7047215';
+import { ENEMY } from './enemies.js?v=7047215';
+import * as art from './art.js?v=7047215';
+import { drawRigHero, rigReady } from './rig.js?v=7047215';
+import { recolor } from './pixels.js?v=7047215';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=7047215';
+import { EXITS } from './rooms.js?v=7047215';
+import { sfx } from './audio.js?v=7047215';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -799,6 +799,8 @@ export class World3D {
     }
     this.deathPortrait = null; this.deathZ = undefined;
     this.clearDeathFx();
+    if (this.catcher) this.catcher.g.visible = false;
+    this._caughtThud = 0; this._hung = 0;
   }
 
   portraitMesh(label) {
@@ -814,6 +816,7 @@ export class World3D {
     this.portraits = [];
     if (this.deathPortrait) { this.scene.remove(this.deathPortrait); this.deathPortrait = null; }
     this.clearDeathFx();
+    if (this.catcher) this.catcher.g.visible = false;
     this.exitWall.visible = false;
     this.game = null;
   }
@@ -872,6 +875,11 @@ export class World3D {
         // портрет вешается посередине между арками, чтобы колонна его не закрывала
         if (this.deathZ === undefined) { const base = this.dist % 8; let best = -3.5, bd = 99; for (let i = 0; i < 4; i++) { const m = 8 + base - (i + 1) * 8 - 4; if (Math.abs(m + 3.5) < bd) { bd = Math.abs(m + 3.5); best = m; } } this.deathZ = best; }
         const T = g.deathT || 0, P = new THREE.Vector3(-WALL + 0.04, 1.9, this.deathZ);
+        if (g.deathKind === 'caught') {
+          const k = ease((T - 1.55) / 0.75);   // камера смотрит на поимку и туман, к стене — после «пшика»
+          this.deathCaught(g, h, T, t, hx, P);
+          camPos = [lerp(hx * 0.8, 0.9, k), lerp(2.35, 1.95, k), lerp(4.4, P.z + 3.6, k)]; camLook = [lerp(hx * 0.7, P.x, k), lerp(1.0, P.y, k), lerp(-12, P.z, k)];
+        } else {
         // смерть: чёрные руки хватают Флита и тащат к стене → чёрный туман → «пшик» → «вшик» — портрет на стене
         const k = ease((T - 0.15) / 1.0);                 // камера поворачивает к стене
         const drag = ease((T - 0.55) / 0.85);              // руки тащат к стене
@@ -896,6 +904,7 @@ export class World3D {
           this.deathPortrait.position.set(P.x + (1 - q) * 0.6, P.y, P.z);
         }
         camPos = [lerp(hx * 0.8, 0.9, k), lerp(2.35, 1.95, k), lerp(4.4, P.z + 3.4, k)]; camLook = [lerp(hx * 0.7, P.x, k), lerp(1.0, P.y, k), lerp(-12, P.z, k)];
+        }
       }
       this.syncRun(g, t);
     } else {
@@ -999,6 +1008,48 @@ export class World3D {
     }
   }
 
+  // ---- поимка Тенью: прыжок на Флита → чёрный туман → пшик → Тень вешает портрет на стену ----
+  deathCaught(g, h, T, t, hx, P) {
+    const M = this.catcher ||= (() => { const m = makeDrawn('monster'); this.scene.add(m.g); return m; })();
+    M.g.visible = T < 3.25;
+    const fake = { id: 7, flash: 0, w: 160, h: 300, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 };
+    M.anim(fake, t * 1.8);
+    // 0–0.5 с: прыжок из-за спины по дуге прямо на Флита
+    const from = new THREE.Vector3(hx + 1.2, 0, 1.6), onHero = new THREE.Vector3(hx, 0, -0.15), wall = new THREE.Vector3(P.x + 0.75, 0, P.z + 0.35);
+    const j = ease(T / 0.5);
+    const pos = from.clone().lerp(onHero, j); pos.y = Math.sin(j * Math.PI) * 1.4;
+    // 1,6–2,3 с: несёт портрет к стене, 2,3–2,8 — вешает, потом растворяется
+    if (T > 1.6) { const w = ease((T - 1.6) / 0.7); pos.copy(onHero.clone().lerp(wall, w)); pos.y = Math.abs(Math.sin(w * Math.PI * 3)) * 0.15; }
+    M.g.position.copy(pos);
+    const sc = T < 0.5 ? lerp(0.6, 0.95, j) : T > 2.8 ? Math.max(0.01, 0.95 * (1 - (T - 2.8) / 0.45)) : 0.95;
+    M.g.scale.setScalar(sc);
+    M.g.rotation.set(0, Math.atan2(this.camPos.x - pos.x, this.camPos.z - pos.z) * 0.8, T < 0.5 ? (1 - j) * 0.5 : Math.sin(t * 20) * (T < 1.5 ? 0.06 : 0));
+    // Флит: замирает, под Тенью трясётся, на «пшик» исчезает
+    this.poseH(h, { mode: 'frozen', t });
+    const shake = T > 0.45 && T < 1.5 ? Math.sin(t * 45) * 0.04 : 0;
+    h.root.position.set(hx + shake, 0, 0);
+    h.root.rotation.set(T > 0.45 ? -0.3 : 0, RUN_YAW, shake * 3);
+    const s = RUN_SCALE * (T > 1.45 ? Math.max(0.01, 1 - (T - 1.45) / 0.15) : 1);
+    h.root.scale.set(s * (this.look?.sx || 1), s * (this.look?.sy || 1), s * (this.look?.sx || 1));
+    h.root.visible = T < 1.6;
+    if (T > 0.45 && !this._caughtThud) { this._caughtThud = 1; sfx.grab?.(); this.game.shake = 14; }
+    this.deathFx(T, t, new THREE.Vector3(hx, 0, 0), P, hx);
+    // портрет: в руках у Тени, потом на стене
+    if (!this.deathPortrait && T > 1.6) {
+      this.deathPortrait = this.portraitMesh('Ф. ВЕЙН');
+      this.scene.add(this.deathPortrait);
+    }
+    if (this.deathPortrait) {
+      const hang = ease((T - 2.3) / 0.35);
+      const inHands = pos.clone().add(new THREE.Vector3(-0.35, 1.9, 0.15));
+      this.deathPortrait.position.copy(inHands.lerp(P, hang));
+      this.deathPortrait.rotation.set(0, lerp(Math.PI / 2 - 0.6, Math.PI / 2, hang), Math.sin(t * 6) * 0.15 * (1 - hang));
+      const q = ease((T - 1.6) / 0.25);
+      this.deathPortrait.scale.set(q * lerp(0.7, 1, hang), q * lerp(0.7, 1, hang), 1);
+      if (hang > 0.95 && !this._hung) { this._hung = 1; sfx.kick?.(); }
+    }
+  }
+
   // ---- эффекты смерти: руки, туман, пшик ----
   deathFx(T, t, hp, P, hx) {
     const fx = this.dfx ||= this.makeDeathFx();
@@ -1008,6 +1059,8 @@ export class World3D {
     at('grab', 0.3, () => sfx.grab?.());
     at('puff', 1.5, () => sfx.puff?.());
     at('whoosh', 1.65, () => sfx.whoosh?.());
+    const hands = this.game?.deathKind !== 'caught';
+    fx.pool.visible = hands; fx.hands.forEach(hd => { hd.arm.visible = hd.palm.visible = hands; });
     // чернильная лужа под ногами, из неё лезут руки
     fx.pool.position.set(hx, 0.015, 0);
     const pk = clamp(T / 0.3, 0, 1) * (T > 1.6 ? clamp(1 - (T - 1.6) / 0.4, 0, 1) : 1);
@@ -1027,10 +1080,10 @@ export class World3D {
       const curve = new THREE.CatmullRomCurve3([from, mid1, mid2, tip]);
       hd.arm.geometry.dispose();
       hd.arm.geometry = new THREE.TubeGeometry(curve, 14, hd.w * (0.6 + 0.4 * r), 6);
-      hd.arm.visible = r > 0.02;
+      hd.arm.visible = hands && r > 0.02;
       hd.palm.position.copy(tip);
       hd.palm.lookAt(grab.clone().add(tip.clone().sub(from).normalize()));
-      hd.palm.visible = r > 0.05;
+      hd.palm.visible = hands && r > 0.05;
       const close = clamp((T - 0.45) / 0.15, 0, 1) * (1 - retract);   // пальцы сжимаются
       hd.fingers.forEach((f, j) => { f.rotation.x = -0.3 - close * 1.1 + Math.sin(t * 12 + j) * 0.1; });
     });

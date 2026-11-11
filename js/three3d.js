@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=f6ee0aa';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=f6ee0aa';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=f6ee0aa';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=f6ee0aa';
-import { ENEMY } from './enemies.js?v=f6ee0aa';
-import * as art from './art.js?v=f6ee0aa';
-import { drawRigHero, rigReady } from './rig.js?v=f6ee0aa';
-import { recolor } from './pixels.js?v=f6ee0aa';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=f6ee0aa';
-import { EXITS } from './rooms.js?v=f6ee0aa';
-import { sfx } from './audio.js?v=f6ee0aa';
+import * as THREE from '../vendor/three.module.min.js?v=26bdc8e';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=26bdc8e';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=26bdc8e';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=26bdc8e';
+import { ENEMY } from './enemies.js?v=26bdc8e';
+import * as art from './art.js?v=26bdc8e';
+import { drawRigHero, rigReady } from './rig.js?v=26bdc8e';
+import { recolor } from './pixels.js?v=26bdc8e';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=26bdc8e';
+import { EXITS } from './rooms.js?v=26bdc8e';
+import { sfx } from './audio.js?v=26bdc8e';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -628,8 +628,8 @@ export class World3D {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.scene = new THREE.Scene();
     // туман — пыльный, серо-бурый, а не чёрная дыра в конце коридора
-    this.scene.background = new THREE.Color(0x4a4038);
-    this.scene.fog = new THREE.Fog(0x4a4038, 12, 58);
+    this.scene.background = new THREE.Color(0x5c5146);
+    this.scene.fog = new THREE.Fog(0x5c5146, 12, 56);
     this.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 140);
     this.scene.add(new THREE.HemisphereLight(0xfff0d8, 0x30241a, 1.6));
     const sun = new THREE.DirectionalLight(0xffe2b8, 1.1); sun.position.set(1, 6, 4); this.scene.add(sun);
@@ -726,15 +726,15 @@ export class World3D {
       for (let i = 0; i < 14; i++) {
         const cx = 30 + Math.random() * 196, cy = 40 + Math.random() * 48, r = 26 + Math.random() * 40;
         const gr = x.createRadialGradient(cx, cy, 2, cx, cy, r);
-        gr.addColorStop(0, 'rgba(150,138,124,0.35)'); gr.addColorStop(1, 'rgba(150,138,124,0)');
+        gr.addColorStop(0, 'rgba(92,81,70,0.45)'); gr.addColorStop(1, 'rgba(92,81,70,0)');
         x.fillStyle = gr; x.fillRect(0, 0, 256, 128);
       }
     }));
     this.mist = [];
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 14; i++) {
       const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: 0.55, fog: false }));
-      m.userData = { z0: -18 - i * 5, x0: (Math.random() - 0.5) * WALL * 1.4, y0: 0.8 + Math.random() * 2.6, ph: Math.random() * 6 };
-      m.scale.set(7 + Math.random() * 4, 3 + Math.random() * 1.5, 1);
+      m.userData = { z0: -18 - (i % 7) * 5, x0: (Math.random() - 0.5) * WALL * 1.4, y0: 0.6 + Math.random() * (CEIL - 1.2), ph: Math.random() * 6 };
+      m.scale.set(7 + Math.random() * 4, 4 + Math.random() * 2.5, 1);
       sc.add(m); this.mist.push(m);
     }
     // стена с выходом в конце комнаты

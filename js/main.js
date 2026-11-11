@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=f6ee0aa';
-import { Game } from './game.js?v=f6ee0aa';
-import { Game3D } from './game3d.js?v=f6ee0aa';
-import { World3D, Run3D } from './three3d.js?v=f6ee0aa';
-import { setupInput } from './input.js?v=f6ee0aa';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=f6ee0aa';
-import { getSave, save, resetSave } from './storage.js?v=f6ee0aa';
-import { drawHero, makeRng, drawPit } from './art.js?v=f6ee0aa';
-import { drawTrapdoor } from './enemies.js?v=f6ee0aa';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=f6ee0aa';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=f6ee0aa';
-import { loadDemon } from './demon.js?v=f6ee0aa';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=f6ee0aa';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=f6ee0aa';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=f6ee0aa';
-import { ComicPlayer, COMICS } from './comic.js?v=f6ee0aa';
-import { MINIGAMES } from './minigames.js?v=f6ee0aa';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=f6ee0aa';
-import { recolor } from './pixels.js?v=f6ee0aa';
-import { ENEMY } from './enemies.js?v=f6ee0aa';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=f6ee0aa';
-import { GROUND_Y } from './config.js?v=f6ee0aa';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=26bdc8e';
+import { Game } from './game.js?v=26bdc8e';
+import { Game3D } from './game3d.js?v=26bdc8e';
+import { World3D, Run3D } from './three3d.js?v=26bdc8e';
+import { setupInput } from './input.js?v=26bdc8e';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=26bdc8e';
+import { getSave, save, resetSave } from './storage.js?v=26bdc8e';
+import { drawHero, makeRng, drawPit } from './art.js?v=26bdc8e';
+import { drawTrapdoor } from './enemies.js?v=26bdc8e';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=26bdc8e';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=26bdc8e';
+import { loadDemon } from './demon.js?v=26bdc8e';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=26bdc8e';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=26bdc8e';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=26bdc8e';
+import { ComicPlayer, COMICS } from './comic.js?v=26bdc8e';
+import { MINIGAMES } from './minigames.js?v=26bdc8e';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=26bdc8e';
+import { recolor } from './pixels.js?v=26bdc8e';
+import { ENEMY } from './enemies.js?v=26bdc8e';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=26bdc8e';
+import { GROUND_Y } from './config.js?v=26bdc8e';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -820,7 +820,7 @@ onSeg('seg-diff', (v) => { S.settings.difficulty = v; });
 onSeg('seg-kick', (v) => { S.settings.kickSide = v; });
 onSeg('seg-endless', (v) => { S.settings.endless = v === 'on'; });
 $('#set-sound').onclick = () => toggleSetting('sound');
-$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=f6ee0aa').then(m => m.openAdmin()); };
+$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=26bdc8e').then(m => m.openAdmin()); };
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
 applyEndless();
@@ -986,7 +986,7 @@ window.__dsr = {
 };
 
 // админ-панель: адрес с ?admin или 7 быстрых тапов по заголовку
-import('./admin.js?v=f6ee0aa').then((m) => {
+import('./admin.js?v=26bdc8e').then((m) => {
   m.armAdminGesture();
   let on = new URLSearchParams(location.search).has('admin');
   try { on ||= localStorage.getItem('dsr-admin') === '1'; } catch (e) { /* нет хранилища */ }

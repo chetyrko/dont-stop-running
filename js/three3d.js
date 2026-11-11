@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=80ac94a';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=80ac94a';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=80ac94a';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=80ac94a';
-import { ENEMY } from './enemies.js?v=80ac94a';
-import * as art from './art.js?v=80ac94a';
-import { drawRigHero, rigReady } from './rig.js?v=80ac94a';
-import { recolor } from './pixels.js?v=80ac94a';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=80ac94a';
-import { EXITS } from './rooms.js?v=80ac94a';
-import { sfx } from './audio.js?v=80ac94a';
+import * as THREE from '../vendor/three.module.min.js?v=90c6ef7';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=90c6ef7';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=90c6ef7';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=90c6ef7';
+import { ENEMY } from './enemies.js?v=90c6ef7';
+import * as art from './art.js?v=90c6ef7';
+import { drawRigHero, rigReady } from './rig.js?v=90c6ef7';
+import { recolor } from './pixels.js?v=90c6ef7';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=90c6ef7';
+import { EXITS } from './rooms.js?v=90c6ef7';
+import { sfx } from './audio.js?v=90c6ef7';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -670,7 +670,7 @@ export class World3D {
     this.walls = [];
     for (const side of [-1, 1]) {
       // нижняя часть — обои автора, верхняя — те же обои, но в тени (свет бра туда не достаёт)
-      for (const [y0, h, tone] of [[0, PAPER, 1], [PAPER, CEIL - PAPER, 0.42]]) {
+      for (const [y0, h, tone] of [[0, PAPER, 1], [PAPER, CEIL - PAPER, 0.6]]) {
         const t = wtex.clone(); t.needsUpdate = true; t.repeat.set(LEN / tile, h / PAPER);
         if (y0) { t.wrapT = THREE.MirroredRepeatWrapping; }
         const m = new THREE.Mesh(new THREE.PlaneGeometry(LEN, h), new THREE.MeshLambertMaterial({ map: t }));
@@ -722,15 +722,15 @@ export class World3D {
       this.arches.push(a);
     }
     // клубы тумана вдали: медленно плывут и дышат
-    const mistTex = canvasTex(makeCanvas(256, 128, (x) => {
-      for (let i = 0; i < 14; i++) {
-        const cx = 30 + Math.random() * 196, cy = 40 + Math.random() * 48, r = 26 + Math.random() * 40;
+    const mistTex = canvasTex(makeCanvas(256, 256, (x) => {
+      for (let i = 0; i < 16; i++) {
+        const r = 30 + Math.random() * 40, cx = r + 2 + Math.random() * (252 - 2 * r), cy = r + 2 + Math.random() * (252 - 2 * r);
         const gr = x.createRadialGradient(cx, cy, 2, cx, cy, r);
         gr.addColorStop(0, 'rgba(92,81,70,0.45)'); gr.addColorStop(1, 'rgba(92,81,70,0)');
         x.fillStyle = gr; x.fillRect(0, 0, 256, 128);
       }
     }));
-    this.mist = [];
+    this.mist = [];   // (текстура ниже — пятна не касаются краёв, иначе край виден полосой)
     for (let i = 0; i < 14; i++) {
       const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: 0.55, fog: false }));
       m.userData = { z0: -18 - (i % 7) * 5, x0: (Math.random() - 0.5) * WALL * 1.4, y0: 0.6 + Math.random() * (CEIL - 1.2), ph: Math.random() * 6 };
@@ -1328,10 +1328,14 @@ export class Run3D extends Game3D {
     // сердца
     if (this.lives < this.lastLives) this.pulse = 1;
     this.lastLives = this.lives; this.pulse = Math.max(0, this.pulse - dt * 3);
+    // сердца по три в ряд: больше трёх — второй ряд ниже (не наезжают на Око)
+    const perRow = 3, hs = this.maxLives > 3 ? 44 : 52;
     for (let i = 0; i < this.maxLives; i++) {
-      const full = i < this.lives, s = 52 * (i === this.lives ? 1 + this.pulse * 0.3 : 1);
-      if (I.heart) ctx.drawImage(full ? I.heart : this.grayHeart, 26 + i * 58, 52 - s / 2 + 18, s, s * I.heart.height / I.heart.width);
+      const full = i < this.lives, s = hs * (i === this.lives ? 1 + this.pulse * 0.3 : 1);
+      const col = i % perRow, rowN = Math.floor(i / perRow);
+      if (I.heart) ctx.drawImage(full ? I.heart : this.grayHeart, 26 + col * (hs + 6) + (hs - s) / 2, 48 + rowN * (hs + 2) - s / 2 + 18, s, s * I.heart.height / I.heart.width);
     }
+    const heartRows = Math.ceil(this.maxLives / perRow);
     // Око — пауза
     this.blinkT -= dt;
     let blink = 0;
@@ -1348,7 +1352,9 @@ export class Run3D extends Game3D {
     {
       const act = [['🧲', this.magnetT, '#f2a0a0'], ['🪶', this.wingsT, '#b8c8ff'], ['🪙', this.doubleT, '#f0d27c'], ['👻', this.cloakT, '#e8ecff']].filter(x => x[1] > 0);
       ctx.font = font(38); ctx.textAlign = 'left';
-      act.forEach(([ic, tm, col], i) => outlined(`${ic} ${Math.ceil(tm)}`, 22 + i * 92, 118, col));
+      // бонусы — под полосой прогресса, чтобы не наезжать на сердца и подписи
+      act.forEach(([ic, tm, col], i) => outlined(`${ic} ${Math.ceil(tm)}`, 22 + i * 92, 212, col));
+      this._powerRow = act.length > 0;
     }
     // множитель серии
     if (this.mult > 1) { ctx.font = font(46); ctx.textAlign = 'right'; outlined(`×${this.mult}`, W - 30, 118, ['', '', '#e8dcc4', '#f0d27c', '#f2a33a', '#e0573c'][this.mult]); }
@@ -1371,7 +1377,7 @@ export class Run3D extends Game3D {
       ctx.textAlign = 'center'; outlined(`${this.meters} м · счёт ${this.score}`, W / 2, 150, '#b9b5ae', 5);
     }
     // все надписи — полосой под Оком, чтобы не закрывать дорожки
-    let yb = 232;
+    let yb = this._powerRow ? 262 : 232;
     const strip = (text, size, fill, bg, border) => {
       ctx.font = font(size); ctx.textAlign = 'center';
       while (size > 26 && ctx.measureText(text).width > W - 60) { size -= 2; ctx.font = font(size); }

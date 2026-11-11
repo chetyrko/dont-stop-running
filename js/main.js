@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=d1c3394';
-import { Game } from './game.js?v=d1c3394';
-import { Game3D } from './game3d.js?v=d1c3394';
-import { World3D, Run3D } from './three3d.js?v=d1c3394';
-import { setupInput } from './input.js?v=d1c3394';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=d1c3394';
-import { getSave, save, resetSave } from './storage.js?v=d1c3394';
-import { drawHero, makeRng, drawPit } from './art.js?v=d1c3394';
-import { drawTrapdoor } from './enemies.js?v=d1c3394';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=d1c3394';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=d1c3394';
-import { loadDemon } from './demon.js?v=d1c3394';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=d1c3394';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=d1c3394';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=d1c3394';
-import { ComicPlayer } from './comic.js?v=d1c3394';
-import { MINIGAMES } from './minigames.js?v=d1c3394';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=d1c3394';
-import { recolor } from './pixels.js?v=d1c3394';
-import { ENEMY } from './enemies.js?v=d1c3394';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=d1c3394';
-import { GROUND_Y } from './config.js?v=d1c3394';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=c696fe3';
+import { Game } from './game.js?v=c696fe3';
+import { Game3D } from './game3d.js?v=c696fe3';
+import { World3D, Run3D } from './three3d.js?v=c696fe3';
+import { setupInput } from './input.js?v=c696fe3';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=c696fe3';
+import { getSave, save, resetSave } from './storage.js?v=c696fe3';
+import { drawHero, makeRng, drawPit } from './art.js?v=c696fe3';
+import { drawTrapdoor } from './enemies.js?v=c696fe3';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=c696fe3';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=c696fe3';
+import { loadDemon } from './demon.js?v=c696fe3';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=c696fe3';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=c696fe3';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=c696fe3';
+import { ComicPlayer } from './comic.js?v=c696fe3';
+import { MINIGAMES } from './minigames.js?v=c696fe3';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=c696fe3';
+import { recolor } from './pixels.js?v=c696fe3';
+import { ENEMY } from './enemies.js?v=c696fe3';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=c696fe3';
+import { GROUND_Y } from './config.js?v=c696fe3';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -186,10 +186,16 @@ function toLobby() {
   world.leaveTitle(() => {
     fade(true);
     setTimeout(() => {
-      if (!S.seenComics.includes('prologue')) { fade(false); playComic('prologue', enterLobby); }
-      else enterLobby();
+      // «Старт» в меню — сразу забег, без ещё одного подтверждения в лобби
+      if (!S.seenComics.includes('prologue')) { fade(false); playComic('prologue', startMain); }
+      else startMain();
     }, 380);
   });
+}
+function startMain() {
+  world.setHero(currentSkin(), currentChar().weapon);
+  if (S.settings.endless) startEndless(); else startRoom(Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1));
+  setTimeout(() => fade(false), 60);
 }
 function enterLobby() {
   game = null; demo = null; comic = null; mini = null;
@@ -207,6 +213,7 @@ $('#lobby').addEventListener('click', (e) => {
   unlockAudio();
   if (S.settings.endless) startEndless(); else startRoom(Math.min(ROOMS_TOTAL, S.progress.maxRoom + 1));
 });
+$('#menu-rooms').onclick = (e) => { e.stopPropagation(); sfx.click(); show('levels'); };
 $('#lobby-back').onclick = (e) => { e.stopPropagation(); sfx.click(); startDemo(); show('menu'); };
 $('#lobby-rooms').onclick = (e) => { e.stopPropagation(); sfx.click(); show('levels'); };
 $('#lobby-endless').onclick = (e) => { e.stopPropagation(); sfx.click(); startEndless(); };
@@ -826,7 +833,7 @@ $('#set-reset').onclick = () => {
 };
 
 $$('[data-go]').forEach(b => b.addEventListener('click', (e) => {
-  if (is3d() && b.dataset.go === 'levels' && b.closest('#menu')) { e.stopPropagation(); toLobby(); return; }
+  if (is3d() && b.id === 'menu-start') { e.stopPropagation(); toLobby(); return; }
   sfx.click(); show(b.dataset.go);
 }));
 

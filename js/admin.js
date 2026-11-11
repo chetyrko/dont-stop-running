@@ -62,6 +62,13 @@ export function openAdmin() {
   };
   requestAnimationFrame(loop);
 
+  // ---- ошибки (если игра где-то «застыла» — тут будет причина; пришли скрин этого раздела) ----
+  const errBox = el('div', { class: 'stat' }, 'ошибок нет');
+  errBox.style.color = '#ffb0a0';
+  try { const old = JSON.parse(localStorage.getItem('dsr-errors') || '[]'); if (old.length) window.__dsrErrors.unshift(...old.filter(x => !window.__dsrErrors.includes(x))); } catch (e) { /* пусто */ }
+  panel.append(el('h3', {}, 'Ошибки'), errBox, row(btn('Очистить', () => { window.__dsrErrors.length = 0; try { localStorage.removeItem('dsr-errors'); } catch (e) { /* пусто */ } })));
+  setInterval(() => { const l = window.__dsrErrors || []; errBox.textContent = l.length ? l.slice(-6).join('\n\n') : 'ошибок нет'; }, 500);
+
   // ---- игрок ----
   const room = el('input', { type: 'number', value: '1', min: '1', max: '1000' });
   panel.append(el('h3', {}, 'Игрок'),

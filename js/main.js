@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=e29dd00';
-import { Game } from './game.js?v=e29dd00';
-import { Game3D } from './game3d.js?v=e29dd00';
-import { World3D, Run3D } from './three3d.js?v=e29dd00';
-import { setupInput } from './input.js?v=e29dd00';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=e29dd00';
-import { getSave, save, resetSave } from './storage.js?v=e29dd00';
-import { drawHero, makeRng, drawPit } from './art.js?v=e29dd00';
-import { drawTrapdoor } from './enemies.js?v=e29dd00';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=e29dd00';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=e29dd00';
-import { loadDemon } from './demon.js?v=e29dd00';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=e29dd00';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=e29dd00';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=e29dd00';
-import { ComicPlayer, COMICS } from './comic.js?v=e29dd00';
-import { MINIGAMES } from './minigames.js?v=e29dd00';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=e29dd00';
-import { recolor } from './pixels.js?v=e29dd00';
-import { ENEMY } from './enemies.js?v=e29dd00';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=e29dd00';
-import { GROUND_Y } from './config.js?v=e29dd00';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=65506b1';
+import { Game } from './game.js?v=65506b1';
+import { Game3D } from './game3d.js?v=65506b1';
+import { World3D, Run3D } from './three3d.js?v=65506b1';
+import { setupInput } from './input.js?v=65506b1';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=65506b1';
+import { getSave, save, resetSave } from './storage.js?v=65506b1';
+import { drawHero, makeRng, drawPit } from './art.js?v=65506b1';
+import { drawTrapdoor } from './enemies.js?v=65506b1';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=65506b1';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=65506b1';
+import { loadDemon } from './demon.js?v=65506b1';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=65506b1';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=65506b1';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=65506b1';
+import { ComicPlayer, COMICS } from './comic.js?v=65506b1';
+import { MINIGAMES } from './minigames.js?v=65506b1';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=65506b1';
+import { recolor } from './pixels.js?v=65506b1';
+import { ENEMY } from './enemies.js?v=65506b1';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=65506b1';
+import { GROUND_Y } from './config.js?v=65506b1';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -820,7 +820,7 @@ onSeg('seg-diff', (v) => { S.settings.difficulty = v; });
 onSeg('seg-kick', (v) => { S.settings.kickSide = v; });
 onSeg('seg-endless', (v) => { S.settings.endless = v === 'on'; });
 $('#set-sound').onclick = () => toggleSetting('sound');
-$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=e29dd00').then(m => m.openAdmin()); };
+$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=65506b1').then(m => m.openAdmin()); };
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
 applyEndless();
@@ -890,7 +890,7 @@ function syncActButtons() {
 // ---------- цикл ----------
 let last = performance.now();
 let time = 0;
-function frame(now) {
+function frameInner(now) {
   const dt = Math.min(0.05, (now - last) / 1000) * (window.__dsrTimeScale || 1);   // замедление — из админ-панели
   last = now;
   time += dt;
@@ -906,7 +906,6 @@ function frame(now) {
     world.frame(paused ? 0 : dt);
     if (game?.drawOverlay) game.drawOverlay(ctx, L, time, paused ? 0 : dt, cvs.getBoundingClientRect());
     syncActButtons();
-    requestAnimationFrame(frame);
     return;
   }
   if (!$('#act-btns').classList.contains('hidden')) $('#act-btns').classList.add('hidden');
@@ -940,6 +939,30 @@ function frame(now) {
     ctx.drawImage(frameImg, 0, 0, L.SW, L.SH);
     if (game) hud.draw(ctx, game, time, paused ? 0 : dt);
   }
+}
+
+// Ошибки не должны останавливать игру: кадр с ошибкой пропускается, цикл идёт дальше,
+// а текст ошибки сохраняется — его видно в «Отладке» (раздел «Ошибки»).
+// старые Safari (iOS 15 и раньше) не знают roundRect — рисуем скругление сами
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r = 0) {
+    r = Math.min(typeof r === 'number' ? r : r?.[0] ?? 0, w / 2, h / 2);
+    this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath(); return this;
+  };
+}
+window.__dsrErrors = [];
+function reportError(e, where) {
+  const msg = `${new Date().toLocaleTimeString()} ${where}: ${e?.message || e}\n${(e?.stack || '').split('\n').slice(0, 3).join('\n')}`;
+  const list = window.__dsrErrors;
+  if (list[list.length - 1]?.slice(9) !== msg.slice(9)) list.push(msg);
+  if (list.length > 20) list.shift();
+  try { localStorage.setItem('dsr-errors', JSON.stringify(list)); } catch (err) { /* нет хранилища */ }
+}
+window.addEventListener('error', (e) => reportError(e.error || e.message, 'window'));
+window.addEventListener('unhandledrejection', (e) => reportError(e.reason, 'promise'));
+function frame(now) {
+  try { frameInner(now); } catch (e) { reportError(e, 'кадр'); last = now; }
   requestAnimationFrame(frame);
 }
 
@@ -963,7 +986,7 @@ window.__dsr = {
 };
 
 // админ-панель: адрес с ?admin или 7 быстрых тапов по заголовку
-import('./admin.js?v=e29dd00').then((m) => {
+import('./admin.js?v=65506b1').then((m) => {
   m.armAdminGesture();
   let on = new URLSearchParams(location.search).has('admin');
   try { on ||= localStorage.getItem('dsr-admin') === '1'; } catch (e) { /* нет хранилища */ }

@@ -334,10 +334,10 @@ export class Hud {
     ctx.fillText('←', L.SW / 2 - 150, gy);
     ctx.fillText('→', L.SW / 2 + 150, gy - 40);
     ctx.font = 'bold 36px "Amatic SC", serif';
-    ctx.fillText('рывок', L.SW / 2 + 150, gy + 6);
+    ctx.fillText(game.is3d ? 'вправо' : 'рывок', L.SW / 2 + 150, gy + 6);
     ctx.fillText('прыжок', L.SW / 2, gy - 52);
     ctx.fillText('подкат', L.SW / 2, gy + 52);
-    ctx.fillText('пинок', L.SW / 2 - 150, gy + 46);
+    ctx.fillText(game.is3d ? 'влево' : 'пинок', L.SW / 2 - 150, gy + 46);
     ctx.fillText('тап — выстрел', L.SW / 2, gy + 150);
     ctx.restore();
 

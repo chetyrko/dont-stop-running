@@ -2,6 +2,7 @@
 
 import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js';
 import { Game } from './game.js';
+import { Game3D } from './game3d.js';
 import { setupInput } from './input.js';
 import { sfx, unlockAudio, setSoundEnabled } from './audio.js';
 import { getSave, save, resetSave } from './storage.js';
@@ -98,7 +99,8 @@ function iconCanvas(a, size) {
 // ---------- запуск забегов ----------
 function startDemo() {
   game = null; comic = null; mini = null;
-  demo = new Game(demoLevel(), currentSkin(), { demo: true, paperFx: S.settings.paper, images });
+  const G = S.settings.view === '3d' ? Game3D : Game;
+  demo = new G(demoLevel(), currentSkin(), { demo: true, paperFx: S.settings.paper, images });
 }
 
 function startRun(level, extra = {}) {
@@ -106,7 +108,8 @@ function startRun(level, extra = {}) {
   demo = null; comic = null; mini = null;
   paused = false;
   checkpoint = extra.startAt || 0;
-  game = new Game(level, currentSkin(), {
+  const G = S.settings.view === '3d' ? Game3D : Game;   // режим игры из настроек
+  game = new G(level, currentSkin(), {
     images,
     vibration: S.settings.vibration,
     paperFx: S.settings.paper,
@@ -561,6 +564,9 @@ const DIFF_DESC = {
 };
 function renderSettings() {
   const st = S.settings;
+  const v3 = S.settings.view === '3d';
+  $('#set-view').textContent = 'Режим: ' + (v3 ? '3D-забег' : 'Классика');
+  $('#view-desc').textContent = v3 ? 'Вид сзади, три дорожки. Свайп ← → — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел.' : 'Вид сбоку, как раньше.';
   $('#set-diff').textContent = 'Сложность: ' + DIFFICULTY[diff()].name;
   $('#diff-desc').textContent = DIFF_DESC[diff()];
   $('#set-sound').textContent = 'Звук: ' + (st.sound ? 'вкл' : 'выкл');
@@ -575,6 +581,10 @@ function toggleSetting(key) {
   sfx.click();
   renderSettings();
 }
+$('#set-view').onclick = () => {
+  S.settings.view = S.settings.view === '3d' ? 'classic' : '3d';
+  save(); sfx.click(); renderSettings(); startDemo();
+};
 $('#set-diff').onclick = () => {
   const i = DIFF_ORDER.indexOf(diff());
   S.settings.difficulty = DIFF_ORDER[(i + 1) % DIFF_ORDER.length];

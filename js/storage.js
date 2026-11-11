@@ -7,7 +7,7 @@ const DEFAULT = {
   gold: 0,
   ownedSkins: ['classic'],
   skin: 'classic',
-  settings: { sound: true, vibration: true, paper: true, difficulty: 'nightmare' },
+  settings: { sound: true, vibration: true, paper: true, difficulty: 'nightmare', view: 'classic' },
   progress: { maxRoom: 0 },                 // последняя пройденная комната (0 — ни одной)
   records: {
     endless: { easy: 0, normal: 0, hard: 0, nightmare: 0 },   // лучший счёт в бесконечном забеге

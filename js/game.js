@@ -107,6 +107,17 @@ export class Game {
     this.relicAt = (!this.opts.demo && L.kind === 'room' && !L.boss && Math.random() < L.findChance * M.luck)
       ? 2 + Math.floor(Math.random() * 4) : -1;
     this.relics = [];
+    // прошлые смерти: изредка (не чаще 1–2 раз за забег) на стене висит портрет Флита
+    this.portraits = [];
+    const dr = this.opts.deathRooms || [];
+    if (dr.length && !this.opts.demo) {
+      const span = Number.isFinite(this.finishX) ? this.finishX - PLAYER_X : 40000;
+      const n = Math.random() < 0.3 ? (Math.random() < 0.3 ? 2 : 1) : 0;
+      for (let i = 0; i < n; i++) {
+        const at = PLAYER_X + 900 + Math.random() * Math.max(600, span - 1500);
+        this.portraits.push({ wx: at * 0.85, room: dr[Math.floor(Math.random() * dr.length)], tilt: (Math.random() - 0.5) * 0.12 });
+      }
+    }
     this.met = new Set();     // какие враги попались на глаза в этом забеге
     this.killsBy = {};        // сколько убито каждого вида
     this.boss = L.boss ? {
@@ -628,6 +639,11 @@ export class Game {
     if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
 
     this.drawLayer(ctx, this.wall, 0.85, 0);
+    // портреты Флита — едут вместе с обоями
+    for (const pt of this.portraits) {
+      const px = pt.wx - this.camX * 0.85;
+      if (px > -120 && px < W + 120) this.drawOldPortrait(ctx, px, 210, pt);
+    }
     this.drawLayer(ctx, this.floor, 1, FLOOR_TOP - 8);
 
     const sx = (wx) => wx - this.camX;
@@ -932,6 +948,48 @@ export class Game {
       ctx.fillStyle = '#16120f'; ctx.beginPath(); ctx.arc(F.x, F.y - F.ry - 44, 4, 0, 7); ctx.fill();
       ctx.restore();
     }
+  }
+
+  // Портрет Флита из прошлой смерти. Картинка героя считается один раз и выцветает в сепию.
+  oldPortraitImg() {
+    if (this._oldPortrait !== undefined) return this._oldPortrait;
+    if (!rigReady()) return (this._oldPortrait = null);
+    const c = document.createElement('canvas'); c.width = 160; c.height = 210;
+    const x = c.getContext('2d');
+    x.fillStyle = '#4a3d30'; x.fillRect(0, 0, 160, 210);
+    x.save(); x.translate(84, 300); x.scale(1.55, 1.55);
+    drawRigHero(x, 0, 0, 'idle', 0, this.skin, {});
+    x.restore();
+    this._oldPortrait = recolor(c, { gray: 1, mul: [1.05, 0.9, 0.7] });
+    return this._oldPortrait;
+  }
+
+  drawOldPortrait(ctx, x, y, pt) {
+    const rx = 52, ry = 68, img = this.oldPortraitImg();
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(pt.tilt);
+    ctx.strokeStyle = '#2a2119'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-28, -ry - 4); ctx.lineTo(0, -ry - 32); ctx.lineTo(28, -ry - 4); ctx.stroke();
+    ctx.fillStyle = '#16120f'; ctx.beginPath(); ctx.arc(0, -ry - 32, 3, 0, 7); ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
+    if (img) ctx.drawImage(img, -rx - 4, -ry - 4, rx * 2 + 8, ry * 2 + 8);
+    else { ctx.fillStyle = '#4a3d30'; ctx.fillRect(-rx, -ry, rx * 2, ry * 2); }
+    const v = ctx.createRadialGradient(0, 0, ry * 0.4, 0, 0, ry);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,14,10,0.6)');
+    ctx.fillStyle = v; ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+    ctx.restore();
+    ctx.lineWidth = 14; ctx.strokeStyle = '#16120f';
+    ctx.beginPath(); ctx.ellipse(0, 0, rx + 6, ry + 6, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 9; ctx.strokeStyle = '#7a5a36'; ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#c9a24a';
+    ctx.beginPath(); ctx.ellipse(0, 0, rx + 2, ry + 2, 0, 0, Math.PI * 2); ctx.stroke();
+    // табличка: где это случилось
+    ctx.fillStyle = '#c9a24a'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(-56, ry + 14, 112, 28, 5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#16120f'; ctx.font = 'bold 22px "Amatic SC", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`Ф. ВЕЙН · к. ${pt.room}`, 0, ry + 29);
+    ctx.restore();
   }
 
   drawPips(ctx, x, y, hp, max) {

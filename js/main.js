@@ -113,6 +113,7 @@ function startRun(level, extra = {}) {
     equipped: S.equipped,
     seenHints: S.seenHints,
     // подсказка над врагом: пока ни разу не встречен, а потом — в комнате первой встречи и в следующей
+    deathRooms: S.records.deathRooms || [],
     showHint: (type) => {
       const rec = S.bestiary[type];
       if (!rec) return true;
@@ -223,6 +224,7 @@ function finishRoom(lvl, g) {
 
   if (!g.won) {
     R.deaths++;
+    if (lvl.kind === 'room') { (R.deathRooms ||= []).push(lvl.room); R.deathRooms = R.deathRooms.slice(-12); }
     S.gold += earned; save();
     $('#over-title').textContent = lvl.special ? 'Не вышло' : 'Ты стал портретом';
     $('#over-result').innerHTML = `<div>${lvl.name} · ${lvl.place}</div>` + (g.meters ? `<div>Пробежал: <b>${g.meters} м</b> из ${lvl.length}</div>` : '') + `<div>Оболы: <b>+${earned}</b></div>` + foundHtml(g);

@@ -15,6 +15,7 @@ const DEFAULT = {
     roomsCleared: 0,                         // всего прохождений комнат
     bosses: 0,
     deaths: 0,
+    deathRooms: [],                          // в каких комнатах стал портретом (последние 12)
     bestRoomScore: {},                       // лучший счёт по комнатам
   },
   inventory: [],       // id артефактов, которые есть у игрока

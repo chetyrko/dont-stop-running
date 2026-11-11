@@ -15,6 +15,7 @@ import { drawRigHero, rigReady } from './rig.js';
 import { recolor } from './pixels.js';
 import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js';
 import { EXITS } from './rooms.js';
+import { sfx } from './audio.js';
 
 const WALL = 2.6, CEIL = 3.8, LEN = 120;
 const INK = 0x16120f;
@@ -496,7 +497,8 @@ export function portraitCanvas(look, label = 'Ф. ВЕЙН') {
   });
 }
 
-const RUN_YAW = -1.0;   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
+const RUN_YAW = -1.0;
+const h0 = (w) => (w.hero?.root.scale.y || 1);   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
 
 // ---------- мир ----------
 export class World3D {
@@ -643,6 +645,7 @@ export class World3D {
       }
     }
     this.deathPortrait = null; this.deathZ = undefined;
+    this.clearDeathFx();
   }
 
   portraitMesh(label) {
@@ -657,6 +660,7 @@ export class World3D {
     for (const p of this.portraits || []) this.scene.remove(p);
     this.portraits = [];
     if (this.deathPortrait) { this.scene.remove(this.deathPortrait); this.deathPortrait = null; }
+    this.clearDeathFx();
     this.exitWall.visible = false;
     this.game = null;
   }
@@ -710,18 +714,29 @@ export class World3D {
         // портрет вешается посередине между арками, чтобы колонна его не закрывала
         if (this.deathZ === undefined) { const base = this.dist % 8; let best = -3.5, bd = 99; for (let i = 0; i < 4; i++) { const m = 8 + base - (i + 1) * 8 - 4; if (Math.abs(m + 3.5) < bd) { bd = Math.abs(m + 3.5); best = m; } } this.deathZ = best; }
         const T = g.deathT || 0, P = new THREE.Vector3(-WALL + 0.04, 1.9, this.deathZ);
-        const k = ease((T - 0.15) / 1.0);
+        // смерть: чёрные руки хватают Флита и тащат к стене → чёрный туман → «пшик» → «вшик» — портрет на стене
+        const k = ease((T - 0.15) / 1.0);                 // камера поворачивает к стене
+        const drag = ease((T - 0.55) / 0.85);              // руки тащат к стене
         this.poseH(h, { mode: 'frozen', t });
-        h.root.position.set(lerp(hx, P.x + 0.4, k), lerp(0, P.y - 0.9, k), lerp(0, P.z, k));
-        h.root.rotation.set(0, h.cut ? lerp(RUN_YAW, 0, k) : lerp(0, Math.PI / 2, k), 0);
-        const s = lerp(1, 0.55, k); h.root.scale.set(s * (this.look?.sx || 1), s * (this.look?.sy || 1), s * (this.look?.sx || 1));
-        h.root.visible = T < 1.45;
-        if (!this.deathPortrait && T > 0.95) {
+        const shake = T > 0.3 && T < 1.5 ? Math.sin(t * 40) * 0.03 : 0;
+        h.root.position.set(lerp(hx, P.x + 0.45, drag) + shake, lerp(0, P.y - 0.95, drag), lerp(0, P.z, drag));
+        h.root.rotation.set(lerp(0, -0.25, ease(T / 0.3)) * (1 - drag), h.cut ? lerp(RUN_YAW, 0, drag) : lerp(0, Math.PI / 2, drag), Math.sin(t * 9) * 0.06 * (T < 1.5 ? 1 : 0));
+        const s = lerp(1, 0.6, drag) * (T > 1.45 ? Math.max(0.01, 1 - (T - 1.45) / 0.15) : 1);
+        h.root.scale.set(s * (this.look?.sx || 1), s * (this.look?.sy || 1), s * (this.look?.sx || 1));
+        h.root.visible = T < 1.6;
+        this.deathFx(T, t, h.root.position, P, hx);
+        if (!this.deathPortrait && T > 1.65) {
           this.deathPortrait = this.portraitMesh('Ф. ВЕЙН');
           this.deathPortrait.position.copy(P); this.deathPortrait.rotation.y = Math.PI / 2;
           this.scene.add(this.deathPortrait);
         }
-        if (this.deathPortrait) { const q = ease((T - 0.95) / 0.6); this.deathPortrait.scale.set(q, q, 1); }
+        if (this.deathPortrait) {
+          // «вшик»: портрет влетает с вращением и встаёт на место
+          const q = ease((T - 1.65) / 0.4);
+          this.deathPortrait.scale.set(q, q, 1);
+          this.deathPortrait.rotation.set(0, Math.PI / 2, (1 - q) * Math.PI * 2.2);
+          this.deathPortrait.position.set(P.x + (1 - q) * 0.6, P.y, P.z);
+        }
         camPos = [lerp(hx * 0.5 + 0.35, 0.9, k), lerp(5.3, 1.95, k), lerp(8.8, P.z + 3.4, k)]; camLook = [lerp(hx * 0.45, P.x, k), lerp(0.5, P.y, k), lerp(-12, P.z, k)];
       }
       this.syncRun(g, t);
@@ -749,6 +764,111 @@ export class World3D {
       p.visible = z < 14 && z > -60;
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // ---- эффекты смерти: руки, туман, пшик ----
+  deathFx(T, t, hp, P, hx) {
+    const fx = this.dfx ||= this.makeDeathFx();
+    fx.g.visible = true;
+    // звуки по моментам
+    const at = (key, when, f) => { if (T >= when && !fx.done[key]) { fx.done[key] = 1; f(); } };
+    at('grab', 0.3, () => sfx.grab?.());
+    at('puff', 1.5, () => sfx.puff?.());
+    at('whoosh', 1.65, () => sfx.whoosh?.());
+    // чернильная лужа под ногами, из неё лезут руки
+    fx.pool.position.set(hx, 0.015, 0);
+    const pk = clamp(T / 0.3, 0, 1) * (T > 1.6 ? clamp(1 - (T - 1.6) / 0.4, 0, 1) : 1);
+    fx.pool.scale.set(pk * 1.1, pk * 0.8, 1);
+    const reach = ease((T - 0.15) / 0.35);
+    const retract = T > 1.5 ? ease((T - 1.5) / 0.35) : 0;
+    fx.hands.forEach((hd, i) => {
+      // откуда растёт рука: пол у ног или стена; куда тянется: точка на теле Флита
+      const from = hd.wall ? new THREE.Vector3(-WALL + 0.02, hd.a[1], P.z + hd.a[2]) : new THREE.Vector3(hx + hd.a[0], 0, hd.a[2]);
+      const grab = new THREE.Vector3(hp.x + hd.b[0], hp.y + hd.b[1] * h0(this), hp.z + hd.b[2]);
+      // руки из пола отпускают, когда Флита тащат к стене; дальше держат руки из стены
+      const r = reach * (1 - (hd.wall ? retract : Math.max(retract, ease((T - 0.7) / 0.3))));
+      const tip = from.clone().lerp(grab, r);
+      const wob = Math.sin(t * 7 + i * 2) * 0.08;
+      const mid1 = from.clone().lerp(tip, 0.35).add(new THREE.Vector3(hd.wall ? 0.35 : wob, hd.wall ? wob : 0.35, wob));
+      const mid2 = from.clone().lerp(tip, 0.7).add(new THREE.Vector3(wob, 0.15, -wob));
+      const curve = new THREE.CatmullRomCurve3([from, mid1, mid2, tip]);
+      hd.arm.geometry.dispose();
+      hd.arm.geometry = new THREE.TubeGeometry(curve, 14, hd.w * (0.6 + 0.4 * r), 6);
+      hd.arm.visible = r > 0.02;
+      hd.palm.position.copy(tip);
+      hd.palm.lookAt(grab.clone().add(tip.clone().sub(from).normalize()));
+      hd.palm.visible = r > 0.05;
+      const close = clamp((T - 0.45) / 0.15, 0, 1) * (1 - retract);   // пальцы сжимаются
+      hd.fingers.forEach((f, j) => { f.rotation.x = -0.3 - close * 1.1 + Math.sin(t * 12 + j) * 0.1; });
+    });
+    // чёрный туман закручивается вокруг и на «пшик» разлетается
+    const fog = clamp((T - 0.95) / 0.5, 0, 1);
+    const burst = T > 1.5 ? ease((T - 1.5) / 0.7) : 0;
+    fx.smoke.forEach((m, i) => {
+      const ang = i * 2.39 + t * (1.5 + (i % 3) * 0.4);
+      const rad = (0.55 - fog * 0.25) + burst * (0.9 + (i % 4) * 0.35);
+      const y = hp.y + 0.2 + (i % 5) * 0.32 * (hp.y > 0.5 ? 0.7 : 1) + burst * 0.5 * Math.sin(i);
+      m.position.set(hp.x + Math.cos(ang) * rad * 0.5, y, hp.z + Math.sin(ang) * rad);
+      const sc = 0.5 + fog * 0.5 + burst * 1.2;
+      m.scale.set(sc, sc, 1);
+      m.material.opacity = fog * 0.85 * (1 - burst);
+      m.visible = m.material.opacity > 0.01;
+    });
+    // вспышка «пшик»
+    const fl = T > 1.48 && T < 1.75 ? 1 - Math.abs(T - 1.56) / 0.2 : 0;
+    fx.flash.position.set(hp.x, hp.y + 0.9, hp.z);
+    fx.flash.material.opacity = clamp(fl, 0, 1) * 0.9;
+    fx.flash.scale.setScalar(0.6 + (T - 1.48) * 6);
+    fx.flash.visible = fl > 0;
+  }
+
+  makeDeathFx() {
+    const g = new THREE.Group(); this.scene.add(g);
+    const ink = new THREE.MeshBasicMaterial({ color: 0x070505 });
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: 0x050303 }));
+    pool.rotation.x = -Math.PI / 2; g.add(pool);
+    // руки: [откуда (x/y, z), куда на теле (x, y, z), толщина]
+    const spec = [
+      { a: [-0.35, 0, 0.25], b: [0.05, 0.25, 0.08], w: 0.07 },
+      { a: [0.4, 0, -0.2], b: [-0.05, 0.45, -0.08], w: 0.07 },
+      { a: [0.15, 0, 0.45], b: [0.0, 0.95, 0.1], w: 0.08 },
+      { wall: true, a: [0, 1.2, -0.7], b: [0.0, 1.05, -0.1], w: 0.09 },
+      { wall: true, a: [0, 2.6, 0.6], b: [0.0, 1.4, 0.05], w: 0.09 },
+      { wall: true, a: [0, 0.6, 0.9], b: [0.05, 0.6, 0.1], w: 0.08 },
+    ];
+    const hands = spec.map(sp => {
+      const arm = new THREE.Mesh(new THREE.BufferGeometry(), ink); g.add(arm);
+      const palm = new THREE.Group(); g.add(palm);
+      const pm = new THREE.Mesh(new THREE.SphereGeometry(sp.w * 1.6, 8, 6), ink); pm.scale.set(1, 0.6, 1.2); palm.add(pm);
+      const fingers = [-1.5, -0.5, 0.5, 1.5].map(k => {
+        const f = new THREE.Group(); f.position.set(k * sp.w * 0.8, 0, sp.w * 1.2); palm.add(f);
+        const c = new THREE.Mesh(new THREE.ConeGeometry(sp.w * 0.32, sp.w * 3.2, 5), ink);
+        c.rotation.x = Math.PI / 2; c.position.z = sp.w * 1.5; f.add(c);
+        return f;
+      });
+      return { ...sp, arm, palm, fingers };
+    });
+    // клубы чёрного тумана
+    const tex = canvasTex(makeCanvas(128, 128, (x) => {
+      const gr = x.createRadialGradient(64, 64, 4, 64, 64, 62);
+      gr.addColorStop(0, 'rgba(8,5,6,1)'); gr.addColorStop(0.55, 'rgba(14,9,12,0.75)'); gr.addColorStop(1, 'rgba(14,9,12,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 9; i++) { x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.arc(30 + Math.random() * 68, 30 + Math.random() * 68, 10 + Math.random() * 18, 0, 7); x.fill(); }
+    }));
+    const smoke = [];
+    for (let i = 0; i < 16; i++) {
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
+      g.add(m); smoke.push(m);
+    }
+    const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x2a1a2a, transparent: true, depthWrite: false, opacity: 0 }));
+    g.add(flash);
+    return { g, pool, hands, smoke, flash, done: {} };
+  }
+
+  clearDeathFx() {
+    if (!this.dfx) return;
+    this.dfx.g.visible = false;
+    this.dfx.done = {};
   }
 
   // Поза героя: вырезки из рисунков берут позу из 2D-анимации (rig.js), простая модель — свою.

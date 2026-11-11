@@ -195,7 +195,7 @@ export class Game3D {
     if (this.status === 'won') { v *= 0.8; this.enter = Math.min(1, this.enter + dt / 0.9); if (this.enter >= 1) { this.endTimer -= dt; if (this.endTimer <= 0) { this.status = 'over'; this.opts.onEnd?.(true); } } }
     else if (this.status === 'dying') {
       v = 0; this.deathT += dt;
-      if (this.deathT > 2.4) { this.status = 'over'; this.opts.onEnd?.(false); }
+      if (this.deathT > 3.3) { this.status = 'over'; this.opts.onEnd?.(false); }
     } else if (this.status === 'over') v = 0;
     if (this.opts.demo) v = 7;
     const step = v * dt;

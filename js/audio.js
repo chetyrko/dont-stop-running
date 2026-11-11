@@ -46,6 +46,21 @@ function noise(dur, vol = 0.2, filterFreq = 1200, delay = 0) {
   src.start(t0);
 }
 
+// «вшик»: шум с фильтром, который быстро уходит вверх
+function sweep(dur, vol) {
+  if (!enabled) return;
+  const a = ctx(); if (!a) return;
+  const t0 = a.currentTime, len = Math.floor(a.sampleRate * dur);
+  const buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2;
+  f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(5000, t0 + dur);
+  const g = a.createGain(); g.gain.value = vol;
+  src.connect(f).connect(g).connect(a.destination);
+  src.start(t0);
+}
+
 export const sfx = {
   jump: () => tone(220, 0.18, 'triangle', 0.2, 520),
   slide: () => noise(0.25, 0.18, 700),
@@ -58,4 +73,8 @@ export const sfx = {
   win: () => [392, 494, 587, 784].forEach((f, i) => tone(f, 0.25, 'triangle', 0.15, null, i * 0.13)),
   lose: () => [330, 262, 220, 165].forEach((f, i) => tone(f, 0.35, 'triangle', 0.15, null, i * 0.2)),
   click: () => tone(500, 0.05, 'square', 0.06),
+  // смерть: руки хватают, «пшик» дыма, «вшик» — портрет на стену
+  grab: () => { tone(70, 0.5, 'sawtooth', 0.18, 35); noise(0.35, 0.18, 400); },
+  puff: () => { noise(0.45, 0.45, 900); tone(140, 0.3, 'sine', 0.2, 50); },
+  whoosh: () => sweep(0.4, 0.3),
 };

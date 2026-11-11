@@ -7,6 +7,7 @@ import * as art from './art.js';
 import { sfx } from './audio.js';
 import { rigReady, drawRigHero } from './rig.js';
 import { computeMods } from './artifacts.js';
+import { applyCharacter } from './characters.js';
 import { ENEMY, drawTrapdoor } from './enemies.js';
 
 // Все виды врагов и препятствий — в enemies.js.
@@ -58,7 +59,7 @@ export class Game {
     this.level = level;
     this.skin = skin;
     this.opts = opts;
-    this.mods = computeMods(opts.equipped || []);
+    this.mods = applyCharacter(computeMods(opts.equipped || []), opts.character);
     this.buildPaper();
     const imgs = opts.images || {};
     this.wall = imgs.wall ? tileStrip(imgs.wall, FLOOR_TOP + 24, level.palette?.wallTint) : art.createWallLayer(level.palette, 11 + (level.room || 7));
@@ -143,7 +144,9 @@ export class Game {
     if (this.status !== 'running') return;
     const p = this.p, M = this.mods;
     if (a === 'jump') {
-      if (p.onGround) this.doJump(); else p.jumpBuf = 0.15;
+      if (p.onGround) this.doJump();
+      else if (M.doubleJump && !p.dj) { p.dj = true; this.doJump(); }   // двойной прыжок
+      else p.jumpBuf = 0.15;
     } else if (a === 'slide') {
       if (p.onGround) { p.slideT = PLAYER.slideTime * M.slideMul; p.kickT = 0; sfx.slide(); }
       else { p.vy = Math.max(p.vy, 1500); p.slideBuf = 0.4; } // быстрое приземление
@@ -154,7 +157,7 @@ export class Game {
     } else if (a === 'right') {
       // рывок: на миг становишься тенью и проходишь сквозь призрачные решётки
       if (p.dashCd <= 0) {
-        p.dashT = 0.38; p.dashCd = 1.1 * M.dashMul; p.slideT = 0;
+        p.dashT = 0.38 * (M.dashLen || 1); p.dashCd = 1.1 * M.dashMul; p.slideT = 0;
         sfx.slide();
         for (let i = 0; i < 8; i++) this.particles.push({ kind: 'dust', x: this.camX + PLAYER_X - 30, y: p.y - rand(20, 150), vx: rand(-500, -250), vy: 0, life: 0.3, max: 0.3, rot: 0, size: rand(4, 8), color: '#5a5170', g: 0 });
       }
@@ -170,12 +173,34 @@ export class Game {
 
   doShoot() {
     const p = this.p;
+    if (this.mods.weapon === 'fists') { this.punch(); return; }
     p.shootCd = PLAYER.shootCooldown * this.mods.reloadMul;
     p.flash = 0.12; p.recoil = 1;
     const y = p.slideT > 0 ? p.y - 55 : p.y - 125;
-    this.bullets.push({ x: this.camX + PLAYER_X + 80, y, pierce: this.mods.pierce, hitIds: [] });
+    const rifle = this.mods.weapon === 'rifle';
+    this.bullets.push({ x: this.camX + PLAYER_X + 80, y, pierce: rifle ? 99 : this.mods.pierce, hitIds: [], rifle, dmg: rifle ? 3 : 1 });
+    if (rifle) this.shake = Math.max(this.shake, 9);
     sfx.shoot();
     this.shake = Math.max(this.shake, 4);
+  }
+
+  // Удар кулаком (Сириус): всё, что рядом впереди — тени, мебель, щиты.
+  punch() {
+    const p = this.p, px = this.camX + PLAYER_X;
+    p.shootCd = 0.32; p.kickT = PLAYER.kickTime * 0.7; p.recoil = 0;
+    sfx.kick(); this.shake = Math.max(this.shake, 6);
+    let hit = false;
+    for (const o of this.obstacles) {
+      if (o.dead) continue;
+      const d = OBST[o.type];
+      if (!(d.hp || d.block) || d.act === 'dash') continue;
+      if (o.x > px + 280 || o.x + o.w < px - 20) continue;
+      hit = true;
+      if (d.hp && !d.kickKills) { o.hp -= 2; o.flash = 0.14; if (o.hp <= 0) this.kill(o); else o.x += 40; }
+      else if (d.kickKills) this.kill(o);
+      else this.smash(o);
+    }
+    this.floatText(px + 120, p.y - 190, hit ? 'БАМ!' : 'ух');
   }
 
   // ---------- спавн ----------
@@ -292,6 +317,11 @@ export class Game {
     }
     this.shake = Math.max(0, this.shake - dt * 30);
 
+    // Ида: сама перепрыгивает ямы и люки
+    if (M.autoJump && p.onGround && this.status === 'running') {
+      const fx = this.camX + PLAYER_X + 30;
+      if (this.obstacles.some(o => OBST[o.type].pitLike && o.x - fx < this.speed * 0.12 && o.x - fx > -10)) this.doJump();
+    }
     // физика героя
     const px = this.camX + PLAYER_X;
     const overPit = this.obstacles.find(o => isPit(o) && px > o.x + 18 && px < o.x + o.w - 18);
@@ -302,6 +332,7 @@ export class Game {
     if (p.y >= GROUND_Y && !overPit) {
       if (!p.onGround) {
         p.onGround = true;
+        p.dj = false;
         p.landT = 0.14;
         this.puff(px, GROUND_Y, 4);
         if (p.jumpBuf > 0 && this.status === 'running') this.doJump();
@@ -355,8 +386,10 @@ export class Game {
         if (!box) continue;
         if (b.x > box.l && b.x < box.r + 20 && b.y > box.t && b.y < box.b) {
           b.hitIds.push(o.id);
+          if (b.rifle && !d.hp && d.act === 'kick') { this.smash(o); continue; }       // винтовка ломает мебель
+          if (b.rifle && d.kickKills) { this.kill(o); continue; }                       // и пробивает щит
           if (d.hp && !d.kickKills) {
-            o.hp--; o.flash = 0.14;
+            o.hp -= b.dmg || 1; o.flash = 0.14;
             if (o.hp <= 0) this.kill(o);
             else { sfx.hit(); this.splat(b.x, b.y, 5); o.x += 18; }
             if (b.pierce > 0) { b.pierce--; continue; }
@@ -752,7 +785,7 @@ export class Game {
       ctx.globalAlpha = (1 - Math.min(1, fade)) * (p.dashT > 0 ? 0.55 : 1);
       ctx.translate(PLAYER_X + dx, p.y + dy);
       const shrink = kind === 'painting' ? 0.2 * deep + 0.45 * go : kind === 'lightBeam' ? 0.1 * deep : 0.2 * deep;
-      ctx.scale(HERO_SCALE * (1 - shrink), HERO_SCALE * (1 - shrink));
+      ctx.scale(HERO_SCALE * (1 - shrink) * (this.skin.sx || 1), HERO_SCALE * (1 - shrink) * (this.skin.sy || 1));
       const ex = {
         kickT: 1 - p.kickT / PLAYER.kickTime, recoil: p.recoil, flash: p.flash,
         aim: p.shootCd > 0.05, hurt: p.hurtT > 0 || this.lives <= 0,

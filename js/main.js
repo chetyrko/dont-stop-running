@@ -15,6 +15,8 @@ import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXIT
 import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js';
 import { ComicPlayer } from './comic.js';
 import { MINIGAMES } from './minigames.js';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js';
+import { recolor } from './pixels.js';
 import { ENEMY } from './enemies.js';
 import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js';
 import { GROUND_Y } from './config.js';
@@ -41,7 +43,8 @@ let viewAct = 1;          // какой акт открыт в сетке ком
 let artFilter = 'all';
 let opisTab = 'beasts';
 let artSelected = null;
-let shopTab = 'art';
+let shopTab = 'chars';
+let charSel = null;
 
 // ---------- раскладка под экран ----------
 function resize() {
@@ -86,7 +89,21 @@ function show(name) {
 }
 
 function updateWallet() { $$('.gold-total').forEach(el => el.textContent = S.gold); }
-function currentSkin() { return SKINS.find(s => s.id === S.skin) || SKINS[0]; }
+function currentChar() { return CHAR_BY_ID[S.char] || CHARACTERS[0]; }
+// Облик для рисования: у Флита — выбранный в лавке наряд, у остальных — свой вид.
+function lookOf(ch) {
+  if (ch.id === 'flit') return SKINS.find(s => s.id === S.skin) || SKINS[0];
+  const L = ch.look;
+  return { ...L, shirt: shirtColor(L.tint) };
+}
+function currentSkin() { return lookOf(currentChar()); }
+// цвет рубашки для 3D-режима — та же перекраска, что у рисунка
+function shirtColor(t) {
+  if (!t) return '#b3302c';
+  const c = [0xb3, 0x30, 0x2c], l = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+  const v = c.map((x, i) => Math.max(0, Math.min(255, Math.round((x + (l - x) * (t.gray || 0)) * (t.mul?.[i] ?? 1)))));
+  return `rgb(${v[0]},${v[1]},${v[2]})`;
+}
 const diff = () => S.settings.difficulty || 'nightmare';
 
 function iconCanvas(a, size) {
@@ -110,6 +127,7 @@ function startRun(level, extra = {}) {
   checkpoint = extra.startAt || 0;
   const G = S.settings.view === '3d' ? Game3D : Game;   // режим игры из настроек
   game = new G(level, currentSkin(), {
+    character: currentChar(),
     images,
     vibration: S.settings.vibration,
     paperFx: S.settings.paper,
@@ -472,7 +490,7 @@ function shopSeed() { return Math.floor(S.records.roomsCleared / ECONOMY.shopRot
 function renderShop() {
   const tabs = $('#shop-tabs');
   tabs.innerHTML = '';
-  [['art', 'Артефакты'], ['skins', 'Облики']].forEach(([k, nm]) => {
+  [['chars', 'Персонажи'], ['art', 'Артефакты'], ['skins', 'Облики']].forEach(([k, nm]) => {
     const b = document.createElement('button');
     b.className = 'tab' + (shopTab === k ? ' on' : '');
     b.textContent = nm;
@@ -482,7 +500,8 @@ function renderShop() {
   $('#shop-art').classList.toggle('hidden', shopTab !== 'art');
   $('#shop-reroll').classList.toggle('hidden', shopTab !== 'art');
   $('#skin-list').classList.toggle('hidden', shopTab !== 'skins');
-  if (shopTab === 'art') renderShopArt(); else renderSkins();
+  $('#char-shop').classList.toggle('hidden', shopTab !== 'chars');
+  if (shopTab === 'art') renderShopArt(); else if (shopTab === 'chars') renderChars(); else renderSkins();
 }
 
 function renderShopArt() {
@@ -519,9 +538,68 @@ function renderShopArt() {
   };
 }
 
+// Портрет персонажа на обоях (как превью в лавке).
+function charCanvas(ch, w, h, scale) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const cx = c.getContext('2d');
+  const st = w / 6;
+  for (let i = 0; i < 6; i++) { cx.fillStyle = i % 2 ? '#cbbd9f' : '#e4d8c0'; cx.fillRect(i * st, 0, st, h); }
+  cx.fillStyle = '#776a5b'; cx.fillRect(0, h * 0.86, w, h * 0.14);
+  const skin = lookOf(ch);
+  cx.save(); cx.translate(w * 0.48, h * 0.9); cx.scale(scale * (skin.sx || 1), scale * (skin.sy || 1));
+  if (rigReady()) drawRigHero(cx, 0, 0, 'idle', 0, skin);
+  cx.restore();
+  return c;
+}
+
+function renderChars() {
+  const box = $('#char-shop');
+  box.innerHTML = '';
+  const sel = CHAR_BY_ID[charSel] || currentChar();
+  charSel = sel.id;
+  const owned = S.ownedChars.includes(sel.id), chosen = S.char === sel.id;
+  // большая карточка выбранного
+  const top = document.createElement('div');
+  top.className = 'char-top';
+  top.appendChild(charCanvas(sel, 300, 340, 1.55));
+  const info = document.createElement('div');
+  info.className = 'char-info';
+  info.innerHTML = `<div class="nm">${sel.name}</div><div class="role">${sel.role}</div><div class="ds">${sel.desc}</div>` +
+    `<ul class="perks">${sel.perks.map(x => `<li>${x}</li>`).join('')}</ul>`;
+  const b = document.createElement('button');
+  b.className = 'btn';
+  if (chosen) { b.textContent = 'Выбран'; b.disabled = true; }
+  else if (owned) b.textContent = 'Играть им';
+  else { b.textContent = `Нанять · ${sel.price}`; b.disabled = S.gold < sel.price; }
+  b.onclick = () => {
+    if (!owned) { if (S.gold < sel.price) return; S.gold -= sel.price; S.ownedChars.push(sel.id); sfx.coin(); }
+    else sfx.click();
+    S.char = sel.id; save();
+    if (demo) startDemo();
+    renderChars(); updateWallet();
+  };
+  info.appendChild(b);
+  top.appendChild(info);
+  box.appendChild(top);
+  // сетка всех персонажей
+  const grid = document.createElement('div');
+  grid.className = 'char-grid';
+  for (const ch of CHARACTERS) {
+    const d = document.createElement('div');
+    d.className = 'char-cell' + (ch.id === sel.id ? ' on' : '') + (S.char === ch.id ? ' chosen' : '');
+    d.appendChild(charCanvas(ch, 150, 170, 0.78));
+    const has = S.ownedChars.includes(ch.id);
+    d.insertAdjacentHTML('beforeend', `<div class="cn">${ch.name}</div><div class="cp">${S.char === ch.id ? '✓ выбран' : has ? 'нанят' : ch.price + ' обол.'}</div>`);
+    d.onclick = () => { sfx.click(); charSel = ch.id; renderChars(); $('#shop').scrollTop = 0; };
+    grid.appendChild(d);
+  }
+  box.appendChild(grid);
+}
+
 function renderSkins() {
   const list = $('#skin-list');
-  list.innerHTML = '';
+  list.innerHTML = currentChar().id === 'flit' ? '' : '<div class="records">Облики — наряды Флита Вейна. Выбери его в «Персонажах», чтобы переодеть.</div>';
   for (const s of SKINS) {
     const owned = S.ownedSkins.includes(s.id);
     const equipped = S.skin === s.id;

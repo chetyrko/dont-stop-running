@@ -6,6 +6,8 @@ const OLD_KEY = 'dsr-save-v1';
 const DEFAULT = {
   gold: 0,
   ownedSkins: ['classic'],
+  ownedChars: ['flit'],   // купленные персонажи
+  char: 'flit',           // кем играем
   skin: 'classic',
   settings: { sound: true, vibration: true, paper: true, difficulty: 'nightmare', view: 'classic' },
   progress: { maxRoom: 0 },                 // последняя пройденная комната (0 — ни одной)

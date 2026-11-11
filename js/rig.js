@@ -240,7 +240,7 @@ function drawPose(ctx, p, skin, extra) {
     const sx = p.x + p.sgx, sy = p.y + p.sgy;
     const e = end(sx, sy, p.gSa, p.gSl), w = end(e[0], e[1], p.gFa, p.gFl);
     part(ctx, 'fForearm', 'forearm', e[0], e[1], p.gFa, p.gFl);
-    part(ctx, 'gun', 'gun', w[0], w[1], p.gun, 0);
+    if (!skin.noGun) part(ctx, 'gun', 'gun', w[0], w[1], p.gun, 0);   // у Сириуса пистолета нет
     part(ctx, 'fSleeve', 'sleeve', sx, sy, p.gSa, p.gSl, tint);
     muzzle = end(w[0], w[1], p.gun, 215);
   };

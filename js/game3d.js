@@ -6,6 +6,7 @@ import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from '.
 import * as art from './art.js';
 import { sfx } from './audio.js';
 import { computeMods } from './artifacts.js';
+import { applyCharacter } from './characters.js';
 import { ENEMY } from './enemies.js';
 import { demonReady, drawDemon } from './demon.js';
 
@@ -57,7 +58,7 @@ export class Game3D {
     this.level = level;
     this.skin = skin;
     this.opts = opts;
-    this.mods = computeMods(opts.equipped || []);
+    this.mods = applyCharacter(computeMods(opts.equipped || []), opts.character);
     const tt = level.palette?.wallTint;
     this.col = {
       light: tint('#e4d8c0', tt), dark: tint('#cbbd9f', tt), floor: tint('#776a5b', tt), floor2: tint('#6a5d4f', tt),
@@ -116,14 +117,27 @@ export class Game3D {
     const p = this.p, M = this.mods;
     if (a === 'kick') this.lane = Math.max(-1, this.lane - 1);
     else if (a === 'right') this.lane = Math.min(1, this.lane + 1);
-    else if (a === 'jump') { if (this.y <= 0.001) { this.vy = 6.4 * Math.sqrt(M.jumpMul); p.slideT = 0; sfx.jump(); } }
+    else if (a === 'jump') {
+      if (this.y <= 0.001) { this.vy = 6.4 * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
+      else if (M.doubleJump && !p.dj) { p.dj = true; this.vy = 6.0 * Math.sqrt(M.jumpMul); sfx.jump(); }
+    }
     else if (a === 'slide') {
       if (this.y > 0.05) this.vy = Math.min(this.vy, -12);   // быстро вниз
       p.slideT = 0.75 * M.slideMul; sfx.slide();
     } else if (a === 'shoot') {
       if (p.shootCd > 0) return;
+      if (M.weapon === 'fists') {            // кулак: всё в своей дорожке вплотную
+        p.shootCd = 0.32; sfx.kick(); this.shake = Math.max(this.shake, 6);
+        for (const o of this.objs) {
+          if (o.dead || o.lane !== Math.round(this.hx) || o.z > Z_HERO + 3 || o.z < Z_HERO - 0.3) continue;
+          if (o.kind === 'foe') { o.hp -= 2; o.flash = 0.14; if (o.hp <= 0) this.kill(o); }
+          else if (o.kind === 'block' && !['gate', 'ghost', 'fogwall'].includes(o.type)) { o.dead = 0.01; this.bonus += 25; }
+        }
+        return;
+      }
       p.shootCd = PLAYER.shootCooldown * M.reloadMul; p.flash = 0.12;
-      this.bullets.push({ lane: Math.round(this.hx), z: Z_HERO + 0.5, pierce: M.pierce, hit: [] });
+      const rifle = M.weapon === 'rifle';
+      this.bullets.push({ lane: Math.round(this.hx), z: Z_HERO + 0.5, pierce: rifle ? 99 : M.pierce, hit: [], rifle, dmg: rifle ? 3 : 1 });
       sfx.shoot(); this.shake = Math.max(this.shake, 3);
     }
   }
@@ -210,6 +224,9 @@ export class Game3D {
     this.shake = Math.max(0, this.shake - dt * 30);
     this.flashRed = Math.max(0, this.flashRed - dt * 2);
 
+    // Ида: сама перепрыгивает ямы
+    if (M.autoJump && this.y <= 0.001 && this.status === 'running' &&
+      this.objs.some(o => FLAT.has(o.type) && !o.dead && Math.abs(o.lane - this.hx) < 0.55 && o.z - Z_HERO < this.speed * 0.2 && o.z > Z_HERO)) this.action('jump');
     // герой: дорожка и прыжок
     this.hx += (this.lane - this.hx) * Math.min(1, dt * 14);
     if (this.y > 0 || this.vy > 0) { this.vy -= 17 * dt; this.y = Math.max(0, this.y + this.vy * dt); if (this.y === 0) this.vy = 0; }
@@ -236,8 +253,9 @@ export class Game3D {
         if (o.kind !== 'foe' && o.kind !== 'block') continue;
         if (b.z >= o.z - 0.3 && b.z <= o.z + 1.5) {
           b.hit.push(o.id);
+          if (b.rifle && o.kind === 'block' && !['gate', 'ghost', 'fogwall'].includes(o.type)) { o.dead = 0.01; this.bonus += 25; continue; }
           if (o.kind === 'foe') {
-            o.hp--; o.flash = 0.14;
+            o.hp -= b.dmg || 1; o.flash = 0.14;
             if (o.hp <= 0) this.kill(o); else sfx.hit();
             if (b.pierce > 0) { b.pierce--; continue; }
           }
@@ -475,10 +493,10 @@ export class Game3D {
     if (p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && this.status === 'running') return;
     const ph = p.run * 2.6, sw = Math.sin(ph);
     const squash = slide ? 0.45 : 1;
-    const h = HERO_H * U * squash;
+    const h = HERO_H * U * squash * (this.skin.sy || 1);
     const lean = (this.lane - this.hx) * 0.25;
     ctx.save();
-    ctx.translate(gx, gy); ctx.rotate(lean);
+    ctx.translate(gx, gy); ctx.rotate(lean); ctx.scale(this.skin.sx || 1, 1);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     const shirt = this.skin.shirt || '#b3302c';
     const legH = h * 0.46, torsoH = h * 0.34, headR = h * 0.1;
@@ -503,7 +521,7 @@ export class Game3D {
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, swing < 0 ? ey : eyz - h * 0.1 * Math.sin(swing)); ctx.stroke();
       ctx.strokeStyle = shirt; ctx.lineWidth = h * 0.06;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + side * h * 0.04, ay + h * 0.12); ctx.stroke();
-      if (side === 1) {
+      if (side === 1 && !this.skin.noGun) {
         ctx.fillStyle = '#4a4440'; ctx.fillRect(ex - h * 0.02, (swing < 0 ? ey : eyz) - h * 0.06, h * 0.04, h * 0.13);
         if (p.flash > 0) { ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.arc(ex, (swing < 0 ? ey : eyz) - h * 0.1, h * 0.06, 0, 7); ctx.fill(); }
       }

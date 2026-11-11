@@ -222,3 +222,21 @@ h2 { margin: 0 0 6px; font-size: 84px; line-height: 0.95; color: var(--paper); t
   background: linear-gradient(to bottom, rgba(5,4,4,0.15) 0, rgba(5,4,4,0.15) var(--win-bottom), rgba(5,4,4,0.92) calc(var(--win-bottom) + 10px)); }
 #over h2 { font-size: 72px; }
 #over .result { font-size: 44px; }
+
+/* лавка: персонажи */
+.char-shop { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.char-top { display: flex; gap: 16px; width: 660px; padding: 14px; background: #c9c2b4; border: 5px solid #000; border-radius: 14px; box-shadow: 6px 7px 0 #000; text-align: left; }
+.char-top canvas { width: 230px; height: 260px; flex-shrink: 0; border: 4px solid #000; border-radius: 40px 40px 12px 12px; }
+.char-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.char-info .nm { font-size: 54px; line-height: 0.95; }
+.char-info .role { font-size: 32px; color: #7a2f35; }
+.char-info .ds { font-size: 28px; line-height: 1.05; color: #2a2522; }
+.char-info .perks { margin: 4px 0; padding-left: 22px; font-size: 28px; line-height: 1.05; color: #16120f; }
+.char-info .btn { min-width: 0; font-size: 38px; padding: 6px 16px 8px; align-self: flex-start; }
+.char-grid { display: grid; grid-template-columns: repeat(4, 150px); gap: 12px; }
+.char-cell { display: flex; flex-direction: column; align-items: center; padding: 6px; background: #1b1918; border: 4px solid #2f2c2a; border-radius: 12px; }
+.char-cell canvas { width: 130px; height: 147px; border-radius: 20px 20px 6px 6px; }
+.char-cell .cn { font-size: 26px; color: #e8dcc4; line-height: 1; text-align: center; margin-top: 4px; }
+.char-cell .cp { font-size: 22px; color: #8e8b87; }
+.char-cell.on { border-color: #f2d27a; }
+.char-cell.chosen .cp { color: #7d9a6a; }

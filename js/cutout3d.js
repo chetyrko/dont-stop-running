@@ -137,7 +137,7 @@ export function inflateGeometry(img, T) {
   const dist = distField(gw, gh, inside, step);
   let maxD = 0; for (const v of dist) if (v > maxD) maxD = v;
   const R = Math.max(step, Math.min(maxD - step, T * 1.15));
-  const INK = Math.max(9, step * 2.5);
+  const INK = 3;   // край берёт цвет чуть глубже, но не глубже чернильной линии: волосы, ремень и обводка на месте
   const zOf = (k) => { const q = Math.min(1, Math.max(0, dist[k] - step) / R); return T * Math.sqrt(1 - (1 - q) * (1 - q)); };
   const pos = [], uv = [], idx = [];
   const map = [new Int32Array(gw * gh).fill(-1), new Int32Array(gw * gh).fill(-1)];
@@ -179,6 +179,7 @@ export function inflateGeometry(img, T) {
     nb.set(map[0][k], list);
   }
   const rim = new Set(verts.filter(k => dist[k] - step <= 0.5).map(k => map[0][k]));
+  const orig = pos.slice();   // край не уходит от рисунка дальше, чем на полшага сетки: чёлка, ухо, пальцы целы
   for (let it = 0; it < 8; it++) {
     const f = it % 2 ? -0.53 : 0.5;
     const nx = new Map();
@@ -189,7 +190,8 @@ export function inflateGeometry(img, T) {
       const n = list.length;
       nx.set(v, [pos[v * 3] + f * (sx / n - pos[v * 3]), pos[v * 3 + 1] + f * (sy / n - pos[v * 3 + 1]), pos[v * 3 + 2] + f * (sz / n - pos[v * 3 + 2])]);
     }
-    for (const [v, q] of nx) { pos[v * 3] = q[0]; pos[v * 3 + 1] = q[1]; pos[v * 3 + 2] = rim.has(v) ? 0 : Math.max(0, q[2]); }
+    const lim = step * 0.55, cl = (v, o) => Math.max(o - lim, Math.min(o + lim, v));
+    for (const [v, q] of nx) { pos[v * 3] = cl(q[0], orig[v * 3]); pos[v * 3 + 1] = cl(q[1], orig[v * 3 + 1]); pos[v * 3 + 2] = rim.has(v) ? 0 : Math.max(0, q[2]); }
   }
   for (const k of verts) {
     const a = map[0][k], b = map[1][k];

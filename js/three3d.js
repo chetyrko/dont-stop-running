@@ -497,7 +497,9 @@ export function portraitCanvas(look, label = 'Ф. ВЕЙН') {
   });
 }
 
-const RUN_YAW = -1.0;
+const RUN_YAW = -1.35;   // почти профиль — как на рисунках
+// камера в забеге высоко: фигуры откидываются к ней (как в Don't Starve), чтобы рисунок не сплющивался
+const lean = (cam, x, y, z) => -Math.atan2(cam.y - y, Math.max(0.5, cam.z - z)) * 0.85;   // верх фигуры откинут от камеры: её плоскость смотрит вверх, на камеру
 const h0 = (w) => (w.hero?.root.scale.y || 1);   // Флит-вырезка повёрнут к камере боком, чтобы был виден рисунок
 
 // ---------- мир ----------
@@ -702,7 +704,7 @@ export class World3D {
       if (!dying) {
         h.root.visible = !(g.p.invuln > 0 && Math.floor(t * 16) % 2 === 0 && g.status === 'running');
         h.root.position.set(lerp(-0.75, hx, intro), g.y, 0);
-        h.root.rotation.set(0, h.cut ? lerp(-Math.PI / 2 + 0.35, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
+        h.root.rotation.set(h.cut ? lean(this.camPos, hx, 0.9, 0) * intro : 0, h.cut ? lerp(-Math.PI / 2 + 0.35, RUN_YAW, intro) : lerp(Math.PI - 0.55, 0, intro), (g.lane - g.hx) * 0.25);
         h.root.scale.set(h.root.scale.x, h.root.scale.y, h.root.scale.z);
         if (g.status === 'won') { h.root.position.z = -ease(g.enter) * 3; h.root.visible = g.enter < 0.85; }
         const mode = g.p.slideT > 0 ? 'slide' : g.y > 0.05 ? 'jump' : 'run';
@@ -720,7 +722,7 @@ export class World3D {
         this.poseH(h, { mode: 'frozen', t });
         const shake = T > 0.3 && T < 1.5 ? Math.sin(t * 40) * 0.03 : 0;
         h.root.position.set(lerp(hx, P.x + 0.45, drag) + shake, lerp(0, P.y - 0.95, drag), lerp(0, P.z, drag));
-        h.root.rotation.set(lerp(0, -0.25, ease(T / 0.3)) * (1 - drag), h.cut ? lerp(RUN_YAW, 0, drag) : lerp(0, Math.PI / 2, drag), Math.sin(t * 9) * 0.06 * (T < 1.5 ? 1 : 0));
+        h.root.rotation.set((h.cut ? lean(this.camPos, hx, 0.9, 0) : 0) * (1 - k) + lerp(0, -0.25, ease(T / 0.3)) * (1 - drag), h.cut ? lerp(RUN_YAW, 0, drag) : lerp(0, Math.PI / 2, drag), Math.sin(t * 9) * 0.06 * (T < 1.5 ? 1 : 0));
         const s = lerp(1, 0.6, drag) * (T > 1.45 ? Math.max(0.01, 1 - (T - 1.45) / 0.15) : 1);
         h.root.scale.set(s * (this.look?.sx || 1), s * (this.look?.sy || 1), s * (this.look?.sx || 1));
         h.root.visible = T < 1.6;
@@ -903,7 +905,7 @@ export class World3D {
       const gone = g.deathT !== undefined ? clamp(1 - g.deathT * 2, 0, 1) : 1;   // при смерти всё растворяется
       put('o' + o.id, () => makeEnemy(o.type, this.images, this.look), o.lane * LANE, 0, -(o.z - Z_HERO), (v) => {
         v.anim?.(o, t);
-        if (v.face) v.g.rotation.y = Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8;
+        if (v.face) v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * (g.deathT !== undefined ? 0 : 1), Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8, 0);
         const k = (o.dead ? 1 - o.dead : 1) * gone;
         v.g.scale.setScalar(Math.max(0.01, k));
         v.g.visible = k > 0.02;

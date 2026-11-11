@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=dd334c8';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=dd334c8';
-import { Hero3D } from './hero3d.js?v=dd334c8';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=dd334c8';
-import { ENEMY } from './enemies.js?v=dd334c8';
-import * as art from './art.js?v=dd334c8';
-import { drawRigHero, rigReady } from './rig.js?v=dd334c8';
-import { recolor } from './pixels.js?v=dd334c8';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=dd334c8';
-import { EXITS } from './rooms.js?v=dd334c8';
-import { sfx } from './audio.js?v=dd334c8';
+import * as THREE from '../vendor/three.module.min.js?v=0ff1c6a';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=0ff1c6a';
+import { Hero3D } from './hero3d.js?v=0ff1c6a';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT } from './game3d.js?v=0ff1c6a';
+import { ENEMY } from './enemies.js?v=0ff1c6a';
+import * as art from './art.js?v=0ff1c6a';
+import { drawRigHero, rigReady } from './rig.js?v=0ff1c6a';
+import { recolor } from './pixels.js?v=0ff1c6a';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=0ff1c6a';
+import { EXITS } from './rooms.js?v=0ff1c6a';
+import { sfx } from './audio.js?v=0ff1c6a';
 
 const WALL = 2.6, CEIL = 7.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -591,16 +591,17 @@ export class World3D {
         const glow = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.18, depthWrite: false }));
         glow.position.set(s * (WALL - 0.12), 2.28, -1.6); a.add(glow);
       }
-      // люстра на цепи под потолком
-      a.add(cyl(0.012, 0.012, 0.6, 0x1a1410, [0, CEIL - 0.3, -4], { noOutline: true }));
-      const ring = piece(new THREE.TorusGeometry(0.42, 0.04, 6, 18), 0x5a4426, [0, CEIL - 0.65, -4]); ring.rotation.x = Math.PI / 2; a.add(ring);
+      // люстра на цепи под потолком (у самой камеры прячется, чтобы не лезть в экран)
+      const ch = new THREE.Group(); a.add(ch); a.userData.ch = ch;
+      ch.add(cyl(0.012, 0.012, 0.6, 0x1a1410, [0, CEIL - 0.3, -4], { noOutline: true }));
+      const ring = piece(new THREE.TorusGeometry(0.42, 0.04, 6, 18), 0x5a4426, [0, CEIL - 0.65, -4]); ring.rotation.x = Math.PI / 2; ch.add(ring);
       for (let k = 0; k < 5; k++) {
         const an = k / 5 * Math.PI * 2, cx = Math.cos(an) * 0.42, cz = -4 + Math.sin(an) * 0.42;
-        a.add(cyl(0.025, 0.025, 0.12, 0xefe4cc, [cx, CEIL - 0.57, cz], { noOutline: true }));
-        a.add(ball(0.04, 0xffd27a, [cx, CEIL - 0.48, cz], { basic: true, noOutline: true }));
+        ch.add(cyl(0.025, 0.025, 0.12, 0xefe4cc, [cx, CEIL - 0.57, cz], { noOutline: true }));
+        ch.add(ball(0.04, 0xffd27a, [cx, CEIL - 0.48, cz], { basic: true, noOutline: true }));
       }
       const cg = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.1, depthWrite: false }));
-      cg.position.set(0, CEIL - 0.5, -4); a.add(cg);
+      cg.position.set(0, CEIL - 0.5, -4); ch.add(cg);
       sc.add(a);
       this.arches.push(a);
     }
@@ -789,7 +790,21 @@ export class World3D {
     this.camPos.lerp(new THREE.Vector3(...camPos), this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp);
     this.camLook.lerp(new THREE.Vector3(...camLook), this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp);
     this.camera.position.copy(this.camPos);
+    // динамика: тряска, крен при смене дорожки, шире обзор на скорости
+    const g = this.mode === 'run' ? this.game : null;
+    let fov = 68, roll = 0;
+    if (g && g.status === 'running') {
+      const sh = (g.shake || 0) * 0.012;
+      this.camera.position.x += (Math.random() - 0.5) * sh; this.camera.position.y += (Math.random() - 0.5) * sh;
+      fov = 66 + clamp((g.speed - 9) * 1.1, 0, 14) + ((g.p.dashT || 0) > 0 ? 7 : 0);
+      roll = (g.lane - g.hx) * 0.05;
+      this.camera.position.y += Math.abs(Math.sin(g.p.run * 1.7)) * 0.03;
+    }
+    this.camFov = lerp(this.camFov || 68, fov, Math.min(1, dt * 4));
+    if (Math.abs(this.camera.fov - this.camFov) > 0.05) { this.camera.fov = this.camFov; this.camera.updateProjectionMatrix(); }
+    this.camera.up.set(Math.sin(roll), Math.cos(roll), 0);
     this.camera.lookAt(this.camLook);
+    this.speedLines(dt, g);
     this.lamp.position.set(this.camPos.x * 0.5, 2.6, -1.5);
     // коридор едет навстречу
     const d = this.dist;
@@ -799,13 +814,38 @@ export class World3D {
     for (const w of this.walls) w.t.offset.x = (w.side < 0 ? 1 : -1) * d / this.wallTile;
     const base = d % 8;
     // в забеге камера выше потолка: верхние балки арок закрывали бы вид, их прячем
-    this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.camPos.y < CEIL - 0.5; });
+    this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.camPos.y < CEIL - 0.5; if (a.userData.ch) a.userData.ch.visible = a.position.z - 4 < this.camPos.z - 4; });
     for (const p of this.portraits || []) {
       const z = -(p.userData.at - d);
       p.position.set(p.userData.side * (WALL - 0.03), 1.9, z);
       p.visible = z < 14 && z > -60;
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // полосы скорости вдоль стен и потолка
+  speedLines(dt, g) {
+    if (!this.lines) {
+      this.lines = [];
+      const m = new THREE.MeshBasicMaterial({ color: 0xfff0d0, transparent: true, opacity: 0, depthWrite: false });
+      for (let i = 0; i < 26; i++) {
+        const l = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 2.2), m.clone());
+        l.userData.reset = (far) => {
+          const side = Math.random() < 0.5 ? -1 : 1, up = Math.random() < 0.3;
+          l.position.set(up ? (Math.random() - 0.5) * WALL * 1.6 : side * (WALL - 0.3 - Math.random() * 0.6), up ? CEIL - 0.6 - Math.random() * 1.5 : 0.4 + Math.random() * 4, far ? -30 - Math.random() * 20 : -Math.random() * 50);
+        };
+        l.userData.reset(false);
+        this.scene.add(l); this.lines.push(l);
+      }
+    }
+    const on = g && g.status === 'running' ? clamp((g.speed - 10) / 5, 0, 1) * 0.55 + ((g.p.dashT || 0) > 0 ? 0.4 : 0) : 0;
+    for (const l of this.lines) {
+      l.material.opacity = lerp(l.material.opacity, on, Math.min(1, dt * 3));
+      l.visible = l.material.opacity > 0.02;
+      if (!l.visible) continue;
+      l.position.z += (g.speed * 2.2) * dt;
+      if (l.position.z > 8) l.userData.reset(true);
+    }
   }
 
   // ---- эффекты смерти: руки, туман, пшик ----
@@ -974,6 +1014,16 @@ export class World3D {
       const key = 'b' + (b.key ||= Math.random());
       put(key, () => ({ g: ball(b.rifle ? 0.08 : 0.06, 0x2a2522, [0, 0, 0], { noOutline: true }) }), b.lane * LANE, 1.25, -(b.z - Z_HERO));
     }
+    // тень-преследователь: после удара бежит за спиной Флита
+    if (g.chase > 0 && g.status === 'running') {
+      const k = Math.min(1, (7 - g.chase) / 0.6) * Math.min(1, g.chase / 0.8);
+      const side = g.hx > 0.3 ? -1 : 1;   // сбоку и сзади, чтобы не закрывать Флита
+      put('chaser', () => makeDrawn('monster'), g.hx * LANE + side * 1.0 + Math.sin(t * 3) * 0.15, 0, lerp(11, 4.3, k), (v) => {
+        v.anim({ id: 7, flash: 0, w: 160, h: 300, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 }, t * 1.6);
+        v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * 0.5, Math.PI * 0, 0);
+        v.g.scale.setScalar(0.85);
+      });
+    }
     // хранитель в глубине
     if (g.boss && g.boss.dead < 1) {
       const B = g.boss;
@@ -1042,6 +1092,8 @@ export class Run3D extends Game3D {
     outlined(String(Math.min(999, this.coins)).padStart(3, '0'), W - 70, 72, '#f0d27c');
     ctx.fillStyle = '#d6a93c'; ctx.strokeStyle = '#120d0b'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(W - 40, 72, 18, 0, 7); ctx.fill(); ctx.stroke();
+    // множитель серии
+    if (this.mult > 1) { ctx.font = font(46); ctx.textAlign = 'right'; outlined(`×${this.mult}`, W - 30, 118, ['', '', '#e8dcc4', '#f0d27c', '#f2a33a', '#e0573c'][this.mult]); }
     // прогресс до выхода
     const pr = this.progress;
     ctx.font = font(32);

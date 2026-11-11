@@ -1,8 +1,8 @@
 // Демон из деталей автора (assets/demon/): тело, череп, две руки, две ноги.
 // Детали стоят как на сборке автора и покачиваются вокруг суставов.
 
-import { DEMON_PARTS } from './demon-data.js?v=dd334c8';
-import { recolor } from './pixels.js?v=dd334c8';
+import { DEMON_PARTS } from './demon-data.js?v=0ff1c6a';
+import { recolor } from './pixels.js?v=0ff1c6a';
 
 // Варианты: цвет черепа и тела. brute — громила, hopper — прыгун, boss — хранитель акта.
 const VARIANTS = {

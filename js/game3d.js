@@ -2,13 +2,13 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=dd334c8';
-import * as art from './art.js?v=dd334c8';
-import { sfx } from './audio.js?v=dd334c8';
-import { computeMods } from './artifacts.js?v=dd334c8';
-import { applyCharacter } from './characters.js?v=dd334c8';
-import { ENEMY } from './enemies.js?v=dd334c8';
-import { demonReady, drawDemon } from './demon.js?v=dd334c8';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=0ff1c6a';
+import * as art from './art.js?v=0ff1c6a';
+import { sfx } from './audio.js?v=0ff1c6a';
+import { computeMods } from './artifacts.js?v=0ff1c6a';
+import { applyCharacter } from './characters.js?v=0ff1c6a';
+import { ENEMY } from './enemies.js?v=0ff1c6a';
+import { demonReady, drawDemon } from './demon.js?v=0ff1c6a';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -19,6 +19,7 @@ const CEIL = 3.4;
 const FAR = 60;                // дальше — туман
 const NATIVE = 120;            // пикселей 2D-рисунка на единицу мира
 const HERO_H = 1.6, SLIDE_H = 0.6;
+const DYN = 1.3;               // во сколько раз 3D-забег быстрее классики
 
 // Как проходится каждый вид в 3D.
 //  low — прыгнуть, high — пригнуться, block — уйти на другую дорожку, foe — выстрел или уйти.
@@ -87,7 +88,7 @@ export class Game3D {
     this.met = new Set(); this.killsBy = {};
     this.nextId = 1;
     this.finish = Number.isFinite(L.length) ? L.length : Infinity;
-    this.nextSpawn = this.dist + 22;
+    this.nextSpawn = this.dist + 16;   // первое препятствие — почти сразу
     this.lastHealM = this.dist; this.lastFindM = this.dist;
     this.relicAt = (!this.opts.demo && L.kind === 'room' && !L.boss && Math.random() < L.findChance * M.luck)
       ? this.dist + 60 + Math.random() * Math.max(20, (this.finish - this.dist) * 0.6) : -1;
@@ -96,6 +97,7 @@ export class Game3D {
     this.y = 0; this.vy = 0;             // высота прыжка
     this.p = { slideT: 0, shootCd: 0, invuln: 0, hurtT: 0, flash: 0, run: 0 };
     this.enter = 0; this.deathT = undefined;
+    this.runT = 0; this.streak = 0; this.mult = 1; this.chase = 0; this.tier = 0; this.coinChain = 0; this.coinChainT = 0;
   }
 
   // ---------- то, что читает HUD и меню ----------
@@ -105,7 +107,12 @@ export class Game3D {
     if (this.boss && !this.boss.dead) return null;
     return Number.isFinite(this.finish) ? clamp(this.dist / this.finish, 0, 1) : null;
   }
-  get speed() { return Math.min(1150, (this.level.speed + this.level.speedGrowth * this.meters / 10) * this.mods.speedMul) / 40 * 0.8; }
+  get speed() {
+    const base = Math.min(1150, (this.level.speed + this.level.speedGrowth * this.meters / 10) * this.mods.speedMul) / 40 * 0.8;
+    if (this.opts.demo) return base;
+    // динамика как в раннерах: старт уже быстрый, и каждые 20 секунд ещё быстрее (до +35%)
+    return base * DYN * (1 + Math.min(0.35, (this.runT || 0) / 120));
+  }
   threatX() {
     const o = this.objs.filter(o => !o.dead && o.z > Z_HERO).sort((a, b) => a.z - b.z)[0];
     return o ? 0.5 + o.lane * 0.3 : null;
@@ -118,8 +125,8 @@ export class Game3D {
     if (a === 'kick') this.lane = Math.max(-1, this.lane - 1);
     else if (a === 'right') this.lane = Math.min(1, this.lane + 1);
     else if (a === 'jump') {
-      if (this.y <= 0.001) { this.vy = 6.4 * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
-      else if (M.doubleJump && !p.dj) { p.dj = true; this.vy = 6.0 * Math.sqrt(M.jumpMul); sfx.jump(); }
+      if (this.y <= 0.001) { this.vy = 7.3 * Math.sqrt(M.jumpMul); p.slideT = 0; p.dj = false; sfx.jump(); }
+      else if (M.doubleJump && !p.dj) { p.dj = true; this.vy = 6.8 * Math.sqrt(M.jumpMul); sfx.jump(); }
     }
     else if (a === 'dash') {
       // рывок: короткий бросок вперёд сквозь призраков, решётки и туман
@@ -139,7 +146,7 @@ export class Game3D {
     }
     else if (a === 'slide') {
       if (this.y > 0.05) this.vy = Math.min(this.vy, -12);   // быстро вниз
-      p.slideT = 0.75 * M.slideMul; sfx.slide();
+      p.slideT = 0.6 * M.slideMul; sfx.slide();
     } else if (a === 'shoot') {
       if (p.shootCd > 0) return;
       if (M.weapon === 'fists') {            // кулак: всё в своей дорожке вплотную
@@ -173,8 +180,52 @@ export class Game3D {
     return o;
   }
 
+  // связки препятствий: змейка, «прыжок — подкат», коридор с оболами
+  pickKind(kind) {
+    const w = this.weights(), e = {};
+    for (const k in w) if ((KIND[k] || 'block') === kind) e[k] = w[k];
+    return pickWeighted(e);
+  }
+  spawnPattern(z) {
+    const block = this.pickKind('block'), low = this.pickKind('low'), high = this.pickKind('high');
+    const r = Math.random(), step = Math.max(6, this.speed * 0.7);
+    const trail = (lanes, z0, n, dz, y = 0.6) => { for (let i = 0; i < n; i++) this.coinsArr.push({ lane: lanes(i), z: z0 + i * dz, y, id: this.nextId++ }); };
+    if (block && r < 0.4) {
+      // змейка: в каждом ряду открыта одна дорожка, и она сдвигается
+      let free = [-1, 0, 1][Math.floor(Math.random() * 3)];
+      const frees = [];
+      for (let i = 0; i < 3; i++) {
+        for (const l of [-1, 0, 1]) if (l !== free) this.add(block, l, z + i * step);
+        frees.push(free);
+        const nb = [free - 1, free + 1].filter(l => l >= -1 && l <= 1);
+        free = nb[Math.floor(Math.random() * nb.length)];
+      }
+      trail((i) => frees[Math.min(2, Math.floor(i / 4))], z - 2, 12, step * 3 / 12);
+      return step * 2;
+    }
+    if (low && high && r < 0.7) {
+      // в одной дорожке: прыжок, подкат, прыжок; соседние перекрыты не везде
+      const l = [-1, 0, 1][Math.floor(Math.random() * 3)];
+      this.add(low, l, z); this.add(high, l, z + step); this.add(low, l, z + step * 2);
+      if (block) { const o = [-1, 0, 1].filter(x => x !== l); this.add(block, o[0], z + step * 0.5); this.add(block, o[1], z + step * 1.5); }
+      trail(() => l, z - 1.5, 3, 1.5, 1.6);
+      trail(() => l, z + step - 1.5, 3, 1.5, 0.35);
+      return step * 2;
+    }
+    if (block) {
+      // длинный ряд мебели вдоль дорожки, рядом — полоса оболов
+      const l = [-1, 0, 1][Math.floor(Math.random() * 3)];
+      for (let i = 0; i < 3; i++) this.add(block, l, z + i * 3.2);
+      const c = l === 0 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+      trail(() => c, z - 2, 10, 1.3);
+      return 7;
+    }
+    return 0;
+  }
+
   spawnRow(atDist) {
     const z = Z_HERO + (atDist - this.dist);
+    if (!this.boss && this.runT > 3 && Math.random() < 0.4) { const len = this.spawnPattern(z); if (len) return len; }
     const type = pickWeighted(this.weights());
     if (!type) return;
     const kind = KIND[type] || 'block';
@@ -190,14 +241,14 @@ export class Game3D {
       if (t2 && free.length > 1 && (KIND[t2] === 'low' || KIND[t2] === 'high')) this.add(t2, free[0], z + rand(1.5, 3));
     }
     // оболы
-    if (Math.random() < ECONOMY.coinRowChance * 1.8) {
+    if (Math.random() < 0.6) {
       const free = [-1, 0, 1].filter(l => !used.includes(l));
       if (kind === 'low' && Math.random() < 0.5) {
         const l = used[0];
         for (let i = 0; i < 5; i++) this.coinsArr.push({ lane: l, z: z - 2 + i, y: 0.6 + Math.sin(i / 4 * Math.PI) * 1.3, id: this.nextId++ });
       } else if (free.length) {
         const l = free[Math.floor(Math.random() * free.length)];
-        for (let i = 0; i < 5; i++) this.coinsArr.push({ lane: l, z: z - 4 + i * 1.6, y: 0.6, id: this.nextId++ });
+        for (let i = 0; i < 8; i++) this.coinsArr.push({ lane: l, z: z - 6 + i * 1.4, y: 0.6, id: this.nextId++ });
       }
     }
   }
@@ -223,8 +274,9 @@ export class Game3D {
     // спавн
     if (!this.opts.demo && this.status === 'running' && !this.boss) {
       while (this.nextSpawn < this.dist + FAR - 8 && this.nextSpawn < this.finish - 25) {
-        this.spawnRow(this.nextSpawn);
-        this.nextSpawn += rand(L.gap[0], L.gap[1]) * this.speed * 0.95 + 6;
+        const extra = this.spawnRow(this.nextSpawn) || 0;
+        // ряды идут плотнее: около секунды между ними
+        this.nextSpawn += extra + rand(L.gap[0], L.gap[1]) * this.speed * 0.6 + 4;
       }
     }
     if (this.relicAt > 0 && this.dist + FAR - 10 > this.relicAt) {
@@ -237,6 +289,14 @@ export class Game3D {
     }
     if (this.opts.demo && Math.sin(this.t * 0.6) > 0.995) this.lane = [-1, 0, 1][Math.floor(Math.random() * 3)];
 
+    // темп: каждые 20 секунд быстрее
+    if (this.status === 'running' && !this.opts.demo) {
+      this.runT += dt;
+      const tier = Math.min(5, Math.floor(this.runT / 20));
+      if (tier > this.tier) { this.tier = tier; this.toast('Быстрее!', 1.2); sfx.whoosh?.(); }
+    }
+    this.chase = Math.max(0, this.chase - dt);
+    this.coinChainT = Math.max(0, this.coinChainT - dt); if (!this.coinChainT) this.coinChain = 0;
     // таймеры
     for (const k of ['slideT', 'shootCd', 'invuln', 'hurtT', 'flash', 'dashT', 'dashCd', 'kickT']) p[k] = Math.max(0, (p[k] || 0) - dt);
     this.shake = Math.max(0, this.shake - dt * 30);
@@ -246,8 +306,8 @@ export class Game3D {
     if (M.autoJump && this.y <= 0.001 && this.status === 'running' &&
       this.objs.some(o => FLAT.has(o.type) && !o.dead && Math.abs(o.lane - this.hx) < 0.55 && o.z - Z_HERO < this.speed * 0.2 && o.z > Z_HERO)) this.action('jump');
     // герой: дорожка и прыжок
-    this.hx += (this.lane - this.hx) * Math.min(1, dt * 14);
-    if (this.y > 0 || this.vy > 0) { this.vy -= 17 * dt; this.y = Math.max(0, this.y + this.vy * dt); if (this.y === 0) this.vy = 0; }
+    this.hx += (this.lane - this.hx) * Math.min(1, dt * 18);
+    if (this.y > 0 || this.vy > 0) { this.vy -= 22 * dt; this.y = Math.max(0, this.y + this.vy * dt); if (this.y === 0) { this.vy = 0; this.shake = Math.max(this.shake, 4); } }
 
     // всё едет на героя
     const es = (L.enemy || 1) * M.enemyMul;
@@ -306,12 +366,22 @@ export class Game3D {
         if (p.invuln > 0) continue;
         this.hurt();
       }
+      // серия: каждое пройденное препятствие растит множитель (до ×5), удар его сбрасывает
+      for (const o of this.objs) {
+        if (o.passed || o.hit || o.z > Z_HERO - 0.8) continue;
+        o.passed = true;
+        if (o.dead) continue;
+        this.streak++;
+        const m = Math.min(5, 1 + Math.floor(this.streak / 8));
+        if (m > this.mult) { this.mult = m; this.toast(`Серия ×${m}`, 1.1); sfx.coin(); }
+        this.bonus += 3 * this.mult;
+      }
       // оболы и находки
       for (const c of this.coinsArr) {
         if (c.taken || Math.abs(c.z - Z_HERO) > 0.6) continue;
         const near = Math.abs(this.hx - c.lane) < 0.55 || (M.magnet && Math.abs(this.hx - c.lane) < 1.6);
         const top = this.y + (p.slideT > 0 ? SLIDE_H : HERO_H) + 0.2;
-        if (near && c.y >= this.y - 0.3 && c.y <= top) { c.taken = true; this.coins++; sfx.coin(); }
+        if (near && c.y >= this.y - 0.3 && c.y <= top) { c.taken = true; this.coins++; this.bonus += 2 * this.mult; this.coinChain++; this.coinChainT = 0.6; sfx.coinN ? sfx.coinN(this.coinChain) : sfx.coin(); }
       }
       for (const r of this.relics) {
         if (r.taken || Math.abs(r.z - Z_HERO) > 0.8 || Math.abs(this.hx - r.lane) > 0.6) continue;
@@ -376,6 +446,8 @@ export class Game3D {
     const p = this.p;
     if (this.shield > 0) { this.shield--; p.invuln = 1.0; this.toast('Щит принял удар'); sfx.kick(); return; }
     this.lives--;
+    this.streak = 0; this.mult = 1;
+    if (this.lives > 0) { this.chase = 7; this.toast('Тень за спиной!', 1.4); }
     p.invuln = PLAYER.invulnTime + this.mods.invulnAdd;
     p.hurtT = 0.4; this.shake = 14; this.flashRed = 1;
     sfx.hit();

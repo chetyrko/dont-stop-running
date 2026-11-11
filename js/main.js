@@ -1,26 +1,26 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=dd334c8';
-import { Game } from './game.js?v=dd334c8';
-import { Game3D } from './game3d.js?v=dd334c8';
-import { World3D, Run3D } from './three3d.js?v=dd334c8';
-import { setupInput } from './input.js?v=dd334c8';
-import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=dd334c8';
-import { getSave, save, resetSave } from './storage.js?v=dd334c8';
-import { drawHero, makeRng, drawPit } from './art.js?v=dd334c8';
-import { drawTrapdoor } from './enemies.js?v=dd334c8';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=dd334c8';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=dd334c8';
-import { loadDemon } from './demon.js?v=dd334c8';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=dd334c8';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=dd334c8';
-import { ComicPlayer } from './comic.js?v=dd334c8';
-import { MINIGAMES } from './minigames.js?v=dd334c8';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=dd334c8';
-import { recolor } from './pixels.js?v=dd334c8';
-import { ENEMY } from './enemies.js?v=dd334c8';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=dd334c8';
-import { GROUND_Y } from './config.js?v=dd334c8';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=0ff1c6a';
+import { Game } from './game.js?v=0ff1c6a';
+import { Game3D } from './game3d.js?v=0ff1c6a';
+import { World3D, Run3D } from './three3d.js?v=0ff1c6a';
+import { setupInput } from './input.js?v=0ff1c6a';
+import { sfx, unlockAudio, setSoundEnabled } from './audio.js?v=0ff1c6a';
+import { getSave, save, resetSave } from './storage.js?v=0ff1c6a';
+import { drawHero, makeRng, drawPit } from './art.js?v=0ff1c6a';
+import { drawTrapdoor } from './enemies.js?v=0ff1c6a';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=0ff1c6a';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=0ff1c6a';
+import { loadDemon } from './demon.js?v=0ff1c6a';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=0ff1c6a';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=0ff1c6a';
+import { ComicPlayer } from './comic.js?v=0ff1c6a';
+import { MINIGAMES } from './minigames.js?v=0ff1c6a';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=0ff1c6a';
+import { recolor } from './pixels.js?v=0ff1c6a';
+import { ENEMY } from './enemies.js?v=0ff1c6a';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=0ff1c6a';
+import { GROUND_Y } from './config.js?v=0ff1c6a';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);

@@ -73,6 +73,8 @@ export const sfx = {
   win: () => [392, 494, 587, 784].forEach((f, i) => tone(f, 0.25, 'triangle', 0.15, null, i * 0.13)),
   lose: () => [330, 262, 220, 165].forEach((f, i) => tone(f, 0.35, 'triangle', 0.15, null, i * 0.2)),
   click: () => tone(500, 0.05, 'square', 0.06),
+  // обол в цепочке: каждый следующий звенит чуть выше
+  coinN: (n) => { const f = 880 * Math.pow(1.06, Math.min(n, 14)); tone(f, 0.06, 'square', 0.06); tone(f * 1.5, 0.1, 'square', 0.05, null, 0.05); },
   // смерть: руки хватают, «пшик» дыма, «вшик» — портрет на стену
   grab: () => { tone(70, 0.5, 'sawtooth', 0.18, 35); noise(0.35, 0.18, 400); },
   puff: () => { noise(0.45, 0.45, 900); tone(140, 0.3, 'sine', 0.2, 50); },

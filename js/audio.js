@@ -1,8 +1,25 @@
 // Простые синтезированные звуки (заглушки, пока нет настоящих).
 let ac = null;
 let enabled = true;
+let sfxVol = 1;
 
 export function setSoundEnabled(v) { enabled = v; }
+export function setSfxVolume(v) { sfxVol = Math.max(0, Math.min(1, v)); }
+
+// ---------- фоновая музыка (файл автора, по кругу) ----------
+const music = typeof Audio !== 'undefined' ? new Audio('assets/audio/music.mp3') : null;
+let musicOn = true, musicVol = 0.6, musicWanted = false;
+if (music) { music.loop = true; music.preload = 'auto'; music.volume = musicVol; }
+function applyMusic() {
+  if (!music) return;
+  music.volume = musicVol;
+  if (musicOn && musicWanted && musicVol > 0 && !document.hidden) { const p = music.play(); p?.catch?.(() => { /* ждём касания */ }); }
+  else music.pause();
+}
+export function setMusic(on, vol) { musicOn = !!on; if (vol !== undefined) musicVol = Math.max(0, Math.min(1, vol)); applyMusic(); }
+// мобильные браузеры разрешают звук только после касания — тогда и запускаем
+export function startMusic() { musicWanted = true; applyMusic(); }
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', applyMusic);
 
 function ctx() {
   if (!ac) {
@@ -15,7 +32,7 @@ function ctx() {
 }
 
 // Разблокировка звука первым касанием (требование мобильных браузеров).
-export function unlockAudio() { if (enabled) ctx(); }
+export function unlockAudio() { if (enabled) ctx(); startMusic(); }
 
 function tone(freq, dur, type = 'square', vol = 0.15, slideTo = null, delay = 0) {
   if (!enabled) return;
@@ -25,7 +42,7 @@ function tone(freq, dur, type = 'square', vol = 0.15, slideTo = null, delay = 0)
   o.type = type;
   o.frequency.setValueAtTime(freq, t0);
   if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
-  g.gain.setValueAtTime(vol, t0);
+  g.gain.setValueAtTime(Math.max(0.0002, vol * sfxVol), t0);
   g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   o.connect(g).connect(a.destination);
   o.start(t0); o.stop(t0 + dur + 0.02);
@@ -41,7 +58,7 @@ function noise(dur, vol = 0.2, filterFreq = 1200, delay = 0) {
   for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
   const src = a.createBufferSource(); src.buffer = buf;
   const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = filterFreq;
-  const g = a.createGain(); g.gain.value = vol;
+  const g = a.createGain(); g.gain.value = vol * sfxVol;
   src.connect(f).connect(g).connect(a.destination);
   src.start(t0);
 }
@@ -56,7 +73,7 @@ function sweep(dur, vol) {
   const src = a.createBufferSource(); src.buffer = buf;
   const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2;
   f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(5000, t0 + dur);
-  const g = a.createGain(); g.gain.value = vol;
+  const g = a.createGain(); g.gain.value = vol * sfxVol;
   src.connect(f).connect(g).connect(a.destination);
   src.start(t0);
 }

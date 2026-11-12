@@ -318,3 +318,8 @@ body.v3d #story { background: #050404; }
 /* обучение: нужная кнопка пульсирует */
 .act-btn.tut { animation: tutpulse 0.7s ease-in-out infinite; border-color: #f0d27c; box-shadow: 0 0 0 6px rgba(240,210,124,0.6), 0 0 30px 8px rgba(240,210,124,0.7); opacity: 1; }
 @keyframes tutpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+
+/* звук: кнопка вкл/выкл и ползунок громкости */
+.snd { display: flex; gap: 14px; align-items: center; }
+.snd .tgl { flex: 0 0 210px; }
+.snd input[type=range] { flex: 1; height: 44px; accent-color: #d6a93c; touch-action: pan-x; }

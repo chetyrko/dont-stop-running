@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=d54e0c7';
-import { Game } from './game.js?v=d54e0c7';
-import { Game3D } from './game3d.js?v=d54e0c7';
-import { World3D, Run3D } from './three3d.js?v=d54e0c7';
-import { setupInput } from './input.js?v=d54e0c7';
-import { sfx, unlockAudio, setSoundEnabled, setSfxVolume, setMusic } from './audio.js?v=d54e0c7';
-import { getSave, save, resetSave } from './storage.js?v=d54e0c7';
-import { drawHero, makeRng, drawPit } from './art.js?v=d54e0c7';
-import { drawTrapdoor } from './enemies.js?v=d54e0c7';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=d54e0c7';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=d54e0c7';
-import { loadDemon } from './demon.js?v=d54e0c7';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=d54e0c7';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=d54e0c7';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=d54e0c7';
-import { ComicPlayer, COMICS } from './comic.js?v=d54e0c7';
-import { MINIGAMES } from './minigames.js?v=d54e0c7';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=d54e0c7';
-import { recolor } from './pixels.js?v=d54e0c7';
-import { ENEMY } from './enemies.js?v=d54e0c7';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=d54e0c7';
-import { GROUND_Y } from './config.js?v=d54e0c7';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=9732510';
+import { Game } from './game.js?v=9732510';
+import { Game3D } from './game3d.js?v=9732510';
+import { World3D, Run3D } from './three3d.js?v=9732510';
+import { setupInput } from './input.js?v=9732510';
+import { sfx, unlockAudio, setSoundEnabled, setSfxVolume, setMusic } from './audio.js?v=9732510';
+import { getSave, save, resetSave } from './storage.js?v=9732510';
+import { drawHero, makeRng, drawPit } from './art.js?v=9732510';
+import { drawTrapdoor } from './enemies.js?v=9732510';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=9732510';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=9732510';
+import { loadDemon } from './demon.js?v=9732510';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=9732510';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=9732510';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=9732510';
+import { ComicPlayer, COMICS } from './comic.js?v=9732510';
+import { MINIGAMES } from './minigames.js?v=9732510';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=9732510';
+import { recolor } from './pixels.js?v=9732510';
+import { ENEMY } from './enemies.js?v=9732510';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=9732510';
+import { GROUND_Y } from './config.js?v=9732510';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -844,7 +844,7 @@ function applySound() {
 }
 applySound();
 $('#set-tutorial').onclick = () => { sfx.click(); S.tutorialDone = false; save(); startDemo(); show('menu'); setTimeout(() => toLobby(), 200); };
-$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=d54e0c7').then(m => m.openAdmin()); };
+$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=9732510').then(m => m.openAdmin()); };
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
 applyEndless();
@@ -915,8 +915,12 @@ function syncActButtons() {
 // ---------- цикл ----------
 let last = performance.now();
 let time = 0;
+let dtSmooth = 1 / 60;
 function frameInner(now) {
-  const dt = Math.min(0.05, (now - last) / 1000) * (window.__dsrTimeScale || 1);   // замедление — из админ-панели
+  // интервалы между кадрами на телефоне «гуляют» (16, 17, 33 мс…) — сглаживаем, чтобы движение было ровным
+  const raw = Math.min(0.05, (now - last) / 1000);
+  dtSmooth = raw > dtSmooth * 2.5 ? raw : dtSmooth + (raw - dtSmooth) * 0.25;
+  const dt = dtSmooth * (window.__dsrTimeScale || 1);   // замедление — из админ-панели
   last = now;
   time += dt;
   const k = cvs.width / L.SW;
@@ -1011,7 +1015,7 @@ window.__dsr = {
 };
 
 // админ-панель: адрес с ?admin или 7 быстрых тапов по заголовку
-import('./admin.js?v=d54e0c7').then((m) => {
+import('./admin.js?v=9732510').then((m) => {
   m.armAdminGesture();
   let on = new URLSearchParams(location.search).has('admin');
   try { on ||= localStorage.getItem('dsr-admin') === '1'; } catch (e) { /* нет хранилища */ }

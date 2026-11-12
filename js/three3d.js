@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=d54e0c7';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=d54e0c7';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=d54e0c7';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=d54e0c7';
-import { ENEMY } from './enemies.js?v=d54e0c7';
-import * as art from './art.js?v=d54e0c7';
-import { drawRigHero, rigReady } from './rig.js?v=d54e0c7';
-import { recolor } from './pixels.js?v=d54e0c7';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=d54e0c7';
-import { EXITS } from './rooms.js?v=d54e0c7';
-import { sfx } from './audio.js?v=d54e0c7';
+import * as THREE from '../vendor/three.module.min.js?v=9732510';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=9732510';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=9732510';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=9732510';
+import { ENEMY } from './enemies.js?v=9732510';
+import * as art from './art.js?v=9732510';
+import { drawRigHero, rigReady } from './rig.js?v=9732510';
+import { recolor } from './pixels.js?v=9732510';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=9732510';
+import { EXITS } from './rooms.js?v=9732510';
+import { sfx } from './audio.js?v=9732510';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -223,7 +223,12 @@ function makeDemon(skull = 0xe6dcc8, scale = 1) {
 
 // Ворона: объёмная модель, летит клювом на Флита и машет крыльями.
 // Крыло — три пера-лопасти на «плече» и «локте», чтобы взмах шёл волной.
+const GEO = new Map();
+const geo = (key, make) => { let g = GEO.get(key); if (!g) { g = make(); GEO.set(key, g); } return g; };
 function featherGeom(len, wid) {
+  return geo('feather' + len + ':' + wid, () => featherGeomRaw(len, wid));
+}
+function featherGeomRaw(len, wid) {
   const sh = new THREE.Shape();
   sh.moveTo(0, -wid * 0.5); sh.quadraticCurveTo(len * 0.6, -wid * 0.7, len, -wid * 0.1);
   sh.lineTo(len * 0.92, wid * 0.2); sh.quadraticCurveTo(len * 0.5, wid * 0.6, 0, wid * 0.5); sh.closePath();
@@ -232,19 +237,21 @@ function featherGeom(len, wid) {
   return g;
 }
 // red — низкая ворона (перепрыгивать): красные глаза; остальные (подкат) — белые
+let CROW_MATS;
 function makeCrow(scale = 1, red = false) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const black = toon({ color: 0x17141a }), sheen = toon({ color: 0x2c2838 }), beakM = toon({ color: 0x3a3330 }), eyeM = red ? new THREE.MeshBasicMaterial({ color: 0xff2a1a }) : new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const M = CROW_MATS ||= { black: toon({ color: 0x17141a }), sheen: toon({ color: 0x2c2838 }), beakM: toon({ color: 0x3a3330 }) };
+  const black = M.black, sheen = M.sheen, beakM = M.beakM, eyeM = red ? new THREE.MeshBasicMaterial({ color: 0xff2a1a }) : new THREE.MeshBasicMaterial({ color: 0xffffff });
   // тело — вытянутая капля, голова впереди (+z — к Флиту и камере)
-  const torso = inked(new THREE.SphereGeometry(0.17, 16, 12), black); torso.scale.set(1, 0.85, 1.55); body.add(torso);
-  const head = inked(new THREE.SphereGeometry(0.11, 14, 10), black); head.position.set(0, 0.07, 0.27); body.add(head);
-  const beak = inked(new THREE.ConeGeometry(0.045, 0.2, 10), beakM); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.05, 0.43); body.add(beak);
+  const torso = inked(geo('cb', () => new THREE.SphereGeometry(0.17, 16, 12)), black); torso.scale.set(1, 0.85, 1.55); body.add(torso);
+  const head = inked(geo('ch', () => new THREE.SphereGeometry(0.11, 14, 10)), black); head.position.set(0, 0.07, 0.27); body.add(head);
+  const beak = inked(geo('ck', () => new THREE.ConeGeometry(0.045, 0.2, 10)), beakM); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.05, 0.43); body.add(beak);
   for (const s of [-1, 1]) {
-    const e = inked(new THREE.SphereGeometry(0.028, 10, 8), eyeM, false); e.position.set(s * 0.06, 0.11, 0.33); body.add(e);
-    const pu = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: red ? 0x3a0000 : 0x111111 })); pu.position.set(s * 0.07, 0.11, 0.352); body.add(pu);
+    const e = inked(geo('ce', () => new THREE.SphereGeometry(0.028, 10, 8)), eyeM, false); e.position.set(s * 0.06, 0.11, 0.33); body.add(e);
+    const pu = new THREE.Mesh(geo('cp', () => new THREE.SphereGeometry(0.014, 8, 6)), new THREE.MeshBasicMaterial({ color: red ? 0x3a0000 : 0x111111 })); pu.position.set(s * 0.07, 0.11, 0.352); body.add(pu);
   }
   // хохолок и хвост веером
-  const crest = inked(new THREE.ConeGeometry(0.04, 0.12, 6), black); crest.position.set(0, 0.18, 0.22); crest.rotation.x = -0.6; body.add(crest);
+  const crest = inked(geo('cc', () => new THREE.ConeGeometry(0.04, 0.12, 6)), black); crest.position.set(0, 0.18, 0.22); crest.rotation.x = -0.6; body.add(crest);
   for (let i = -2; i <= 2; i++) { const f = inked(featherGeom(0.32, 0.08), sheen); f.rotation.y = Math.PI / 2 + i * 0.22; f.position.set(i * 0.02, 0.01, -0.22); body.add(f); }
   // крылья: плечо → локоть, на каждом по перьям
   const wings = [-1, 1].map(side => {
@@ -564,6 +571,8 @@ function mergeStatic(root) {
   return out;
 }
 
+let COIN_GEOM, COIN_MAT;
+const TMP_A = new THREE.Vector3(), TMP_B = new THREE.Vector3();
 const RUN_YAW = 0;   // бежит спиной к игроку
 const RUN_SCALE = 0.62;  // Флит в забеге — небольшой, как в конце смерти
 // камера в забеге высоко: фигуры откидываются к ней (как в Don't Starve), чтобы рисунок не сплющивался
@@ -684,6 +693,8 @@ export class World3D {
     this.pr = this.maxPR;
     this.renderer.setPixelRatio(this.pr);
     this.perf = { acc: 0, n: 0, t: 0 };
+    this.pool = new Map();
+    setTimeout(() => this.prewarm(), 1200);   // в меню, пока игрок не начал
     this.scene = new THREE.Scene();
     // туман — пыльный, серо-бурый, а не чёрная дыра в конце коридора
     this.scene.background = new THREE.Color(0x5c5146);
@@ -846,6 +857,27 @@ export class World3D {
     this.scene.add(this.hero.root);
   }
 
+  prewarm() {
+    if (this.warmed) return; this.warmed = true;
+    const made = [];
+    for (const type of Object.keys(ENEMY)) for (let copy = 0; copy < (FLAT.has(type) ? 4 : 3); copy++) {
+      try {
+        const v = makeEnemy(type, this.images, this.look); v.pk = 'e:' + type;
+        v.g.position.set(0, 0, -6); this.scene.add(v.g); made.push(v);
+        v.anim?.({ id: 1, type, z: 10, lane: 0, w: ENEMY[type].w || 150, h: ENEMY[type].h || 200, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, flash: 0, hp: 1 }, 0);
+      } catch (e) { /* без этого врага */ }
+    }
+    { const c = makeDrawn('monster'); c.pk = 'chaser'; c.g.position.set(0, 0, -6); this.scene.add(c.g); made.push(c); }
+    for (let i = 0; i < 40; i++) {
+      const m = new THREE.Mesh(COIN_GEOM ||= new THREE.CylinderGeometry(0.2, 0.2, 0.05, 20), COIN_MAT ||= new THREE.MeshLambertMaterial({ color: 0xd6a93c, emissive: 0x3a2400 }));
+      m.rotation.x = Math.PI / 2; const gg = new THREE.Group(); gg.add(m); gg.position.set(0, 1, -6); this.scene.add(gg); made.push({ g: gg, pk: 'coin' });
+    }
+    try { this.renderer.compile(this.scene, this.camera); } catch (e) { /* старые браузеры */ }
+    // текстуры нарисованных врагов — сразу в видеокарту, а не в момент появления
+    for (const v of made) v.g.traverse(o => { const t = o.material?.map; if (t && !t.__warm) { t.__warm = 1; try { this.renderer.initTexture(t); } catch (e) { /* пусть загрузится позже */ } } });
+    for (const v of made) { v.g.visible = false; if (!this.pool.has(v.pk)) this.pool.set(v.pk, []); this.pool.get(v.pk).push(v); }
+  }
+
   // авто-качество: если кадр долгий — снижаем разрешение, если запас есть — понемногу возвращаем
   adaptQuality(dt) {
     const P = this.perf;
@@ -856,8 +888,11 @@ export class World3D {
     let pr = this.pr;
     if (avg > 1 / 45 && pr > 0.6) pr = Math.max(0.6, pr - 0.25);
     else if (avg < 1 / 57 && pr < this.maxPR) pr = Math.min(this.maxPR, pr + 0.125);
-    if (pr !== this.pr) { this.pr = pr; this.renderer.setPixelRatio(pr); this.resize(); }
+    this.wantPR = pr;
+    if (this.mode !== 'run' && pr !== this.pr) this.applyPR();
   }
+
+  applyPR() { if (this.wantPR && this.wantPR !== this.pr) { this.pr = this.wantPR; this.renderer.setPixelRatio(this.pr); this.resize(); } }
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -875,6 +910,7 @@ export class World3D {
   leaveTitle(done) { this.mode = 'leave'; this.modeT = 0; this.onLeft = done; }
 
   startRun(game) {
+    this.prewarm(); this.applyPR();
     // откуда Флит начинает разбег (из меню, из лобби или после комикса) — чтобы переход был плавным
     const r = this.hero?.root;
     this.introFrom = r && this.mode !== 'run' ? { x: r.position.x, z: r.position.z, yaw: r.rotation.y } : { x: -0.75, z: 0, yaw: -Math.PI / 2 - 0.55 };
@@ -912,7 +948,10 @@ export class World3D {
   }
 
   clearRun() {
-    for (const [, v] of this.meshes) this.scene.remove(v.g);
+    for (const [, v] of this.meshes) {
+      if (v.pk) { v.g.visible = false; v.g.scale.setScalar(1); if (!this.pool.has(v.pk)) this.pool.set(v.pk, []); this.pool.get(v.pk).push(v); }
+      else this.scene.remove(v.g);
+    }
     this.meshes.clear();
     for (const p of this.portraits || []) this.scene.remove(p);
     this.portraits = [];
@@ -1031,8 +1070,9 @@ export class World3D {
     }
     // камера плавно догоняет цель
     const sp = Math.min(1, dt * (this.mode === 'run' ? (this.modeT < 1.2 ? 2.8 : 6) : 3));   // на старте камера облетает Флита плавно
-    this.camPos.lerp(new THREE.Vector3(...camPos), this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp);
-    this.camLook.lerp(new THREE.Vector3(...camLook), this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp);
+    const ck = this.modeT < 0.05 && this.mode !== 'run' ? 1 : sp;
+    this.camPos.lerp(TMP_A.set(camPos[0], camPos[1], camPos[2]), ck);
+    this.camLook.lerp(TMP_B.set(camLook[0], camLook[1], camLook[2]), ck);
     this.camera.position.copy(this.camPos);
     // динамика: тряска, крен при смене дорожки, шире обзор на скорости
     const g = this.mode === 'run' ? this.game : null;
@@ -1080,11 +1120,11 @@ export class World3D {
       m.rotation.x = -Math.PI / 2; m.position.y = 0.02;
       const g = new THREE.Group(); g.add(m); return { g };
     }, o.lane * LANE, 0, z + 3.0, (v) => { v.g.children[0].material.opacity = 0.85 + Math.sin(t * 8) * 0.15; });
-    if (k === 'high' && !FLAT.has(o.type)) put('h' + o.id, () => {
+    if (k === 'high' && !FLAT.has(o.type)) put('h' + o.id, () => {   // (в пуле 'shadow')
       const m = new THREE.Mesh(new THREE.CircleGeometry(0.45, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false }));
       m.rotation.x = -Math.PI / 2; m.position.y = 0.015; m.scale.y = 0.55;
       const g = new THREE.Group(); g.add(m); return { g };
-    }, o.lane * LANE, 0, z);
+    }, o.lane * LANE, 0, z, null, 'shadow');
   }
 
   // лестница в одной дорожке и галерея второго этажа во всю ширину коридора
@@ -1304,9 +1344,14 @@ export class World3D {
   // Модели препятствий, оболов, находок, пуль — по состоянию забега.
   syncRun(g, t) {
     const seen = new Set();
-    const put = (key, make, x, y, z, upd) => {
+    const put = (key, make, x, y, z, upd, pk) => {
       let v = this.meshes.get(key);
-      if (!v) { v = make(); this.scene.add(v.g); this.meshes.set(key, v); }
+      if (!v) {
+        v = pk && this.pool.get(pk)?.pop();
+        if (v) v.g.visible = true;
+        else { v = make(); v.pk = pk; this.scene.add(v.g); }
+        this.meshes.set(key, v);
+      }
       v.g.position.set(x, y, z);
       upd?.(v);
       seen.add(key);
@@ -1315,20 +1360,21 @@ export class World3D {
       const gone = g.deathT !== undefined ? clamp(1 - g.deathT * 2, 0, 1) : 1;   // при смерти всё растворяется
       if (gone > 0.5) this.floorSign(o, t, put);
       put('o' + o.id, () => makeEnemy(o.type, this.images, this.look), o.lane * LANE, 0, -(o.z - Z_HERO), (v) => {
+        if (!v.pk) v.pk = 'e:' + o.type;
         v.anim?.(o, t);
         if (v.face) v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * (g.deathT !== undefined ? 0 : 1), Math.atan2(this.camPos.x - v.g.position.x, this.camPos.z - v.g.position.z) * 0.8, 0);
         const k = (o.dead ? 1 - o.dead : 1) * gone;
         v.g.scale.setScalar(Math.max(0.01, k));
         v.g.visible = k > 0.02;
-      });
+      }, 'e:' + o.type);
     }
     for (const c of g.coinsArr) {
       put('c' + c.id, () => {
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 20), new THREE.MeshLambertMaterial({ color: 0xd6a93c, emissive: 0x3a2400 }));
+        const m = new THREE.Mesh(COIN_GEOM ||= new THREE.CylinderGeometry(0.2, 0.2, 0.05, 20), COIN_MAT ||= new THREE.MeshLambertMaterial({ color: 0xd6a93c, emissive: 0x3a2400 }));
         m.rotation.x = Math.PI / 2;
         const gg = new THREE.Group(); gg.add(m);
         return { g: gg };
-      }, (c.lx ?? c.lane) * LANE, c.y, -(c.z - Z_HERO), (v) => { v.g.rotation.y = t * 4 + c.id; });
+      }, (c.lx ?? c.lane) * LANE, c.y, -(c.z - Z_HERO), (v) => { v.g.rotation.y = t * 4 + c.id; }, 'coin');
     }
     for (const r of g.relics) {
       const key = 'r' + (r.key ||= Math.random());
@@ -1343,7 +1389,7 @@ export class World3D {
     }
     for (const b of g.bullets) {
       const key = 'b' + (b.key ||= Math.random());
-      put(key, () => ({ g: ball(b.rifle ? 0.08 : 0.06, 0x2a2522, [0, 0, 0], { noOutline: true }) }), b.lane * LANE, 1.25, -(b.z - Z_HERO));
+      put(key, () => ({ g: ball(b.rifle ? 0.08 : 0.06, 0x2a2522, [0, 0, 0], { noOutline: true }) }), b.lane * LANE, 1.25, -(b.z - Z_HERO), null, b.rifle ? 'bulR' : 'bul');
     }
     for (const m of g.magnets) {
       put('m' + m.id, () => makePickup(m.kind || 'magnet'), m.lane * LANE, 0, -(m.z - Z_HERO), (v) => { v.g.children[0].rotation.y = t * 2.5; v.g.children[0].position.y = 1.0 + Math.sin(t * 3) * 0.1; });
@@ -1366,7 +1412,7 @@ export class World3D {
         v.anim({ id: 7, flash: 0, w: 160, h: 300, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 }, t * (1.6 + near));
         v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * 0.5, 0, 0);
         v.g.scale.setScalar(lerp(0.6, 0.72, near));
-      });
+      }, 'chaser');
     } else this.chaseZ = undefined;
     // хранитель в глубине
     if (g.boss && g.boss.dead < 1) {
@@ -1377,7 +1423,11 @@ export class World3D {
         v.g.scale.setScalar(1.8 * (1 - B.dead));
       });
     }
-    for (const [k, v] of this.meshes) if (!seen.has(k)) { this.scene.remove(v.g); this.meshes.delete(k); }
+    for (const [k, v] of this.meshes) if (!seen.has(k)) {
+      this.meshes.delete(k);
+      if (v.pk) { v.g.visible = false; v.g.scale.setScalar(1); if (!this.pool.has(v.pk)) this.pool.set(v.pk, []); this.pool.get(v.pk).push(v); }
+      else this.scene.remove(v.g);
+    }
     // стена с выходом
     if (Number.isFinite(g.finish)) {
       const zd = g.finish - g.dist + 3;

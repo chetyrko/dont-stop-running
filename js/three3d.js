@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=12bf93e';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=12bf93e';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=12bf93e';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=12bf93e';
-import { ENEMY } from './enemies.js?v=12bf93e';
-import * as art from './art.js?v=12bf93e';
-import { drawRigHero, rigReady } from './rig.js?v=12bf93e';
-import { recolor } from './pixels.js?v=12bf93e';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=12bf93e';
-import { EXITS } from './rooms.js?v=12bf93e';
-import { sfx } from './audio.js?v=12bf93e';
+import * as THREE from '../vendor/three.module.min.js?v=1185ae9';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=1185ae9';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=1185ae9';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=1185ae9';
+import { ENEMY } from './enemies.js?v=1185ae9';
+import * as art from './art.js?v=1185ae9';
+import { drawRigHero, rigReady } from './rig.js?v=1185ae9';
+import { recolor } from './pixels.js?v=1185ae9';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=1185ae9';
+import { EXITS } from './rooms.js?v=1185ae9';
+import { sfx } from './audio.js?v=1185ae9';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -1471,7 +1471,19 @@ export class Run3D extends Game3D {
         ctx.strokeStyle = 'rgba(240,210,124,0.9)'; ctx.lineWidth = 5;
         ctx.beginPath(); ctx.arc(fx, fy, 20 + k * 50, 0, 7); ctx.stroke();
       }
-      drawHand(ctx, fx, fy, 1.05, down, typeof fromTop !== 'undefined' && fromTop);
+      // без руки: у кнопки — прыгающая стрелка сверху, при тапе — точка касания
+      if (typeof fromTop !== 'undefined' && fromTop) {
+        const by = fy - 40 - Math.abs(Math.sin(T * 6)) * 26;
+        ctx.globalAlpha = 1; ctx.fillStyle = '#f0d27c'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 5; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(fx, by + 34); ctx.lineTo(fx + 30, by); ctx.lineTo(fx + 12, by); ctx.lineTo(fx + 12, by - 40); ctx.lineTo(fx - 12, by - 40); ctx.lineTo(fx - 12, by); ctx.lineTo(fx - 30, by); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+      } else if (tap) {
+        ctx.fillStyle = 'rgba(240,210,124,0.95)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(fx, fy, down ? 16 : 20, 0, 7); ctx.fill(); ctx.stroke();
+      } else {
+        // начало свайпа — точка, конец — стрелка (нарисованы выше)
+        ctx.fillStyle = 'rgba(240,210,124,0.95)'; ctx.beginPath(); ctx.arc(x0, y0, 12, 0, 7); ctx.fill();
+      }
       ctx.restore();
     }
     this.toasts.forEach((tt) => {

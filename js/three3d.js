@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=df30514';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=df30514';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=df30514';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=df30514';
-import { ENEMY } from './enemies.js?v=df30514';
-import * as art from './art.js?v=df30514';
-import { drawRigHero, rigReady } from './rig.js?v=df30514';
-import { recolor } from './pixels.js?v=df30514';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=df30514';
-import { EXITS } from './rooms.js?v=df30514';
-import { sfx } from './audio.js?v=df30514';
+import * as THREE from '../vendor/three.module.min.js?v=627895a';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=627895a';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=627895a';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=627895a';
+import { ENEMY } from './enemies.js?v=627895a';
+import * as art from './art.js?v=627895a';
+import { drawRigHero, rigReady } from './rig.js?v=627895a';
+import { recolor } from './pixels.js?v=627895a';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=627895a';
+import { EXITS } from './rooms.js?v=627895a';
+import { sfx } from './audio.js?v=627895a';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -231,16 +231,17 @@ function featherGeom(len, wid) {
   g.rotateX(Math.PI / 2); g.translate(0, 0.006, 0);
   return g;
 }
-function makeCrow(scale = 1) {
+// red — низкая ворона (перепрыгивать): красные глаза; остальные (подкат) — белые
+function makeCrow(scale = 1, red = false) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const black = toon({ color: 0x17141a }), sheen = toon({ color: 0x2c2838 }), beakM = toon({ color: 0x3a3330 }), eyeM = toon({ color: 0xf0e6d0 });
+  const black = toon({ color: 0x17141a }), sheen = toon({ color: 0x2c2838 }), beakM = toon({ color: 0x3a3330 }), eyeM = red ? new THREE.MeshBasicMaterial({ color: 0xff2a1a }) : new THREE.MeshBasicMaterial({ color: 0xffffff });
   // тело — вытянутая капля, голова впереди (+z — к Флиту и камере)
   const torso = inked(new THREE.SphereGeometry(0.17, 16, 12), black); torso.scale.set(1, 0.85, 1.55); body.add(torso);
   const head = inked(new THREE.SphereGeometry(0.11, 14, 10), black); head.position.set(0, 0.07, 0.27); body.add(head);
   const beak = inked(new THREE.ConeGeometry(0.045, 0.2, 10), beakM); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.05, 0.43); body.add(beak);
   for (const s of [-1, 1]) {
     const e = inked(new THREE.SphereGeometry(0.028, 10, 8), eyeM, false); e.position.set(s * 0.06, 0.11, 0.33); body.add(e);
-    const pu = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: 0xb3202a })); pu.position.set(s * 0.07, 0.11, 0.352); body.add(pu);
+    const pu = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: red ? 0x3a0000 : 0x111111 })); pu.position.set(s * 0.07, 0.11, 0.352); body.add(pu);
   }
   // хохолок и хвост веером
   const crest = inked(new THREE.ConeGeometry(0.04, 0.12, 6), black); crest.position.set(0, 0.18, 0.22); crest.rotation.x = -0.6; body.add(crest);
@@ -374,7 +375,7 @@ function makeEnemy(type, images, look) {
     }
     case 'flyer': case 'lowcrow': case 'swoop': {
       // высота — как у рисунка во 2D: ворона над головой (подкат), низкая — у пола (прыжок)
-      const c = makeCrow(type === 'swoop' ? 1.2 : 1.05); g.add(c.g);
+      const c = makeCrow(type === 'swoop' ? 1.2 : 1.05, type === 'lowcrow'); g.add(c.g);
       c.g.position.y = type === 'lowcrow' ? 0.32 : 1.15;
       anim = (o, t) => {
         c.flap(t + o.id * 0.37);
@@ -629,7 +630,7 @@ export class World3D {
     this.scene = new THREE.Scene();
     // туман — пыльный, серо-бурый, а не чёрная дыра в конце коридора
     this.scene.background = new THREE.Color(0x5c5146);
-    this.scene.fog = new THREE.Fog(0x5c5146, 12, 56);
+    this.scene.fog = new THREE.Fog(0x5c5146, 10, 50);
     this.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 140);
     this.scene.add(new THREE.HemisphereLight(0xfff0d8, 0x30241a, 1.6));
     const sun = new THREE.DirectionalLight(0xffe2b8, 1.1); sun.position.set(1, 6, 4); this.scene.add(sun);
@@ -731,7 +732,7 @@ export class World3D {
       }
     }));
     this.mist = [];   // (текстура ниже — пятна не касаются краёв, иначе край виден полосой)
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 0; i++) {   // клубы отключены: края спрайтов давали полосы поперёк экрана, туман сцены ровный
       const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: 0.55, fog: false }));
       m.userData = { z0: -18 - (i % 7) * 5, x0: (Math.random() - 0.5) * WALL * 1.4, y0: 0.6 + Math.random() * (CEIL - 1.2), ph: Math.random() * 6 };
       m.scale.set(7 + Math.random() * 4, 4 + Math.random() * 2.5, 1);
@@ -1399,6 +1400,32 @@ export class Run3D extends Game3D {
       if (Lv.fresh?.length) { ctx.font = font(36); outlined('Новый враг: ' + Lv.fresh.join(', '), W / 2, yb, '#f2d27a', 6); yb += 46; }
       ctx.globalAlpha = 1;
       yb += 8;
+    }
+    // обучение: крупная подпись и жест-подсказка
+    const ts = this.tutStep;
+    if (ts && this.status === 'running' && this.tut.obj && this.tut.wait <= 0) {
+      const y = L.SH * 0.6, slowNow = this.tut.slow < 1;
+      ctx.font = font(slowNow ? 60 : 52); ctx.textAlign = 'center';
+      let fs = slowNow ? 60 : 52; while (fs > 34 && ctx.measureText(ts.text).width > W - 40) { fs -= 2; ctx.font = font(fs); }
+      const w = ctx.measureText(ts.text).width + 44;
+      ctx.fillStyle = 'rgba(14,10,8,0.82)'; ctx.strokeStyle = '#f0d27c'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.roundRect(W / 2 - w / 2, y - 44, w, 88, 16); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#f0d27c'; ctx.fillText(ts.text, W / 2, y + 2);
+      // палец: движется в сторону свайпа или тапает
+      const ph = (T * 1.4) % 1, cx = W / 2, cy = L.SH * 0.78;
+      let fx = cx, fy = cy, show = true;
+      if (ts.gesture === 'lr') fx = cx + Math.sin(T * 3) * 150;
+      else if (ts.gesture === 'up') fy = cy + 60 - ph * 160;
+      else if (ts.gesture === 'down') fy = cy - 60 + ph * 160;
+      else if (ts.gesture === 'tap') fy = cy - (ph < 0.3 ? 0 : 6);
+      else show = false;   // кнопки подсвечиваются сами
+      if (show) {
+        ctx.globalAlpha = ts.gesture === 'tap' ? 1 : 1 - ph * 0.6;
+        ctx.fillStyle = 'rgba(240,210,124,0.9)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(fx, fy, ts.gesture === 'tap' && ph < 0.3 ? 30 : 24, 0, 7); ctx.fill(); ctx.stroke();
+        if (ts.gesture === 'tap' && ph < 0.3) { ctx.strokeStyle = '#f0d27c'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(fx, fy, 30 + ph * 140, 0, 7); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+      }
     }
     this.toasts.forEach((tt) => {
       ctx.globalAlpha = Math.min(1, tt.life * 3, (tt.max - tt.life) * 6);

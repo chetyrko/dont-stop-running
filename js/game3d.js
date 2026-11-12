@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=df30514';
-import * as art from './art.js?v=df30514';
-import { sfx } from './audio.js?v=df30514';
-import { computeMods } from './artifacts.js?v=df30514';
-import { applyCharacter, applyUpgrades } from './characters.js?v=df30514';
-import { enemyWeights } from './rooms.js?v=df30514';
-import { ENEMY } from './enemies.js?v=df30514';
-import { demonReady, drawDemon } from './demon.js?v=df30514';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=627895a';
+import * as art from './art.js?v=627895a';
+import { sfx } from './audio.js?v=627895a';
+import { computeMods } from './artifacts.js?v=627895a';
+import { applyCharacter, applyUpgrades } from './characters.js?v=627895a';
+import { enemyWeights } from './rooms.js?v=627895a';
+import { ENEMY } from './enemies.js?v=627895a';
+import { demonReady, drawDemon } from './demon.js?v=627895a';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -21,6 +21,15 @@ const FAR = 60;                // дальше — туман
 const NATIVE = 120;            // пикселей 2D-рисунка на единицу мира
 const HERO_H = 1.6, SLIDE_H = 0.6;
 const DYN = 1.3;
+// шаги обучения: что сделать и на чём
+export const TUTORIAL = [
+  { need: 'lane', type: 'wardrobe', text: 'Свайп ← или → — смени дорожку', gesture: 'lr' },
+  { need: 'jump', type: 'pit', text: 'Свайп ↑ — прыжок через яму', gesture: 'up' },
+  { need: 'slide', type: 'flyer', text: 'Свайп ↓ — подкат под ворону', gesture: 'down' },
+  { need: 'smash', type: 'furniture', text: 'Кнопка «Пинок» — сломай шкаф', gesture: 'kickBtn' },
+  { need: 'dash', type: 'ghost', text: 'Кнопка «Рывок» — сквозь призрака', gesture: 'dashBtn' },
+  { need: 'shoot', type: 'monster', text: 'Тап по экрану — выстрел в тень', gesture: 'tap' },
+];
 export const FLOOR2 = 3.8;      // высота второго этажа (галереи) — на уровне карниза над обоями               // во сколько раз 3D-забег быстрее классики
 
 // Как проходится каждый вид в 3D.
@@ -101,6 +110,9 @@ export class Game3D {
     this.enter = 0; this.deathT = undefined;
     this.wingsT = 0; this.doubleT = 0; this.cloakT = 0; this.charms = this.opts.charms || 0;
     this.base = 0; this.magnetT = 0; this.magnets = []; this.stairs = null; this.nextMagnet = this.dist + 380 + Math.random() * 220;
+    // обучение при первом запуске: по одному препятствию на каждое действие, мир замедляется, пока игрок не сделает нужное
+    this.tut = this.opts.tutorial ? { i: 0, obj: null, done: false, ok: false, wait: 1.2, slow: 1 } : null;
+    if (this.tut) { this.nextSpawn = 1e9; this.nextMagnet = 1e9; }
     this.runT = 0; this.streak = 0; this.mult = 1; this.chase = 0; this.tier = 0; this.coinChain = 0; this.coinChainT = 0;
   }
 
@@ -130,6 +142,7 @@ export class Game3D {
   action(a) {
     if (this.status !== 'running') return;
     const p = this.p, M = this.mods;
+    if (this.tut && !this.tut.done) this.tutAction(a);
     if (a === 'kick') this.lane = Math.max(-1, this.lane - 1);
     else if (a === 'right') this.lane = Math.min(1, this.lane + 1);
     else if (a === 'jump') {
@@ -210,6 +223,46 @@ export class Game3D {
     if (!S) return false;
     if (lane === S.lane && d > S.a - 14 && d < S.b + 3) return true;
     return d > S.c - 5 && d < S.c + 45;   // зона приземления длиннее: бегущие навстречу враги не успевают в неё забежать
+  }
+
+  // ---------- обучение ----------
+  get tutStep() { return this.tut && !this.tut.done ? TUTORIAL[this.tut.i] : null; }
+  tutUpdate(dt) {
+    const T = this.tut, st = TUTORIAL[T.i];
+    if (!st) return;
+    if (T.wait > 0) { T.wait -= dt; T.slow = 1; return; }
+    if (!T.obj) {
+      // препятствие — в дорожке Флита, далеко впереди
+      T.obj = this.add(st.type, this.lane, Z_HERO + 20); T.ok = false;
+      if (st.need === 'shoot') T.obj.hp = 1;
+    }
+    const o = T.obj, tt = (o.z - Z_HERO) / Math.max(1, this.speed);
+    // подбежали близко, а нужного действия ещё нет — почти стоп-кадр, пока игрок не сделает
+    // момент стоп-кадра — тот, когда действие сработает наверняка (прыжок — у самого края ямы)
+    const at = { lane: 0.6, jump: 0.22, slide: 0.3, smash: 0.45, dash: 0.3, shoot: 0.9 }[st.need] ?? 0.5;
+    T.slow = !T.ok && tt < at && !o.dead ? 0.04 : 1;
+    if (o.dead || o.z < Z_HERO - 1.5) {
+      if (T.ok || o.dead) { T.i++; T.obj = null; T.wait = 0.9; if (T.i >= TUTORIAL.length) this.tutFinish(); else this.toast('Отлично!', 0.9); }
+      else this.tutRetry();
+    }
+  }
+  tutAction(a) {
+    const T = this.tut, st = TUTORIAL[T.i];
+    if (!st || !T.obj) return;
+    const ok = st.need === 'lane' ? (a === 'kick' || a === 'right') : a === st.need;
+    if (ok) { T.ok = true; T.slow = 1; }
+  }
+  tutRetry() {
+    const T = this.tut;
+    if (T.obj) { T.obj.dead = 1; this.objs = this.objs.filter(o => o !== T.obj); }
+    T.obj = null; T.wait = 0.8; T.ok = false; this.p.slideT = 0;
+    this.toast('Ещё раз!', 0.9);
+  }
+  tutFinish() {
+    this.tut.done = true; this.tut.slow = 1;
+    this.toast('Готово! Теперь беги — дальше сам', 2.4);
+    this.nextSpawn = this.dist + 40; this.nextMagnet = this.dist + 400;
+    this.opts.onTutorialDone?.();
   }
 
   // ---------- бонусы ----------
@@ -314,6 +367,7 @@ export class Game3D {
   // ---------- обновление ----------
   update(dt) {
     dt = Math.min(dt, 1 / 30);
+    if (this.tut && !this.tut.done) { this.tutUpdate(dt); dt *= this.tut.slow; }
     this.t += dt;
     const p = this.p, M = this.mods, L = this.level;
     let v = this.speed;
@@ -330,7 +384,7 @@ export class Game3D {
     p.run += step;
 
     // спавн
-    if (!this.opts.demo && this.status === 'running' && !this.boss) {
+    if (!this.opts.demo && this.status === 'running' && !this.boss && !(this.tut && !this.tut.done)) {
       while (this.nextSpawn < this.dist + FAR - 8 && this.nextSpawn < this.finish - 25) {
         const extra = this.spawnRow(this.nextSpawn) || 0;
         // ряды идут плотнее: около секунды между ними
@@ -541,6 +595,7 @@ export class Game3D {
 
   hurt() {
     if (this.god) return;   // бессмертие из админ-панели
+    if (this.tut && !this.tut.done) { this.tutRetry(); return; }   // в обучении ошибка не наказывается — повторяем шаг
     const p = this.p;
     if (this.shield > 0) { this.shield--; p.invuln = 1.0; this.toast('Щит принял удар'); sfx.kick(); return; }
     // Тень за спиной: удар во время погони — её когти, минус два сердца. Сердца с артефактов,

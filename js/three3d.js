@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=ec03615';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=ec03615';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=ec03615';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=ec03615';
-import { ENEMY } from './enemies.js?v=ec03615';
-import * as art from './art.js?v=ec03615';
-import { drawRigHero, rigReady } from './rig.js?v=ec03615';
-import { recolor } from './pixels.js?v=ec03615';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=ec03615';
-import { EXITS } from './rooms.js?v=ec03615';
-import { sfx } from './audio.js?v=ec03615';
+import * as THREE from '../vendor/three.module.min.js?v=d54e0c7';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=d54e0c7';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=d54e0c7';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=d54e0c7';
+import { ENEMY } from './enemies.js?v=d54e0c7';
+import * as art from './art.js?v=d54e0c7';
+import { drawRigHero, rigReady } from './rig.js?v=d54e0c7';
+import { recolor } from './pixels.js?v=d54e0c7';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=d54e0c7';
+import { EXITS } from './rooms.js?v=d54e0c7';
+import { sfx } from './audio.js?v=d54e0c7';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -310,18 +310,20 @@ const DRAWN = new Set(['monster', 'hopper', 'brute', 'puppet', 'shielded', 'ghos
 function makeDrawn(type) {
   const d = ENEMY[type], w = d.w || 150;
   const pad = type === 'portrait' || type === 'spider' || type === 'chandelier' ? 200 : 90, top = type === 'spider' || type === 'portrait' || type === 'swoop' || type === 'chandelier' ? 0 : Math.max(0, GROUND_Y - (d.h || 200) - 200);
-  const c = document.createElement('canvas'); c.width = w + pad * 2; c.height = GROUND_Y + 16 - top;
+  // холст в 0,6 размера и перерисовка 15/6 раз в секунду: на телефоне загрузка текстур — самое дорогое
+  const SC = 0.6;
+  const c = document.createElement('canvas'); c.width = Math.ceil((w + pad * 2) * SC); c.height = Math.ceil((GROUND_Y + 16 - top) * SC);
   const x = c.getContext('2d');
-  const g = liveCutout(c, PX);
+  const g = liveCutout(c, PX / SC);
   g.children.forEach(m => { m.position.y += (top === 0 ? 0 : 0) - 16 * PX; });
   const fake = { t: 0, shake: 0, drawPips() {}, puff() {}, hx: 0 };
   let last = -1;
   const draw = (o, t) => {
-    const f = Math.floor(t * (o.z - Z_HERO < 24 ? 30 : 8));   // вблизи — 30 кадров в секунду, вдали реже
+    const f = Math.floor(t * (o.z - Z_HERO < 22 ? 15 : 6));   // вблизи — 15 кадров в секунду, вдали реже
     if (f === last) return;
     last = f;
     x.clearRect(0, 0, c.width, c.height);
-    x.save(); x.translate(pad, -top);
+    x.save(); x.scale(SC, SC); x.translate(pad, -top);
     fake.t = t;
     const oo = { ...o, x: 0, dead: 0, rise: type === 'hands' ? clamp((Z_HERO + 9 - o.z) / 4, 0.05, 1) : o.rise,
       y: type === 'swoop' ? lerp(GROUND_Y - 170, 90, clamp((o.z - Z_HERO - 3) / 14, 0, 1)) : o.y };
@@ -533,6 +535,35 @@ export function portraitCanvas(look, label = 'Ф. ВЕЙН') {
   });
 }
 
+// Слить все меши внутри группы в один меш на каждый материал (позиции и нормали). Для неподвижного декора.
+function mergeStatic(root) {
+  root.updateMatrixWorld(true);
+  const inv = root.matrixWorld.clone().invert(), buckets = new Map(), mtx = new THREE.Matrix4();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const m = o.material;
+    const key = [m.type, m.color?.getHex(), m.opacity, m.transparent, m.depthWrite, m.side, m.emissive?.getHex(), m === OUTLINE].join('|');
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    g.applyMatrix4(mtx.multiplyMatrices(inv, o.matrixWorld));
+    if (!g.attributes.normal) g.computeVertexNormals();
+    if (!buckets.has(key)) buckets.set(key, { m, pos: [], nor: [] });
+    const b = buckets.get(key);
+    b.pos.push(g.attributes.position.array); b.nor.push(g.attributes.normal.array);
+    g.dispose();
+  });
+  const out = new THREE.Group();
+  const cat = (arrs) => { let n = 0; for (const a of arrs) n += a.length; const r = new Float32Array(n); let o = 0; for (const a of arrs) { r.set(a, o); o += a.length; } return r; };
+  for (const b of buckets.values()) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(cat(b.pos), 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(cat(b.nor), 3));
+    const mesh = new THREE.Mesh(g, b.m);
+    if (b.m.transparent) mesh.renderOrder = 1;
+    out.add(mesh);
+  }
+  return out;
+}
+
 const RUN_YAW = 0;   // бежит спиной к игроку
 const RUN_SCALE = 0.62;  // Флит в забеге — небольшой, как в конце смерти
 // камера в забеге высоко: фигуры откидываются к ней (как в Don't Starve), чтобы рисунок не сплющивался
@@ -646,8 +677,13 @@ export class World3D {
   constructor(canvas, images) {
     this.canvas = canvas;
     this.images = images;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const dpr = window.devicePixelRatio || 1;
+    // на плотных экранах (iPhone, большинство Android) сглаживание почти незаметно, а стоит дорого
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 2, powerPreference: 'high-performance' });
+    this.maxPR = Math.min(dpr, 1.5);
+    this.pr = this.maxPR;
+    this.renderer.setPixelRatio(this.pr);
+    this.perf = { acc: 0, n: 0, t: 0 };
     this.scene = new THREE.Scene();
     // туман — пыльный, серо-бурый, а не чёрная дыра в конце коридора
     this.scene.background = new THREE.Color(0x5c5146);
@@ -718,11 +754,13 @@ export class World3D {
     ceil.rotation.x = Math.PI / 2; ceil.position.set(0, CEIL, -LEN / 2 + 16); sc.add(ceil);
     // арки и бра каждые 8 м
     this.arches = [];
-    for (let i = 0; i < 15; i++) {
+    // арок 8 (дальше всё равно туман), их детали слиты — меньше вызовов отрисовки
+    const archAll = new THREE.Group();
+    for (let i = 0; i < 8; i++) {
       const a = new THREE.Group();
       a.add(box(0.28, CEIL, 0.32, 0x241a14, [-WALL + 0.14, CEIL / 2, 0]));
       a.add(box(0.28, CEIL, 0.32, 0x241a14, [WALL - 0.14, CEIL / 2, 0]));
-      a.userData.beam = a.add(box(WALL * 2, 0.34, 0.34, 0x241a14, [0, CEIL - 0.17, 0])) && a.children[a.children.length - 1];
+      const beam = box(WALL * 2, 0.34, 0.34, 0x241a14, [0, CEIL - 0.17, 0]);
       for (const s of [-1, 1]) {
         a.add(box(0.08, 0.3, 0.08, 0x5a4a3a, [s * (WALL - 0.08), 2.05, -1.6], { noOutline: true }));
         a.add(ball(0.07, 0xffd27a, [s * (WALL - 0.12), 2.28, -1.6], { basic: true, noOutline: true }));
@@ -740,9 +778,14 @@ export class World3D {
       }
       const cg = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.1, depthWrite: false }));
       cg.position.set(0, CEIL - 0.5, -4); ch.add(cg);
-      sc.add(a);
-      this.arches.push(a);
+      a.add(beam);
+      if (i === 0) a.remove(ch);   // люстра первой арки всегда за камерой
+      a.position.z = 16 - (i + 1) * 8;
+      archAll.add(a);
     }
+    // все арки едут вместе — сливаем их в один набор мешей и двигаем целиком
+    this.archGroup = mergeStatic(archAll);
+    sc.add(this.archGroup);
     // клубы тумана вдали: медленно плывут и дышат
     const mistTex = canvasTex(makeCanvas(256, 256, (x) => {
       for (let i = 0; i < 16; i++) {
@@ -801,6 +844,19 @@ export class World3D {
     } else this.hero = makeHero(look, weapon);
     this.look = look;
     this.scene.add(this.hero.root);
+  }
+
+  // авто-качество: если кадр долгий — снижаем разрешение, если запас есть — понемногу возвращаем
+  adaptQuality(dt) {
+    const P = this.perf;
+    if (dt <= 0 || dt > 0.25) return;
+    P.acc += dt; P.n++; P.t += dt;
+    if (P.t < 2) return;
+    const avg = P.acc / P.n; P.acc = 0; P.n = 0; P.t = 0;
+    let pr = this.pr;
+    if (avg > 1 / 45 && pr > 0.6) pr = Math.max(0.6, pr - 0.25);
+    else if (avg < 1 / 57 && pr < this.maxPR) pr = Math.min(this.maxPR, pr + 0.125);
+    if (pr !== this.pr) { this.pr = pr; this.renderer.setPixelRatio(pr); this.resize(); }
   }
 
   resize() {
@@ -876,6 +932,7 @@ export class World3D {
 
   frame(dt) {
     this.t += dt; this.modeT += dt;
+    this.adaptQuality(dt);
     this.lastDt = dt;
     const h = this.hero; if (!h) return;
     const t = this.t;
@@ -1003,7 +1060,7 @@ export class World3D {
       m.material.opacity = 0.4 + Math.sin(this.t * 0.5 + u.ph) * 0.15;
     }
     // в забеге камера выше потолка: верхние балки арок закрывали бы вид, их прячем
-    this.arches.forEach((a, i) => { a.position.z = 16 + base - (i + 1) * 8; if (a.userData.beam) a.userData.beam.visible = this.camPos.y < CEIL - 0.5; if (a.userData.ch) a.userData.ch.visible = a.position.z - 4 < this.camPos.z - 4; });
+    this.archGroup.position.z = base;
     for (const p of this.portraits || []) {
       const z = -(p.userData.at - d);
       p.position.set(p.userData.side * (WALL - 0.03), 1.9, z);

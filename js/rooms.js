@@ -1,8 +1,8 @@
 // Поместье «Паноптикум»: 1000 комнат в 10 актах по 100, внутри актов — локации. Сценарий — SCENARIO.md.
 // Здесь же сюжетные карточки между комнатами.
 
-import { DIFFICULTY, PX_PER_METER } from './config.js?v=ec03615';
-import { ENEMY } from './enemies.js?v=ec03615';
+import { DIFFICULTY, PX_PER_METER } from './config.js?v=d54e0c7';
+import { ENEMY } from './enemies.js?v=d54e0c7';
 
 export const ROOMS_TOTAL = 1000;
 

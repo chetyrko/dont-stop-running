@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=4b26dca';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=4b26dca';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=4b26dca';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=4b26dca';
-import { ENEMY } from './enemies.js?v=4b26dca';
-import * as art from './art.js?v=4b26dca';
-import { drawRigHero, rigReady } from './rig.js?v=4b26dca';
-import { recolor } from './pixels.js?v=4b26dca';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=4b26dca';
-import { EXITS } from './rooms.js?v=4b26dca';
-import { sfx } from './audio.js?v=4b26dca';
+import * as THREE from '../vendor/three.module.min.js?v=0054750';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=0054750';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=0054750';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=0054750';
+import { ENEMY } from './enemies.js?v=0054750';
+import * as art from './art.js?v=0054750';
+import { drawRigHero, rigReady } from './rig.js?v=0054750';
+import { recolor } from './pixels.js?v=0054750';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=0054750';
+import { EXITS } from './rooms.js?v=0054750';
+import { sfx } from './audio.js?v=0054750';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -574,6 +574,27 @@ function makePickup(kind) {
   const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), new THREE.MeshBasicMaterial({ color: glowC, transparent: true, opacity: 0.22, depthWrite: false }));
   r.add(glow);
   return { g };
+}
+
+// Рука-подсказка: указательный палец, кончик — в точке (x, y). Рисунок свой, чернилами.
+function drawHand(ctx, x, y, s = 1, press = false, down = false) {
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(s * (press ? 0.92 : 1), s * (press ? 0.92 : 1)); ctx.rotate(down ? Math.PI + 0.35 : -0.35);   // down — палец сверху вниз
+  ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = '#16120f'; ctx.fillStyle = '#f3ead8';
+  const shape = (f) => { ctx.beginPath(); f(); ctx.fill(); ctx.stroke(); };
+  // манжета
+  ctx.fillStyle = '#7a2f35'; shape(() => ctx.roundRect(-30, 112, 66, 34, 8)); ctx.fillStyle = '#f3ead8';
+  // ладонь
+  shape(() => ctx.roundRect(-34, 44, 74, 76, 22));
+  // согнутые пальцы
+  for (let i = 0; i < 3; i++) shape(() => ctx.roundRect(4 + i * 0, 40 + i * 20, 42, 22, 11));
+  // большой палец
+  shape(() => { ctx.moveTo(-34, 70); ctx.quadraticCurveTo(-58, 58, -50, 38); ctx.quadraticCurveTo(-40, 30, -26, 52); ctx.closePath(); });
+  // указательный палец
+  shape(() => ctx.roundRect(-16, -2, 26, 74, 13));
+  // ноготь
+  ctx.fillStyle = '#e6d6bc'; ctx.lineWidth = 3; shape(() => ctx.roundRect(-10, 3, 14, 16, 6));
+  ctx.restore();
 }
 
 // рука из пола держит подкову-магнит
@@ -1411,21 +1432,44 @@ export class Run3D extends Game3D {
       ctx.fillStyle = 'rgba(14,10,8,0.82)'; ctx.strokeStyle = '#f0d27c'; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.roundRect(W / 2 - w / 2, y - 44, w, 88, 16); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#f0d27c'; ctx.fillText(ts.text, W / 2, y + 2);
-      // палец: движется в сторону свайпа или тапает
-      const ph = (T * 1.4) % 1, cx = W / 2, cy = L.SH * 0.78;
-      let fx = cx, fy = cy, show = true;
-      if (ts.gesture === 'lr') fx = cx + Math.sin(T * 3) * 150;
-      else if (ts.gesture === 'up') fy = cy + 60 - ph * 160;
-      else if (ts.gesture === 'down') fy = cy - 60 + ph * 160;
-      else if (ts.gesture === 'tap') fy = cy - (ph < 0.3 ? 0 : 6);
-      else show = false;   // кнопки подсвечиваются сами
-      if (show) {
-        ctx.globalAlpha = ts.gesture === 'tap' ? 1 : 1 - ph * 0.6;
-        ctx.fillStyle = 'rgba(240,210,124,0.9)'; ctx.strokeStyle = '#16120f'; ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.arc(fx, fy, ts.gesture === 'tap' && ph < 0.3 ? 30 : 24, 0, 7); ctx.fill(); ctx.stroke();
-        if (ts.gesture === 'tap' && ph < 0.3) { ctx.strokeStyle = '#f0d27c'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(fx, fy, 30 + ph * 140, 0, 7); ctx.stroke(); }
-        ctx.globalAlpha = 1;
+      // рука с пальцем показывает каждое действие: свайп — ведёт пальцем по экрану, кнопку — нажимает её, тап — тапает
+      const ph = (T * 0.9) % 1, cx = W / 2, cy = L.SH * 0.76;
+      let x0 = cx, y0 = cy, x1 = cx, y1 = cy, tap = false;
+      if (ts.gesture === 'lr') { const left = Math.floor(T * 0.9) % 2 === 0; x0 = cx + (left ? 110 : -110); x1 = cx + (left ? -110 : 110); }
+      else if (ts.gesture === 'up') { y0 = cy + 90; y1 = cy - 110; }
+      else if (ts.gesture === 'down') { y0 = cy - 110; y1 = cy + 90; }
+      else if (ts.gesture === 'tap') tap = true;
+      else if (rect) {
+        // кнопка: её место на экране → координаты сцены
+        const el = document.querySelector(ts.gesture === 'kickBtn' ? '#act-kick' : '#act-dash');
+        const r = el?.getBoundingClientRect();
+        // кнопки лежат поверх холста — рука тянется к кнопке сверху, кончик пальца на её верхнем крае
+        if (r && r.width) { x0 = x1 = (r.left + r.width / 2 - rect.left) * W / rect.width; y0 = y1 = (r.top + 6 - rect.top) * L.SH / rect.height; tap = true; var fromTop = true; }
       }
+      // ведение: 0–0,15 — палец опускается, 0,15–0,65 — ведёт, дальше — отпускает и пропадает
+      const mv = tap ? 0 : Math.min(1, Math.max(0, (ph - 0.15) / 0.5));
+      const ease2 = mv * mv * (3 - 2 * mv);
+      const fx = x0 + (x1 - x0) * ease2, fy = y0 + (y1 - y0) * ease2;
+      const down = tap ? (ph > 0.25 && ph < 0.5) : (ph > 0.12 && ph < 0.7);
+      const alpha = tap ? 1 : ph < 0.8 ? 1 : (1 - ph) / 0.2;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      if (!tap && mv > 0) {
+        // след пальца со стрелкой
+        ctx.strokeStyle = 'rgba(240,210,124,0.85)'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(fx, fy); ctx.stroke();
+        const ang = Math.atan2(y1 - y0, x1 - x0);
+        ctx.fillStyle = 'rgba(240,210,124,0.85)';
+        ctx.beginPath(); ctx.moveTo(fx + Math.cos(ang) * 30, fy + Math.sin(ang) * 30);
+        ctx.lineTo(fx + Math.cos(ang + 2.4) * 26, fy + Math.sin(ang + 2.4) * 26); ctx.lineTo(fx + Math.cos(ang - 2.4) * 26, fy + Math.sin(ang - 2.4) * 26); ctx.fill();
+      }
+      if (down) {   // круги от касания
+        const k = tap ? (ph - 0.25) / 0.25 : 0.4;
+        ctx.strokeStyle = 'rgba(240,210,124,0.9)'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(fx, fy, 20 + k * 50, 0, 7); ctx.stroke();
+      }
+      drawHand(ctx, fx, fy, 1.05, down, typeof fromTop !== 'undefined' && fromTop);
+      ctx.restore();
     }
     this.toasts.forEach((tt) => {
       ctx.globalAlpha = Math.min(1, tt.life * 3, (tt.max - tt.life) * 6);

@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=7e3653f';
-import * as art from './art.js?v=7e3653f';
-import { sfx } from './audio.js?v=7e3653f';
-import { computeMods } from './artifacts.js?v=7e3653f';
-import { applyCharacter, applyUpgrades } from './characters.js?v=7e3653f';
-import { enemyWeights } from './rooms.js?v=7e3653f';
-import { ENEMY } from './enemies.js?v=7e3653f';
-import { demonReady, drawDemon } from './demon.js?v=7e3653f';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=5ba52a2';
+import * as art from './art.js?v=5ba52a2';
+import { sfx } from './audio.js?v=5ba52a2';
+import { computeMods } from './artifacts.js?v=5ba52a2';
+import { applyCharacter, applyUpgrades } from './characters.js?v=5ba52a2';
+import { enemyWeights } from './rooms.js?v=5ba52a2';
+import { ENEMY } from './enemies.js?v=5ba52a2';
+import { demonReady, drawDemon } from './demon.js?v=5ba52a2';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -607,18 +607,17 @@ export class Game3D {
     if (this.tut && !this.tut.done) { this.tutRetry(); return; }   // в обучении ошибка не наказывается — повторяем шаг
     const p = this.p;
     if (this.shield > 0) { this.shield--; p.invuln = 1.0; this.toast('Щит принял удар'); sfx.kick(); return; }
-    // Тень за спиной: удар во время погони — её когти, минус два сердца. Сердца с артефактов,
-    // щит, свеча и оберег спасают и от неё; поймает она, только когда сердца кончатся.
-    const chasing = this.chase > 0;
-    this.lives = Math.max(0, this.lives - (chasing ? 2 : 1));
+    // каждый удар — ровно одно сердце; Тень только подбирается ближе (см. three3d.js)
+    // и ловит Флита, лишь когда сердец не осталось
+    this.lives = Math.max(0, this.lives - 1);
     this.streak = 0; this.mult = 1;
-    if (this.lives <= 0 && chasing) this.deathKind = 'caught';
-    if (this.lives > 0) { this.chase = 7; this.toast(chasing ? 'Тень зацепила! −2 сердца' : 'Тень за спиной! Удар сейчас — минус два сердца', 1.8); }
+    if (this.lives <= 0) this.deathKind = 'caught';
+    else { this.chase = 3; this.toast(this.lives === 1 ? 'Тень за плечом — последнее сердце!' : 'Тень ближе', 1.6); }
     p.invuln = PLAYER.invulnTime + this.mods.invulnAdd;
     p.hurtT = 0.4; this.shake = 14; this.flashRed = 1;
     sfx.hit();
     if (this.opts.vibration && navigator.vibrate) navigator.vibrate(120);
-    if (this.lives <= 0 && this.revives > 0) { this.revives--; this.lives = 1; p.invuln = 2.5; this.toast('Свеча догорела — ты встал'); return; }
+    if (this.lives <= 0 && this.revives > 0) { this.revives--; this.lives = 1; this.deathKind = undefined; p.invuln = 2.5; this.toast('Свеча догорела — ты встал'); return; }
     if (this.lives <= 0 && this.charms > 0) {
       // оберег из лавки: сгорает и спасает, вокруг расчищается место
       this.charms--; this.opts.onCharm?.(); this.lives = 1; this.chase = 0; this.deathKind = undefined; p.invuln = 3; this.cloakT = Math.max(this.cloakT, 2);

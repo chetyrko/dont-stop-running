@@ -6,9 +6,9 @@
 // анимация гладкая при любой частоте кадров. Длина кости берётся с рисунка,
 // так что кости сами растягиваются и сжимаются, как нарисовал автор.
 
-import { HERO_REST } from './rig-data.js?v=7e3653f';
-import { drawHeadwear } from './art.js?v=7e3653f';
-import { recolor } from './pixels.js?v=7e3653f';
+import { HERO_REST } from './rig-data.js?v=5ba52a2';
+import { drawHeadwear } from './art.js?v=5ba52a2';
+import { recolor } from './pixels.js?v=5ba52a2';
 
 const SRC = {
   head: 'assets/hero/head.png',

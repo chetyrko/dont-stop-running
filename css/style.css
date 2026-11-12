@@ -323,3 +323,6 @@ body.v3d #story { background: #050404; }
 .snd { display: flex; gap: 14px; align-items: center; }
 .snd .tgl { flex: 0 0 210px; }
 .snd input[type=range] { flex: 1; height: 44px; accent-color: #d6a93c; touch-action: pan-x; }
+
+/* подсказка над обликами — во всю ширину, а не вместо карточки */
+#skin-list > .records { grid-column: 1 / -1; text-align: center; }

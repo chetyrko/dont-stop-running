@@ -1,27 +1,27 @@
 // Точка входа: раскладка экрана, меню, поместье, артефакты, лавка, комиксы, игровой цикл.
 
-import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=9732510';
-import { Game } from './game.js?v=9732510';
-import { Game3D } from './game3d.js?v=9732510';
-import { World3D, Run3D } from './three3d.js?v=9732510';
-import { setupInput } from './input.js?v=9732510';
-import { sfx, unlockAudio, setSoundEnabled, setSfxVolume, setMusic } from './audio.js?v=9732510';
-import { getSave, save, resetSave } from './storage.js?v=9732510';
-import { drawHero, makeRng, drawPit } from './art.js?v=9732510';
-import { drawTrapdoor } from './enemies.js?v=9732510';
-import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=9732510';
-import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=9732510';
-import { loadDemon } from './demon.js?v=9732510';
-import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=9732510';
-import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=9732510';
-import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=9732510';
-import { ComicPlayer, COMICS } from './comic.js?v=9732510';
-import { MINIGAMES } from './minigames.js?v=9732510';
-import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=9732510';
-import { recolor } from './pixels.js?v=9732510';
-import { ENEMY } from './enemies.js?v=9732510';
-import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=9732510';
-import { GROUND_Y } from './config.js?v=9732510';
+import { SKINS, CUSTOM_ART, SCREEN_W, DIFFICULTY, DIFF_ORDER, ECONOMY } from './config.js?v=169a227';
+import { Game } from './game.js?v=169a227';
+import { Game3D } from './game3d.js?v=169a227';
+import { World3D, Run3D } from './three3d.js?v=169a227';
+import { setupInput } from './input.js?v=169a227';
+import { sfx, unlockAudio, setSoundEnabled, setSfxVolume, setMusic } from './audio.js?v=169a227';
+import { getSave, save, resetSave } from './storage.js?v=169a227';
+import { drawHero, makeRng, drawPit } from './art.js?v=169a227';
+import { drawTrapdoor } from './enemies.js?v=169a227';
+import { computeLayout, createFrame, windowPath, Hud } from './hud.js?v=169a227';
+import { loadHeroRig, rigReady, drawRigHero } from './rig.js?v=169a227';
+import { loadDemon } from './demon.js?v=169a227';
+import { ACTS, ROOMS_TOTAL, roomLevel, endlessLevel, demoLevel, storyAfter, EXITS } from './rooms.js?v=169a227';
+import { UPGRADES, UPGRADE_PRICES } from './characters.js?v=169a227';
+import { ARTIFACTS, BY_ID, slotCount, rollArtifact, shopOffers, drawArtifactIcon, computeMods } from './artifacts.js?v=169a227';
+import { ComicPlayer, COMICS } from './comic.js?v=169a227';
+import { MINIGAMES } from './minigames.js?v=169a227';
+import { CHARACTERS, CHAR_BY_ID } from './characters.js?v=169a227';
+import { recolor } from './pixels.js?v=169a227';
+import { ENEMY } from './enemies.js?v=169a227';
+import { BEAST_TEXT, knowledge, KNOW_DESC, KNOW_SECRET } from './bestiary.js?v=169a227';
+import { GROUND_Y } from './config.js?v=169a227';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -727,7 +727,7 @@ function renderChars() {
 
 function renderSkins() {
   const list = $('#skin-list');
-  list.innerHTML = currentChar().id === 'flit' ? '' : '<div class="records">Облики — наряды Флита Вейна. Выбери его в «Персонажах», чтобы переодеть.</div>';
+  list.innerHTML = currentChar().id === 'flit' ? '' : `<div class="records">Облики — наряды Флита Вейна. Сейчас выбран ${currentChar().name}: выбери Флита в «Персонажах», чтобы переодеть.</div>`;
   for (const s of SKINS) {
     const owned = S.ownedSkins.includes(s.id);
     const equipped = S.skin === s.id;
@@ -844,7 +844,7 @@ function applySound() {
 }
 applySound();
 $('#set-tutorial').onclick = () => { sfx.click(); S.tutorialDone = false; save(); startDemo(); show('menu'); setTimeout(() => toLobby(), 200); };
-$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=9732510').then(m => m.openAdmin()); };
+$('#set-admin').onclick = () => { sfx.click(); try { localStorage.setItem('dsr-admin', '1'); } catch (e) { /* нет хранилища */ } import('./admin.js?v=169a227').then(m => m.openAdmin()); };
 $('#set-vibration').onclick = () => toggleSetting('vibration');
 $('#set-paper').onclick = () => toggleSetting('paper');
 applyEndless();
@@ -1015,7 +1015,7 @@ window.__dsr = {
 };
 
 // админ-панель: адрес с ?admin или 7 быстрых тапов по заголовку
-import('./admin.js?v=9732510').then((m) => {
+import('./admin.js?v=169a227').then((m) => {
   m.armAdminGesture();
   let on = new URLSearchParams(location.search).has('admin');
   try { on ||= localStorage.getItem('dsr-admin') === '1'; } catch (e) { /* нет хранилища */ }

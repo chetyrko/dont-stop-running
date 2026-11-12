@@ -20,6 +20,19 @@ export function setMusic(on, vol) { musicOn = !!on; if (vol !== undefined) music
 // мобильные браузеры разрешают звук только после касания — тогда и запускаем
 export function startMusic() { musicWanted = true; applyMusic(); }
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', applyMusic);
+// музыка с первого касания в любом месте (меню, комикс, лавка). iOS Safari пускает звук только
+// из «настоящего» жеста — click/touchend, а не pointerdown, — поэтому слушаем всё, пока не заиграет.
+if (typeof document !== 'undefined') {
+  const kick = () => {
+    musicWanted = true;
+    if (enabled) ctx();
+    if (!music || !musicOn || musicVol <= 0) return;
+    const p = music.play();
+    p?.then?.(() => { for (const ev of EVENTS) document.removeEventListener(ev, kick, true); }).catch?.(() => { /* попробуем при следующем касании */ });
+  };
+  const EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+  for (const ev of EVENTS) document.addEventListener(ev, kick, true);
+}
 
 function ctx() {
   if (!ac) {

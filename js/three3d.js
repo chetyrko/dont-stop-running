@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=0054750';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=0054750';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=0054750';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=0054750';
-import { ENEMY } from './enemies.js?v=0054750';
-import * as art from './art.js?v=0054750';
-import { drawRigHero, rigReady } from './rig.js?v=0054750';
-import { recolor } from './pixels.js?v=0054750';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=0054750';
-import { EXITS } from './rooms.js?v=0054750';
-import { sfx } from './audio.js?v=0054750';
+import * as THREE from '../vendor/three.module.min.js?v=7e89b72';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=7e89b72';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=7e89b72';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=7e89b72';
+import { ENEMY } from './enemies.js?v=7e89b72';
+import * as art from './art.js?v=7e89b72';
+import { drawRigHero, rigReady } from './rig.js?v=7e89b72';
+import { recolor } from './pixels.js?v=7e89b72';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=7e89b72';
+import { EXITS } from './rooms.js?v=7e89b72';
+import { sfx } from './audio.js?v=7e89b72';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -812,7 +812,7 @@ export class World3D {
 
   setMode(mode) {
     this.mode = mode; this.modeT = 0;
-    if (mode !== 'run') { this.clearRun(); this.dist = 0; this.setTint(null); }
+    if (mode !== 'run') { this.clearRun(); this.dist = 0; this.setTint(null); this.scene.fog.near = 10; this.scene.fog.far = 50; }
   }
 
   // герой уходит из меню в глубину коридора
@@ -826,6 +826,9 @@ export class World3D {
     this.mode = 'run'; this.modeT = 0;
     this.game = game;
     this.setTint(game.level.palette?.wallTint);
+    // артефакт тумана: даль закрыта сильнее — туман подходит ближе (до −60% дальности)
+    const fg = game.mods?.fog || 0;
+    this.scene.fog.near = 10 * (1 - fg * 0.6); this.scene.fog.far = 50 * (1 - fg * 0.6);
     // старые портреты Флита на стенах (из прошлых смертей)
     this.portraits = [];
     const dr = game.opts.deathRooms || [];
@@ -1483,7 +1486,7 @@ export class Run3D extends Game3D {
       g.addColorStop(0, 'rgba(90,0,0,0)'); g.addColorStop(1, `rgba(90,0,0,${a})`);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, L.SH);
     }
-    if (this.mods.fog) { ctx.fillStyle = `rgba(20,16,16,${this.mods.fog * 0.6})`; ctx.fillRect(0, 0, W, L.SH * 0.45); }
+    // проклятый туман (артефакт «фонарь»/«вуаль») — не тёмный прямоугольник поверх экрана, а настоящий туман ближе (см. startRun)
     ctx.restore();
   }
 }

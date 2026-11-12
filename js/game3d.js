@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=0054750';
-import * as art from './art.js?v=0054750';
-import { sfx } from './audio.js?v=0054750';
-import { computeMods } from './artifacts.js?v=0054750';
-import { applyCharacter, applyUpgrades } from './characters.js?v=0054750';
-import { enemyWeights } from './rooms.js?v=0054750';
-import { ENEMY } from './enemies.js?v=0054750';
-import { demonReady, drawDemon } from './demon.js?v=0054750';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=7e89b72';
+import * as art from './art.js?v=7e89b72';
+import { sfx } from './audio.js?v=7e89b72';
+import { computeMods } from './artifacts.js?v=7e89b72';
+import { applyCharacter, applyUpgrades } from './characters.js?v=7e89b72';
+import { enemyWeights } from './rooms.js?v=7e89b72';
+import { ENEMY } from './enemies.js?v=7e89b72';
+import { demonReady, drawDemon } from './demon.js?v=7e89b72';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;

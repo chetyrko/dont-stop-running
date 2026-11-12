@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=1185ae9';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=1185ae9';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=1185ae9';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=1185ae9';
-import { ENEMY } from './enemies.js?v=1185ae9';
-import * as art from './art.js?v=1185ae9';
-import { drawRigHero, rigReady } from './rig.js?v=1185ae9';
-import { recolor } from './pixels.js?v=1185ae9';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=1185ae9';
-import { EXITS } from './rooms.js?v=1185ae9';
-import { sfx } from './audio.js?v=1185ae9';
+import * as THREE from '../vendor/three.module.min.js?v=109ac4e';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=109ac4e';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=109ac4e';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=109ac4e';
+import { ENEMY } from './enemies.js?v=109ac4e';
+import * as art from './art.js?v=109ac4e';
+import { drawRigHero, rigReady } from './rig.js?v=109ac4e';
+import { recolor } from './pixels.js?v=109ac4e';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=109ac4e';
+import { EXITS } from './rooms.js?v=109ac4e';
+import { sfx } from './audio.js?v=109ac4e';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -876,6 +876,7 @@ export class World3D {
 
   frame(dt) {
     this.t += dt; this.modeT += dt;
+    this.lastDt = dt;
     const h = this.hero; if (!h) return;
     const t = this.t;
     let camPos, camLook;
@@ -1292,15 +1293,24 @@ export class World3D {
     }
     this.syncGallery(g, t);
     // тень-преследователь: после удара бежит за спиной Флита
-    if (g.chase > 0 && g.status === 'running') {
-      const k = Math.min(1, (7 - g.chase) / 0.6) * Math.min(1, g.chase / 0.8);
-      const side = g.hx > 0.3 ? -1 : 1;   // сбоку и сзади, чтобы не закрывать Флита
-      put('chaser', () => makeDrawn('monster'), g.hx * LANE + side * 1.25 + Math.sin(t * 3) * 0.12, 0, lerp(5, 1.4, k), (v) => {
-        v.anim({ id: 7, flash: 0, w: 160, h: 300, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 }, t * 1.6);
-        v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * 0.5, Math.PI * 0, 0);
-        v.g.scale.setScalar(0.6);
+    // Тень за спиной: появляется после первого потерянного сердца и держится на расстоянии,
+    // которое зависит от сердец — чем их меньше, тем ближе; на последнем сердце дышит в затылок.
+    // Сразу после удара (погоня) подскакивает ещё ближе, потом немного отстаёт.
+    const lost = g.lives < g.maxLives;
+    if ((lost || g.chase > 0) && g.status === 'running' && !(g.tut && !g.tut.done)) {
+      const hp = g.maxLives > 1 ? (g.lives - 1) / (g.maxLives - 1) : 0;
+      let want = 1.2 + 2.6 * hp;                                  // 1 сердце — 1,2 м (за плечом), почти полные — 3,8 м (у края экрана)
+      if (g.chase > 0) want -= 0.9 * Math.min(1, g.chase / 2);   // рывок к Флиту после удара
+      if (g.cloakT > 0) want += 3;                               // саван — Тень теряет его
+      this.chaseZ = this.chaseZ === undefined ? 9 : lerp(this.chaseZ, Math.max(0.9, want), Math.min(1, (this.lastDt || 1 / 60) * 2.5));
+      const near = clamp((3 - this.chaseZ) / 2, 0, 1);
+      const side = g.hx > 0.3 ? -1 : 1;
+      put('chaser', () => makeDrawn('monster'), g.hx * LANE + side * lerp(1.25, 0.75, near) + Math.sin(t * 3) * 0.12, 0, this.chaseZ, (v) => {
+        v.anim({ id: 7, flash: 0, w: 160, h: 300, hp: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150, z: 99 }, t * (1.6 + near));
+        v.g.rotation.set(lean(this.camPos, 0, 1, v.g.position.z) * 0.5, 0, 0);
+        v.g.scale.setScalar(lerp(0.6, 0.72, near));
       });
-    }
+    } else this.chaseZ = undefined;
     // хранитель в глубине
     if (g.boss && g.boss.dead < 1) {
       const B = g.boss;

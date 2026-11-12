@@ -4,12 +4,12 @@
 //  • «пятнашки» — редкая комната, собрать картину из 8 кусочков.
 // У каждой игры: drawWorld (в окне рамки, если useFrame), drawUI (поверх), tap(x, y), swipe(x, y, dir).
 
-import { W, H, GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=1185ae9';
-import { drawArtifactIcon } from './artifacts.js?v=1185ae9';
-import { drawFinish, drawChandelier } from './art.js?v=1185ae9';
-import { drawRigHero, rigReady } from './rig.js?v=1185ae9';
-import { drawDemon, demonReady } from './demon.js?v=1185ae9';
-import { sfx } from './audio.js?v=1185ae9';
+import { W, H, GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=109ac4e';
+import { drawArtifactIcon } from './artifacts.js?v=109ac4e';
+import { drawFinish, drawChandelier } from './art.js?v=109ac4e';
+import { drawRigHero, rigReady } from './rig.js?v=109ac4e';
+import { drawDemon, demonReady } from './demon.js?v=109ac4e';
+import { sfx } from './audio.js?v=109ac4e';
 
 function seeded(seed) {
   let s = (seed * 2654435761) >>> 0 || 1;

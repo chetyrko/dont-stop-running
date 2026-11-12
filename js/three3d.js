@@ -6,17 +6,17 @@
 // Режимы сцены: title — герой во весь экран, опёрся на меню; lobby — разминается слева,
 // «СТАРТ» по центру; run — забег, камера сзади.
 
-import * as THREE from '../vendor/three.module.min.js?v=627895a';
-import { cutoutMesh, liveCutout } from './cutout3d.js?v=627895a';
-import { Hero3D, toon, mesh as inked } from './hero3d.js?v=627895a';
-import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=627895a';
-import { ENEMY } from './enemies.js?v=627895a';
-import * as art from './art.js?v=627895a';
-import { drawRigHero, rigReady } from './rig.js?v=627895a';
-import { recolor } from './pixels.js?v=627895a';
-import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=627895a';
-import { EXITS } from './rooms.js?v=627895a';
-import { sfx } from './audio.js?v=627895a';
+import * as THREE from '../vendor/three.module.min.js?v=4b26dca';
+import { cutoutMesh, liveCutout } from './cutout3d.js?v=4b26dca';
+import { Hero3D, toon, mesh as inked } from './hero3d.js?v=4b26dca';
+import { Game3D, Z_HERO, LANE, KIND, FLAT, HINT, FLOOR2 } from './game3d.js?v=4b26dca';
+import { ENEMY } from './enemies.js?v=4b26dca';
+import * as art from './art.js?v=4b26dca';
+import { drawRigHero, rigReady } from './rig.js?v=4b26dca';
+import { recolor } from './pixels.js?v=4b26dca';
+import { GROUND_Y, FLOOR_TOP, HERO_SCALE } from './config.js?v=4b26dca';
+import { EXITS } from './rooms.js?v=4b26dca';
+import { sfx } from './audio.js?v=4b26dca';
 
 const WALL = 2.6, CEIL = 8.0, LEN = 120;
 const PAPER = 3.8;   // высота обоев (рисунок автора); выше — тёмная верхняя часть стены до высокого потолка
@@ -309,7 +309,7 @@ const DRAWN = new Set(['monster', 'hopper', 'brute', 'puppet', 'shielded', 'ghos
   'portrait', 'rats', 'hands', 'chandelier', 'skullroll', 'spikes', 'candelabrum']);
 function makeDrawn(type) {
   const d = ENEMY[type], w = d.w || 150;
-  const pad = type === 'portrait' || type === 'spider' || type === 'chandelier' ? 200 : 90, top = type === 'spider' || type === 'portrait' || type === 'swoop' ? 0 : Math.max(0, GROUND_Y - (d.h || 200) - 200);
+  const pad = type === 'portrait' || type === 'spider' || type === 'chandelier' ? 200 : 90, top = type === 'spider' || type === 'portrait' || type === 'swoop' || type === 'chandelier' ? 0 : Math.max(0, GROUND_Y - (d.h || 200) - 200);
   const c = document.createElement('canvas'); c.width = w + pad * 2; c.height = GROUND_Y + 16 - top;
   const x = c.getContext('2d');
   const g = liveCutout(c, PX);

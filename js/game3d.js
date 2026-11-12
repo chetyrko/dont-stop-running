@@ -2,14 +2,14 @@
 // Тот же интерфейс, что у Game (game.js): update, draw, action, status, onEnd, coins, score…
 // Свайп ←/→ — сменить дорожку, ↑ — прыжок, ↓ — подкат, тап — выстрел по своей дорожке.
 
-import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=627895a';
-import * as art from './art.js?v=627895a';
-import { sfx } from './audio.js?v=627895a';
-import { computeMods } from './artifacts.js?v=627895a';
-import { applyCharacter, applyUpgrades } from './characters.js?v=627895a';
-import { enemyWeights } from './rooms.js?v=627895a';
-import { ENEMY } from './enemies.js?v=627895a';
-import { demonReady, drawDemon } from './demon.js?v=627895a';
+import { W, H, GROUND_Y, FLOOR_TOP, PLAYER, SCORE, DIFFICULTY, ECONOMY } from './config.js?v=4b26dca';
+import * as art from './art.js?v=4b26dca';
+import { sfx } from './audio.js?v=4b26dca';
+import { computeMods } from './artifacts.js?v=4b26dca';
+import { applyCharacter, applyUpgrades } from './characters.js?v=4b26dca';
+import { enemyWeights } from './rooms.js?v=4b26dca';
+import { ENEMY } from './enemies.js?v=4b26dca';
+import { demonReady, drawDemon } from './demon.js?v=4b26dca';
 
 // ---- камера ----
 const HORIZON = 140, CAM_H = 2.8, F = 480;
@@ -214,6 +214,7 @@ export class Game3D {
     const d = ENEMY[type];
     const o = { id: this.nextId++, type, kind: KIND[type] || 'block', lane, z, dead: 0, hit: false, hp: d.hp || 0,
       w: d.w || 200, h: d.h || 0, flash: 0, rise: 1, fall: 1, open: 1, hop: 0, y: GROUND_Y - 150 };
+    if (type === 'chandelier') o.fall = 0;   // появляется висящей под потолком
     if (!this.reserved(lane, this.dist + z - Z_HERO)) this.objs.push(o);
     return o;
   }
@@ -439,6 +440,14 @@ export class Game3D {
       if (o.dead) o.dead = Math.min(1, o.dead + dt * 2.5);
       o.flash = Math.max(0, o.flash - dt);
       if (o.type === 'hopper' || o.type === 'puppet') o.hop = Math.abs(Math.sin(this.t * 5 + o.id)) * 80;
+      // люстра: висит под потолком, а когда Флит близко — срывается и падает на пол (тогда через неё прыгают)
+      if (o.type === 'chandelier' && !o.dead) {
+        const was = o.fall;
+        if (o.falling === undefined) { o.falling = false; o.fall = 0; }
+        if (!o.falling && o.z - Z_HERO < this.speed * 1.4 + 3) { o.falling = true; sfx.crow?.(); }
+        if (o.falling && o.fall < 1) o.fall = Math.min(1, o.fall + dt / 0.4);
+        if (was < 1 && o.fall >= 1) { this.shake = Math.max(this.shake, 9); sfx.kick(); }
+      }
       if (o.z < FAR - 15 && !o.dead) this.met.add(o.type);
     }
     for (const c of this.coinsArr) c.z -= step;
